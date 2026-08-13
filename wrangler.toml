@@ -1,4 +1,4 @@
-name = "student-registration-bot"
+name = "smartx-pre-register-bot"
 main = "worker.js"
 compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]
@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "smartx_db"
-database_id = "smartx-d1-db-id"
+database_id = "37a3d95c-449f-41e8-8bfc-7249c99d6f30"
 
 # Note: Environment variables like TELEGRAM_BOT_TOKEN 
 # should be added via 'wrangler secret put TELEGRAM_BOT_TOKEN' 
