@@ -92,13 +92,17 @@ async function generateWithGeminiFallback(params, env) {
 // Multi-language Translations Dictionary (Amharic 'am', Afaan Oromoo 'om', English 'en')
 const i18n = {
   am: {
-    welcome_start: (name) => `ሰላም ${name}! 👋 እንኳን ወደ Smart X Ethiopian (Smart X ET) በደህና መጡ!\n\nእኔ በ HAB IT Solutions የተገነባሁት ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) ተማሪዎች የተዘጋጀው የ AI Assistant እና Quiz Engine ነኝ።\n\nእባክዎን የሚፈልጉትን ቋንቋ ይምረጡ / Please select your language / Maaloo afaan filadhaa:`,
+    welcome_start: (name) => `👋 *ሰላም ${name}! እንኳን ወደ Smart X Ethiopian (Smart X ET) በደህና መጡ!*
+
+ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀ የ AI Study Assistant እና Interactive Quiz Engine።
+
+እባክዎን የሚፈልጉትን ቋንቋ ይምረጡ / Select language:`,
     lang_confirm: `🇪🇹 ቋንቋዎ በአማርኛ ተመርጧል!`,
     main_menu_title: `እንኳን ወደ Smart X ET በደህና መጡ! ከታች ካሉት አማራጮች ይምረጡ፡`,
     menu: [
-      ['⚙️ Settings / መቼቶች', '🤖 Smart X AI Assistant'],
-      ['❓ Daily Quiz / የዛሬው Quiz', '📱 About Smart X ET / ስለ አፑ'],
-      ['📢 Official Channel', '💬 Support & Feedback']
+      ['⚙️ መቼቶች', '🤖 Smart X AI Assistant'],
+      ['❓ የዛሬው Quiz', '📱 ስለ Smart X ET'],
+      ['📢 ኦፊሴላዊ ቻናል', '💬 እገዛና አስተያየት']
     ],
     settings_title: `⚙️ *Smart X ET - የመቼቶች ገጽ (Settings)*\n\nእባክዎን ማድረግ የሚፈልጉትን ይምረጡ፡`,
     btn_change_lang: `🌐 ቋንቋ ቀይር (Change Language)`,
@@ -127,13 +131,17 @@ STRICT MANDATORY RULES:
   },
 
   om: {
-    welcome_start: (name) => `Akkam ${name}! 👋 Baga gara Smart X Ethiopian (Smart X ET) nagaan dhuftan!\n\nAni AI Assistant fi Quiz Engine sirna barnoota Itoophiyaa (Grade 9-12) HAB IT Solutions tiin qophaa'eedha.\n\nMaaloo afaan filadhaa / Please select your language / እባክዎን ቋንቋ ይምረጡ:`,
+    welcome_start: (name) => `👋 *Akkam ${name}! Baga gara Smart X Ethiopian (Smart X ET) nagaan dhuftan!*
+
+Gargaaraa AI fi Quiz Engine Sirna Barnoota Kutaalee 9-12 Itoophiyaa.
+
+Maaloo afaan filadhaa / Select language:`,
     lang_confirm: `🌳 Afaan keessan Afaan Oromootiin filatameera!`,
     main_menu_title: `Baga gara Smart X ET nagaan dhuftan! Filannoowwan armaan gadii irraa filadhaa:`,
     menu: [
-      ['⚙️ Settings / መቼቶች', '🤖 Smart X AI Assistant'],
-      ['❓ Daily Quiz / የዛሬው Quiz', '📱 About Smart X ET / ስለ አፑ'],
-      ['📢 Official Channel', '💬 Support & Feedback']
+      ['⚙️ Qindaa\'inaa', '🤖 Smart X AI Assistant'],
+      ['❓ Quiz Guyyaa', '📱 Waa\'ee Smart X ET'],
+      ['📢 Chanaalii Ufisaa', '💬 Deeggarsa & Yaada']
     ],
     settings_title: `⚙️ *Smart X ET - Fuula Qindaa'inaa (Settings)*\n\nMaaloo isa raawwachuu barbaaddan filadhaa:`,
     btn_change_lang: `🌐 Afaan Jijjiiri (Change Language)`,
@@ -162,12 +170,16 @@ STRICT MANDATORY RULES:
   },
 
   en: {
-    welcome_start: (name) => `Hello ${name}! 👋 Welcome to Smart X Ethiopian (Smart X ET)!\n\nI am the AI Assistant & Quiz Engine for Smart X ET, created by HAB IT Solutions for the New Ethiopian High School Curriculum (Grades 9-12).\n\nPlease select your preferred language / እባክዎን ቋንቋ ይምረጡ / Maaloo afaan filadhaa:`,
+    welcome_start: (name) => `👋 *Hello ${name}! Welcome to Smart X Ethiopian (Smart X ET)!*
+
+AI Study Assistant & Practice Quiz Engine for Grade 9-12 Ethiopian New Curriculum.
+
+Please select your language:`,
     lang_confirm: `🇬🇧 Language selected: English!`,
     main_menu_title: `Welcome to Smart X ET! Please choose an option from the menu below:`,
     menu: [
-      ['⚙️ Settings / መቼቶች', '🤖 Smart X AI Assistant'],
-      ['❓ Daily Quiz / የዛሬው Quiz', '📱 About Smart X ET / ስለ አፑ'],
+      ['⚙️ Settings', '🤖 Smart X AI Assistant'],
+      ['❓ Daily Quiz', '📱 About Smart X ET'],
       ['📢 Official Channel', '💬 Support & Feedback']
     ],
     settings_title: `⚙️ *Smart X ET - Settings Menu*\n\nPlease select an option below:`,
@@ -278,11 +290,42 @@ function getMainMenuKeyboard(lang) {
   return Markup.keyboard(tObj.menu).resize();
 }
 
+// Helper: Check if user is a member of @SmartX_Discussion channel/group
+async function checkDiscussionGroupMember(ctx, userId) {
+  try {
+    const member = await ctx.telegram.getChatMember('@SmartX_Discussion', userId);
+    if (['creator', 'administrator', 'member'].includes(member.status)) {
+      return true;
+    }
+  } catch (err) {
+    console.warn('[Discussion Group Member Check Warning]:', err.message);
+  }
+  return false;
+}
+
+// Helper: Prompt student to join @SmartX_Discussion before using AI Assistant
+async function requireDiscussionGroupJoin(ctx, lang) {
+  const msgText = lang === 'om'
+    ? `📢 *Gargaaraa AI wajjin haasa'uuf maaloo Garee Marii Smart X (SmartX Discussion) makamaa!*\n\nGaaffii AI Assistant gaafachuu keessan dura maaloo garee marii keenyaa (**@SmartX_Discussion**) makamaa.`
+    : lang === 'en'
+    ? `📢 *Please join the Smart X Discussion Group (@SmartX_Discussion) before asking questions to the AI Assistant!*\n\nJoin our official discussion community to unlock unlimited AI Q&A and Grade 9-12 curriculum support.`
+    : `📢 *ከ AI Assistant ጋር ለመወያየት እባክዎን የ Smart X Discussion Group ይቀላቀሉ!*\n\nለጥያቄዎችዎ መልስ ከማግኘትዎ በፊት እባክዎን የውይይት ግሩፓችንን (**@SmartX_Discussion**) ይቀላቀሉ።`;
+
+  return ctx.reply(msgText, {
+    parse_mode: 'Markdown',
+    ...Markup.inlineKeyboard([
+      [Markup.button.url('💬 Join Discussion Group (@SmartX_Discussion)', 'https://t.me/SmartX_Discussion')],
+      [Markup.button.callback('✅ Verify Discussion Membership / አባልነት አረጋግጥ', 'verify_discussion_membership')]
+    ])
+  });
+}
+
 // Helper: Verify if user is an Administrator
 function isAdmin(userId, env) {
   if (!userId) return false;
   const uidStr = String(userId);
-  const configuredAdmins = (env?.ADMIN_IDS || process.env.ADMIN_IDS || '12345678')
+  const secretAdminId = env?.BROADCAST_ADMIN_ID || env?.ADMIN_ID || env?.ADMIN_IDS || process.env.BROADCAST_ADMIN_ID || process.env.ADMIN_ID || process.env.ADMIN_IDS || '12345678';
+  const configuredAdmins = secretAdminId
     .split(',')
     .map(s => s.trim());
 
@@ -796,17 +839,24 @@ export default {
 
     if (url.pathname === '/webhook' && request.method === 'POST') {
       try {
-        // --- /start Handler with First-Time Language Selection ---
+        // --- /start Handler with First-Time Language Selection & Redesigned Beautiful Buttons ---
         bot.start(async (ctx) => {
           const userName = ctx.from?.first_name || 'Student';
           const userId = ctx.from.id;
           const currentLang = await getUserLanguage(userId, env);
 
-          const langKeyboard = Markup.inlineKeyboard([
+          const welcomeKeyboard = Markup.inlineKeyboard([
             [
               Markup.button.callback('🇪🇹 አማርኛ', 'set_lang_am'),
               Markup.button.callback('🌳 Afaan Oromoo', 'set_lang_om'),
               Markup.button.callback('🇬🇧 English', 'set_lang_en')
+            ],
+            [
+              Markup.button.url('💬 Discussion Group', 'https://t.me/SmartX_Discussion'),
+              Markup.button.url('📢 Official Channel', 'https://t.me/SmartXEthiopia')
+            ],
+            [
+              Markup.button.callback('📝 Pre-Register Now', 'start_reg_wizard')
             ]
           ]);
 
@@ -814,7 +864,7 @@ export default {
 
           return ctx.reply(welcomeMsg, {
             parse_mode: 'Markdown',
-            ...langKeyboard
+            ...welcomeKeyboard
           });
         });
 
@@ -1049,19 +1099,50 @@ export default {
           );
         });
 
-        bot.hears(['⚙️ Settings / መቼቶች', '⚙️ መቼቶች (Settings)', '⚙️ Qindaa\'inaa (Settings)', '⚙️ Settings', '⚙️ መቼቶች', 'መቼቶች'], handleSettings);
+        bot.action('verify_discussion_membership', async (ctx) => {
+          const userId = ctx.from.id;
+          const lang = await getUserLanguage(userId, env);
+          const isMember = await checkDiscussionGroupMember(ctx, userId);
+
+          if (!isMember) {
+            await ctx.answerCbQuery('Please join @SmartX_Discussion group first! ❌', { show_alert: true });
+            return requireDiscussionGroupJoin(ctx, lang);
+          }
+
+          await ctx.answerCbQuery('Discussion Group Verified! 🎉');
+          const chatId = ctx.chat.id;
+          userStates[chatId] = { step: 'AI_CHAT_MODE' };
+
+          const successMsg = lang === 'om'
+            ? `🎉 *Gareen Marii Mirkanaa'eera!* Amma gaaffii barnootaa kamiyyuu AI Assistant gaafachuu dandeessu.`
+            : lang === 'en'
+            ? `🎉 *Discussion Group Verified!* You can now ask any Grade 9-12 curriculum question to the Smart X AI Assistant.`
+            : `🎉 *የውይይት ግሩፕ አባልነትዎ ተረጋግጧል!* አሁን ማንኛውንም የ Grade 9-12 ትምህርታዊ ጥያቄ ለ AI Assistant መጠየቅ ይችላሉ።`;
+
+          return ctx.reply(successMsg, {
+            parse_mode: 'Markdown',
+            ...getMainMenuKeyboard(lang)
+          });
+        });
+
+        bot.hears(['⚙️ Settings / መቼቶች', '⚙️ መቼቶች', '⚙️ Qindaa\'inaa', '⚙️ Settings', 'መቼቶች', 'Qindaa\'inaa'], handleSettings);
         bot.command('settings', handleSettings);
 
         const handleAiMode = async (ctx) => {
           const userId = ctx.from.id;
           const chatId = ctx.chat.id;
           const lang = await getUserLanguage(userId, env);
-          userStates[chatId] = { step: 'AI_CHAT_MODE' };
 
+          const isMember = await checkDiscussionGroupMember(ctx, userId);
+          if (!isMember) {
+            return requireDiscussionGroupJoin(ctx, lang);
+          }
+
+          userStates[chatId] = { step: 'AI_CHAT_MODE' };
           return ctx.reply(i18n[lang].ai_intro, { parse_mode: 'Markdown' });
         };
 
-        bot.hears(['🤖 Smart X AI Assistant', 'AI Assistant', 'AI', 'አሲስታንት'], handleAiMode);
+        bot.hears(['🤖 Smart X AI Assistant', 'AI Assistant', 'AI', 'አሲስታንት', 'Gargaaraa AI'], handleAiMode);
         bot.command('ai', handleAiMode);
 
         // --- ROW 2: Interactive Quiz Engine & Practice System ---
@@ -1345,6 +1426,67 @@ export default {
         bot.command('broadcast_status', handleBroadcastStatus);
         bot.command('broadcast_report', handleBroadcastStatus);
 
+        // --- ADMIN USER MANAGEMENT COMMANDS ---
+        bot.command(['delete_user', 'delete_registration', 'delete'], async (ctx) => {
+          const adminId = ctx.from.id;
+          if (!isAdmin(adminId, env)) {
+            return ctx.reply('⛔ Access Denied! Admin authority command only.');
+          }
+
+          const args = ctx.message.text.split(' ').slice(1);
+          const targetId = args[0] ? parseInt(args[0], 10) : null;
+
+          if (!targetId || isNaN(targetId)) {
+            return ctx.reply(
+              '⚠️ *Admin Delete User Command Usage:*\n\n`/delete_user <telegram_id>`\nExample: `/delete_user 123456789`',
+              { parse_mode: 'Markdown' }
+            );
+          }
+
+          let deletedCount = 0;
+          if (env.DB) {
+            try {
+              const res = await env.DB.prepare('DELETE FROM users WHERE telegram_id = ?').bind(targetId).run();
+              deletedCount = res.meta?.changes || 0;
+            } catch (err) {
+              console.error('Delete user error:', err);
+            }
+          }
+
+          delete registeredUsers[targetId];
+          delete userLanguages[targetId];
+
+          return ctx.reply(
+            `🗑️ *Admin Authority Action Completed:*\n\nUser registration data for Telegram ID \`#${targetId}\` has been permanently deleted from Cloudflare D1 database and active session cache!`,
+            { parse_mode: 'Markdown' }
+          );
+        });
+
+        bot.command(['users', 'list_users', 'registered_users'], async (ctx) => {
+          const adminId = ctx.from.id;
+          if (!isAdmin(adminId, env)) return ctx.reply('⛔ Access Denied! Admin authority command only.');
+
+          let totalCount = 0;
+          let userRows = [];
+
+          if (env.DB) {
+            try {
+              const countRes = await env.DB.prepare('SELECT COUNT(*) as total FROM users').first();
+              totalCount = countRes?.total || 0;
+
+              const rowsRes = await env.DB.prepare('SELECT telegram_id, full_name, phone, grade, language FROM users ORDER BY registered_at DESC LIMIT 10').all();
+              userRows = rowsRes?.results || [];
+            } catch (e) {}
+          }
+
+          let userListText = userRows.map((u, i) => `${i + 1}. *${u.full_name}* (\`#${u.telegram_id}\`) - ${u.grade} [${u.phone}]`).join('\n');
+
+          return ctx.reply(
+            `👥 *Total Pre-Registered Users:* ${totalCount}\n\n*Recent Registrations:*\n${userListText || 'No registered users in DB.'}\n\nTo delete a registered user, run:\n\`/delete_user <telegram_id>\``,
+            { parse_mode: 'Markdown' }
+          );
+        });
+
         // --- Catch-all Message Handler ---
         bot.on(['message'], async (ctx) => {
           const chatId = ctx.chat.id;
@@ -1434,7 +1576,12 @@ export default {
             return sendInteractiveQuiz(ctx, quiz, lang);
           }
 
-          // --- AI Assistant Query Handler with Dynamic D1 Knowledge Base & Chat Logging ---
+          // --- AI Assistant Query Handler with Dynamic D1 Knowledge Base & Discussion Group Requirement ---
+          const isGroupMember = await checkDiscussionGroupMember(ctx, userId);
+          if (!isGroupMember) {
+            return requireDiscussionGroupJoin(ctx, lang);
+          }
+
           let aiResponseText = '';
           let usedModelName = 'gemini-3.6-flash';
 
