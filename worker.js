@@ -463,10 +463,17 @@ function extractMessagePayload(msg) {
 
 // Helper: Deliver broadcast payload
 async function sendBroadcastPayloadToUser(bot, targetChatId, payload) {
+  let reply_markup = payload.reply_markup || undefined;
+  if (!reply_markup && payload.button && payload.button.text && payload.button.url) {
+    reply_markup = {
+      inline_keyboard: [[{ text: payload.button.text, url: payload.button.url }]]
+    };
+  }
+
   if (payload.from_chat_id && payload.message_id) {
     try {
       await bot.telegram.copyMessage(targetChatId, payload.from_chat_id, payload.message_id, {
-        reply_markup: payload.reply_markup || undefined
+        reply_markup: reply_markup
       });
       return { ok: true };
     } catch (err) {
@@ -474,10 +481,12 @@ async function sendBroadcastPayloadToUser(bot, targetChatId, payload) {
     }
   }
 
+  const parseMode = payload.parse_mode || 'HTML';
+
   const extra = {
     caption: payload.caption || undefined,
-    parse_mode: 'Markdown',
-    reply_markup: payload.reply_markup || undefined
+    parse_mode: parseMode,
+    reply_markup: reply_markup
   };
 
   if (payload.type === 'photo' && payload.file_id) {
@@ -492,8 +501,8 @@ async function sendBroadcastPayloadToUser(bot, targetChatId, payload) {
     await bot.telegram.sendDocument(targetChatId, payload.file_id, extra);
   } else {
     await bot.telegram.sendMessage(targetChatId, payload.text || payload.caption || '📢 Smart X Ethiopian Announcement', {
-      parse_mode: 'Markdown',
-      reply_markup: payload.reply_markup || undefined
+      parse_mode: parseMode,
+      reply_markup: reply_markup
     });
   }
 
@@ -839,7 +848,7 @@ export default {
 
     if (url.pathname === '/webhook' && request.method === 'POST') {
       try {
-        // --- /start Handler with First-Time Language Selection & Redesigned Beautiful Buttons ---
+        // --- /start Handler with First-Time Language Selection ---
         bot.start(async (ctx) => {
           const userName = ctx.from?.first_name || 'Student';
           const userId = ctx.from.id;
@@ -850,13 +859,6 @@ export default {
               Markup.button.callback('🇪🇹 አማርኛ', 'set_lang_am'),
               Markup.button.callback('🌳 Afaan Oromoo', 'set_lang_om'),
               Markup.button.callback('🇬🇧 English', 'set_lang_en')
-            ],
-            [
-              Markup.button.url('💬 Discussion Group', 'https://t.me/SmartX_Discussion'),
-              Markup.button.url('📢 Official Channel', 'https://t.me/SmartXEthiopia')
-            ],
-            [
-              Markup.button.callback('📝 Pre-Register Now', 'start_reg_wizard')
             ]
           ]);
 
@@ -868,18 +870,23 @@ export default {
           });
         });
 
-        // Language Switch Callback Actions
+        // Language Selection Handler -> Directs to Channel & Discussion Group Join Step
         const handleLangSelection = async (ctx, selectedLang) => {
           const userId = ctx.from.id;
           await setUserLanguage(userId, selectedLang, env);
           await ctx.answerCbQuery(i18n[selectedLang].lang_confirm);
 
-          const mainKeyboard = getMainMenuKeyboard(selectedLang);
+          const channelStepKeyboard = Markup.inlineKeyboard([
+            [Markup.button.url('📢 Official Channel (@SmartXEthiopia)', 'https://t.me/SmartXEthiopia')],
+            [Markup.button.url('💬 Discussion Group (@SmartX_Discussion)', 'https://t.me/SmartX_Discussion')],
+            [Markup.button.callback('➡️ Continue to Pre-Registration / ወደ ቅድመ-ምዝገባ ቀጥል', 'start_reg_wizard')]
+          ]);
+
           return ctx.reply(
-            `${i18n[selectedLang].lang_confirm}\n\n${i18n[selectedLang].main_menu_title}`,
+            i18n[selectedLang].welcome_channel_step,
             {
               parse_mode: 'Markdown',
-              ...mainKeyboard
+              ...channelStepKeyboard
             }
           );
         };
@@ -969,13 +976,56 @@ export default {
           );
         });
 
+        // Complete Registration Helper
+        const completeUserRegistration = async (ctx, userData) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          const lang = await getUserLanguage(userId, env);
+
+          const fullName = userData.fullName || ctx.from?.first_name || 'Student';
+          const phone = userData.phone || 'N/A';
+          const grade = userData.grade || 'Grade 10';
+          const stream = userData.stream || 'Natural Science';
+
+          if (env.DB) {
+            try {
+              await env.DB.prepare(`
+                INSERT INTO users (telegram_id, full_name, phone, grade, stream, language, is_channel_member, is_active, registered_at)
+                VALUES (?, ?, ?, ?, ?, ?, 1, 1, CURRENT_TIMESTAMP)
+                ON CONFLICT(telegram_id) DO UPDATE SET
+                  full_name = excluded.full_name,
+                  phone = excluded.phone,
+                  grade = excluded.grade,
+                  stream = excluded.stream,
+                  language = excluded.language,
+                  is_active = 1
+              `).bind(userId, fullName, phone, grade, stream, lang).run();
+            } catch (err) {
+              console.error('User save error:', err);
+            }
+          }
+
+          registeredUsers[userId] = { telegram_id: userId, fullName, phone, grade, stream, language: lang, is_active: true };
+          if (userStates[chatId]) userStates[chatId].step = null;
+
+          const mainKeyboard = getMainMenuKeyboard(lang);
+
+          return ctx.reply(
+            i18n[lang].reg_success(fullName, phone, grade, stream),
+            {
+              parse_mode: 'Markdown',
+              ...mainKeyboard
+            }
+          );
+        };
+
         bot.on('contact', async (ctx) => {
           const chatId = ctx.chat.id;
           const phone = ctx.message.contact?.phone_number || '';
           const state = userStates[chatId];
-          if (state) {
+          if (state && state.step === 'AWAITING_PHONE') {
             state.data.phone = phone;
-            return showChannelVerifyStep(ctx, state.data);
+            return completeUserRegistration(ctx, state.data);
           }
         });
 
@@ -1257,20 +1307,78 @@ export default {
 
         bot.hears(['💬 Support & Feedback', '💬 አስተያየትና እገዛ', '💬 Deeggarsa & Yaada', 'እገዛ'], handleSupport);
 
+        // --- FAQ HANDLER ---
+        const handleFaq = async (ctx) => {
+          const userId = ctx.from.id;
+          const lang = await getUserLanguage(userId, env);
+
+          const faqTextMap = {
+            am: `❓ *Smart X Ethiopian (Smart X ET) - ተደጋግመው የሚጠየቁ ጥያቄዎች (FAQ)*\n\n` +
+                `1️⃣ *Smart X ET ምንድነው?*\n` +
+                `• ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀ የ AI Study Assistant እና 10,000+ Quizzes የያዘ የሞባይል አፕሊኬሽን ነው።\n\n` +
+                `2️⃣ *አፑ መቼ ይለቀቃል?*\n` +
+                `• አፑ በይፋ **መስከረም 5 / ሴፕቴምበር 2026** ለ Android እና iOS ይለቀቃል።\n\n` +
+                `3️⃣ *የ AI Assistant አገልግሎት እንዴት መጠቀም እችላለሁ?*\n` +
+                `• የ \`🤖 Smart X AI Assistant\` በተንን በመጫን ማንኛውንም የትምህርት ጥያቄ መጠየቅ ይችላሉ።\n\n` +
+                `4️⃣ *የእገዛ እና የውይይት ቻናሎች የት ይገኛሉ?*\n` +
+                `• Telegram Channel: @SmartXEthiopia\n` +
+                `• Discussion Group: @SmartX_Discussion\n` +
+                `• Developer: HAB IT Solutions (smartx.ethiopia.dev@gmail.com)`,
+
+            om: `❓ *Smart X Ethiopian (Smart X ET) - Gaaffiilee Yeroo Baay'ee Gaafataman (FAQ)*\n\n` +
+                `1️⃣ *Smart X ET maali?*\n` +
+                `• Appilikeeshinii AI Study Assistant fi Quizzes 10,000+ Sirna Barnoota Haaraa Itoophiyaa (Grade 9-12) tiif qophaa'eedha.\n\n` +
+                `2️⃣ *Appiin yoom gadhiifama?*\n` +
+                `• Officialy **Fulbaana 5 / September 2026** irratti Android fi iOS tiif gadhiifama.\n\n` +
+                `3️⃣ *Gargaaraa AI akkamitti fayyadamuun danda'ama?*\n` +
+                `• Botoonii \`🤖 Smart X AI Assistant\` cuqaasuun gaaffii barnootaa kamiyyuu gaafachuu dandeessu.\n\n` +
+                `4️⃣ *Chanaalii fi Gareen marii eessa jira?*\n` +
+                `• Telegram Channel: @SmartXEthiopia\n` +
+                `• Discussion Group: @SmartX_Discussion\n` +
+                `• Developer: HAB IT Solutions`,
+
+            en: `❓ *Smart X Ethiopian (Smart X ET) - Frequently Asked Questions (FAQ)*\n\n` +
+                `1️⃣ *What is Smart X ET?*\n` +
+                `• An AI-powered study assistant & interactive quiz application designed for the New Ethiopian High School Curriculum (Grades 9-12).\n\n` +
+                `2️⃣ *When will the app officially release?*\n` +
+                `• The mobile app officially launches on **Meskerem 5 / September 2026** for Android & iOS.\n\n` +
+                `3️⃣ *How do I ask questions to the AI Assistant?*\n` +
+                `• Click the \`🤖 Smart X AI Assistant\` button and type any Grade 9-12 subject question.\n\n` +
+                `4️⃣ *Official Community & Channels:*\n` +
+                `• Channel: @SmartXEthiopia\n` +
+                `• Discussion Group: @SmartX_Discussion\n` +
+                `• Developer: HAB IT Solutions (smartx.ethiopia.dev@gmail.com)`
+          };
+
+          return ctx.reply(faqTextMap[lang] || faqTextMap.am, {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              [Markup.button.url('💬 Discussion Group', 'https://t.me/SmartX_Discussion')],
+              [Markup.button.url('📢 Official Channel', 'https://t.me/SmartXEthiopia')]
+            ])
+          });
+        };
+
+        bot.hears(['❓ FAQ / ጥያቄዎች', '❓ FAQ / Gaaffiilee', '❓ FAQ', 'FAQ', 'ጥያቄዎች', 'Gaaffiilee'], handleFaq);
+        bot.command('faq', handleFaq);
+
         // --- ADMIN BROADCAST SYSTEM ---
         const handleAdminBroadcastCommand = (ctx) => {
           const userId = ctx.from.id;
           const chatId = ctx.chat.id;
 
           if (!isAdmin(userId, env)) {
-            return ctx.reply('⛔ Access Denied! Admin command only.', { parse_mode: 'Markdown' });
+            return ctx.reply('⛔ Access Denied! Admin command only.', { parse_mode: 'HTML' });
           }
 
           userStates[chatId] = { step: 'AWAITING_BROADCAST_CONTENT' };
 
           return ctx.reply(
-            `📢 *Admin Broadcast Creation*\n\nSend or forward the message you want to broadcast to all pre-registered users (Text, Photo, Video, Document, Voice, or with Inline Buttons).\n\nType \`/cancel_broadcast\` to cancel.`,
-            { parse_mode: 'Markdown' }
+            `📢 <b>Admin Broadcast Creation (HTML Mode)</b>\n\n` +
+            `Send or forward the message you want to broadcast to all pre-registered users in D1 Database.\n\n` +
+            `Supports HTML formatting (<b>bold</b>, <i>italic</i>, <code>code</code>, <a href="...">link</a>, and plain text with underscores <code>_</code>).\n\n` +
+            `Type <code>/cancel_broadcast</code> to cancel.`,
+            { parse_mode: 'HTML' }
           );
         };
 
@@ -1506,16 +1614,67 @@ export default {
 
             const payload = extractMessagePayload(msg);
             broadcastDrafts[chatId] = payload;
-            userStates[chatId].step = null;
+            userStates[chatId].step = 'AWAITING_BROADCAST_BUTTON';
 
             return ctx.reply(
-              `🔍 *Broadcast Message Preview:*\n\n• *Type:* ${payload.type.toUpperCase()}\n• *Text/Caption:* ${payload.text || payload.caption || '(None)'}\n\nDo you want to send this broadcast to all pre-registered users in Cloudflare D1?`,
+              `🔗 <b>Add Inline URL Button to Broadcast (Optional)</b>\n\n` +
+              `Would you like to attach an inline URL button to this broadcast message?\n\n` +
+              `<b>Format:</b> <code>Button Text | https://your-link.com</code>\n` +
+              `<b>Example:</b> <code>Join Channel | https://t.me/SmartXEthiopia</code>\n\n` +
+              `Send <code>/skip_button</code> or <code>skip</code> to broadcast without a button.`,
+              { parse_mode: 'HTML' }
+            );
+          }
+
+          // Admin Broadcast Button Input Handler
+          if (userStates[chatId]?.step === 'AWAITING_BROADCAST_BUTTON') {
+            if (!isAdmin(userId, env)) {
+              userStates[chatId].step = null;
+              return ctx.reply('⛔ Admin command only.');
+            }
+
+            userStates[chatId].step = null;
+            const draft = broadcastDrafts[chatId] || {};
+
+            const cleanText = text.trim();
+            if (cleanText.toLowerCase() === 'skip' || cleanText.startsWith('/skip')) {
+              draft.button = null;
+            } else if (cleanText.includes('|')) {
+              const parts = cleanText.split('|');
+              const label = parts[0].trim();
+              let url = parts.slice(1).join('|').trim();
+              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+              }
+              draft.button = { text: label, url };
+            } else {
+              draft.button = null;
+            }
+
+            draft.parse_mode = 'HTML';
+
+            const btnPreview = draft.button ? `• <b>Inline Button:</b> <a href="${draft.button.url}">${draft.button.text}</a>` : `• <b>Inline Button:</b> None`;
+            const contentPreview = draft.text || draft.caption || '(No text content)';
+
+            const previewKeyboard = [];
+            if (draft.button) {
+              previewKeyboard.push([Markup.button.url(draft.button.text, draft.button.url)]);
+            }
+            previewKeyboard.push([
+              Markup.button.callback('🚀 Start Broadcast', 'start_broadcast_confirm'),
+              Markup.button.callback('❌ Cancel Draft', 'cancel_broadcast_draft')
+            ]);
+
+            return ctx.reply(
+              `🔍 <b>Broadcast Message Preview (HTML Mode):</b>\n\n` +
+              `• <b>Type:</b> ${draft.type.toUpperCase()}\n` +
+              `${btnPreview}\n\n` +
+              `<b>Content Preview:</b>\n` +
+              `${contentPreview}\n\n` +
+              `<i>Ready to send to all pre-registered users in Cloudflare D1?</i>`,
               {
-                parse_mode: 'Markdown',
-                ...Markup.inlineKeyboard([
-                  [Markup.button.callback('🚀 Start Broadcast', 'start_broadcast_confirm')],
-                  [Markup.button.callback('❌ Cancel', 'cancel_broadcast_draft')]
-                ])
+                parse_mode: 'HTML',
+                ...Markup.inlineKeyboard(previewKeyboard)
               }
             );
           }
@@ -1552,7 +1711,7 @@ export default {
               }
 
               state.data.phone = text;
-              return showChannelVerifyStep(ctx, state.data);
+              return completeUserRegistration(ctx, state.data);
             }
           }
 
