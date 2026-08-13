@@ -324,7 +324,7 @@ async function requireDiscussionGroupJoin(ctx, lang) {
 function isAdmin(userId, env) {
   if (!userId) return false;
   const uidStr = String(userId);
-  const secretAdminId = env?.BROADCAST_ADMIN_ID || env?.ADMIN_ID || env?.ADMIN_IDS || process.env.BROADCAST_ADMIN_ID || process.env.ADMIN_ID || process.env.ADMIN_IDS || '12345678';
+  const secretAdminId = env?.BROADCAST_ADMIN_ID || process.env.BROADCAST_ADMIN_ID || '12345678';
   const configuredAdmins = secretAdminId
     .split(',')
     .map(s => s.trim());
