@@ -3,6 +3,11 @@ main = "worker.js"
 compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]
 
+[[d1_databases]]
+binding = "DB"
+database_name = "smartx_db"
+database_id = "smartx-d1-db-id"
+
 # Note: Environment variables like TELEGRAM_BOT_TOKEN 
 # should be added via 'wrangler secret put TELEGRAM_BOT_TOKEN' 
 # or in the Cloudflare Dashboard.
