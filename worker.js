@@ -1128,11 +1128,19 @@ export default {
           const botUsername = getBotUsername(ctx, env);
           const groupHandle = await getDynamicConfig(env, 'required_channel', '@SmartX_Discussion');
 
-          // Check for referral deep link payload (e.g., /start ref_12345678)
+          // Check for referral or AI deep link payload (e.g., /start ref_12345678 or /start ai_12345678)
           const startPayload = ctx.startPayload || '';
           let referredBy = null;
+          let isAiIntent = false;
+
           if (startPayload.startsWith('ref_')) {
             const parsedId = parseInt(startPayload.replace('ref_', ''), 10);
+            if (parsedId && parsedId !== userId) {
+              referredBy = parsedId;
+            }
+          } else if (startPayload.startsWith('ai_') || startPayload === 'ai') {
+            isAiIntent = true;
+            const parsedId = parseInt(startPayload.replace('ai_', ''), 10);
             if (parsedId && parsedId !== userId) {
               referredBy = parsedId;
             }
@@ -1658,6 +1666,154 @@ ${isVip ? '✨ <b>እንኳን ደስ አለዎት! 5+ ጓደኞችን በመጋ
 
         bot.hears(['❓ FAQ', 'FAQ', 'ጥያቄዎች'], handleFaq);
         bot.command('faq', handleFaq);
+
+        // --- OPTIMIZED INLINE BOT QUERY HANDLER (Smart X Ethiopian EdTech Platform) ---
+        bot.on('inline_query', async (ctx) => {
+          const query = (ctx.inlineQuery?.query || '').trim().toLowerCase();
+          const userId = ctx.from?.id || 0;
+          const botUsername = getBotUsername(ctx, env);
+          const officialChannel = await getDynamicConfig(env, 'official_channel', '@SmartXEthiopia');
+          const cleanChannel = officialChannel.replace('@', '');
+
+          // Dynamic deep links using bot username and user referral ID
+          const inviteDeepLink = `https://t.me/${botUsername}?start=ref_${userId}`;
+          const aiDeepLink = `https://t.me/${botUsername}?start=ai_${userId}`;
+          const channelUrl = `https://t.me/${cleanChannel}`;
+
+          // Result 1: Universal Pre-Registration & Platform Overview
+          const mainShareText =
+`📚 *Smart X Ethiopian (Smart X ET)* 🇪🇹
+_የ 9ኛ - 12ኛ ክፍል ተማሪዎች የዲጂታል ትምህርት መድረክ_
+
+🎯 *"የዛሬ ጥረትህ፣ የነገ ስኬትህ ነው!"*
+
+🚀 *ዋና ዋና አገልግሎቶች:*
+• 📖 *Short Notes & Summaries* — ምዕራፍ ተኮር ማጠቃለያዎች
+• 📝 *10,000+ Model Exams* — ብሔራዊ እና የሞዴል ፈተናዎች
+• 🤖 *24/7 AI Academic Tutor* — የትምህርት ጥያቄዎችን የሚመልስ
+• ⚡ *Offline Mode* — ያለ ኢንተርኔት ከመስመር ውጭ የሚሰራ
+
+🎁 *የቅድመ-ምዝገባ እድል:* አሁኑኑ ይመዝገቡና የ 100% ነፃ መዳረሻ ያግኙ!`;
+
+          // Result 2: 24/7 AI Academic Tutor
+          const aiTutorText =
+`🤖 *Smart X AI — 24/7 የትምህርት ረዳት* 🇪🇹
+_ለ 9-12ኛ ክፍል አዲሱ የስርዓተ-ትምህርት የተዘጋጀ_
+
+💡 *"ለማንኛውም አስቸጋሪ ጥያቄ ፈጣን እና ግልጽ ማብራሪያ ያግኙ!"*
+
+✨ *ዋና ዋና አገልግሎቶች:*
+• 📐 *Math, Physics & Chemistry* — የደረጃ በደረጃ ስሌት እና ፎርሙላዎች
+• 📖 *Short Notes* — ምዕራፍ ተኮር አጫጭር ማስታወሻዎች
+• 📝 *Model Exams* — የፈተና ጥያቄዎች አፈታት እና ማብራሪያ
+• 🤖 *24/7 AI Tutor* — በማንኛውም ሰዓት ፈጣን መልስ
+
+👇 *ከታች ባለው ሊንክ አሁኑኑ የ AI ረዳቱን ይጠይቁ:*`;
+
+          // Result 3: 10,000+ Model Exams & Quizzes
+          const examPackText =
+`📝 *10,000+ Model Exams & Quizzes — Smart X ET* 🇪🇹
+_ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ ውጤት ለማስመዝገብ_
+
+🔥 *"ብልህ ተማሪ ዛሬ ይዘጋጃል!"*
+
+🌟 *የፈተና ጥቅል ይዘት:*
+• 📊 *10,000+ Quizzes* — በምዕራፍ የተከፋፈሉ ጥያቄዎች
+• 📖 *Short Notes* — አስፈላጊ የትምህርት ማጠቃለያዎች
+• ⏱️ *Model Exams* — በጊዜ የተገደቡ የሞዴል ፈተናዎች
+• 🤖 *24/7 AI Tutor* — ፈጣን ማብራሪያ እና እርዳታ
+
+👇 *በነፃ ለመለማመድ አሁኑኑ ይመዝገቡ:*`;
+
+          const results = [
+            {
+              type: 'article',
+              id: `smartx_main_${userId}`,
+              title: '🇪🇹 Smart X Ethiopian (Grades 9-12)',
+              description: '100% Free VIP Pre-Registration • 10,000+ Quizzes & AI Tutor',
+              thumb_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135755.png',
+              input_message_content: {
+                message_text: mainShareText,
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true
+              },
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '🚀 Pre-Register Now (አሁኑኑ ይመዝገቡ)', url: inviteDeepLink },
+                    { text: '🤖 AI Assistant (የ AI ጥያቄ)', url: aiDeepLink }
+                  ],
+                  [
+                    { text: '📢 Official Channel', url: channelUrl }
+                  ]
+                ]
+              }
+            },
+            {
+              type: 'article',
+              id: `smartx_ai_${userId}`,
+              title: '🤖 Smart X AI — 24/7 Academic Study Assistant',
+              description: 'Ask any academic question from Grade 9-12 curriculum',
+              thumb_url: 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png',
+              input_message_content: {
+                message_text: aiTutorText,
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true
+              },
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '🤖 Ask AI Assistant Now', url: aiDeepLink },
+                    { text: '🚀 Pre-Register Free', url: inviteDeepLink }
+                  ],
+                  [
+                    { text: '📢 Official Channel', url: channelUrl }
+                  ]
+                ]
+              }
+            },
+            {
+              type: 'article',
+              id: `smartx_exams_${userId}`,
+              title: '📝 10,000+ Model Exams & Quizzes',
+              description: 'Chapter-wise practice quizzes & National Model Exams',
+              thumb_url: 'https://cdn-icons-png.flaticon.com/512/2997/2997295.png',
+              input_message_content: {
+                message_text: examPackText,
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true
+              },
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '🚀 Pre-Register Now', url: inviteDeepLink },
+                    { text: '🤖 AI Assistant', url: aiDeepLink }
+                  ],
+                  [
+                    { text: '📢 Official Channel', url: channelUrl }
+                  ]
+                ]
+              }
+            }
+          ];
+
+          // Priority sorting based on search keyword
+          let sortedResults = results;
+          if (query.includes('ai') || query.includes('tutor') || query.includes('ረዳት')) {
+            sortedResults = [results[1], results[0], results[2]];
+          } else if (query.includes('exam') || query.includes('quiz') || query.includes('ፈተና') || query.includes('ጥያቄ')) {
+            sortedResults = [results[2], results[0], results[1]];
+          }
+
+          try {
+            return await ctx.answerInlineQuery(sortedResults, {
+              cache_time: 10,
+              is_personal: true
+            });
+          } catch (err) {
+            console.error('Inline Query Error:', err.message);
+          }
+        });
 
         // --- DEDICATED ADMIN DASHBOARD (`/admin`, `/dashboard`, `/panel`) ---
         const handleAdminDashboard = async (ctx) => {
