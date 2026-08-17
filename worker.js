@@ -1362,6 +1362,71 @@ export default {
         bot.hears(['❓ FAQ / ጥያቄዎች', '❓ FAQ / Gaaffiilee', '❓ FAQ', 'FAQ', 'ጥያቄዎች', 'Gaaffiilee'], handleFaq);
         bot.command('faq', handleFaq);
 
+        // --- INLINE QUERY PROMOTIONAL SHARING HANDLER ---
+        bot.on('inline_query', async (ctx) => {
+          const promoMessage = 
+`🚀 *ለኢትዮጵያ የ 9ኛ - 12ኛ ክፍል ተማሪዎች በሙሉ የተዘጋጀ ታላቅ ዜና!* 🇪🇹
+
+🔥 *Smart X Ethiopian (Smart X ET)* — የትምህርት ጉዞዎን ወደ ላቀ ደረጃ የሚያሸጋግር አዲስ ዘመናዊ መተግበሪያ!
+
+✨ *ሁኔታ:* ⏳ *COMING SOON* | 🎁 *100% በነፃ (100% FREE)*
+
+━━━━━━━━━━━━━━━━━━━━
+📚 *ዋና ዋና አጠቃላይ አገልግሎቶች (Features):*
+━━━━━━━━━━━━━━━━━━━━
+➔ 📖 *Short Notes (Grade 9 - 12):*
+   ╚═ የተቀነባበሩ አጫጭር እና ግልጽ የማጠቃለያ ማስታወሻዎች
+
+➔ 📑 *Model Exams & Worksheets (Grade 9 - 12):*
+   ╚═ ደረጃቸውን የጠበቁ የሞዴል ፈተናዎች እና ዎርክሺቶች
+
+➔ 🎯 *10,000+ Practice Quizzes:*
+   ╚═ እያንዳንዱ ጥያቄ ከዝርዝር ማብራሪያ (Detailed Explanations) ጋር
+
+➔ 🤖 *Smart AI Study Assistant:*
+   ╚═ 24/7 የትምህርት ጥያቄዎችዎን በፍጥነት የሚመልስ የ AI ረዳት
+
+━━━━━━━━━━━━━━━━━━━━
+🌟 *የስኬት አነቃቂ መልእክት (Motivational Quote):*
+━━━━━━━━━━━━━━━━━━━━
+*"የዛሬው ጥረትህና ትጋትህ የነገውን ብሩህ ስኬትህን ይወስነዋል! ህልምህን ለማሳካት ዛሬውኑ ተዘጋጅ!"* 💪✨
+
+⬇️ *ከታች ያሉትን ሊንኮች በመጫን አሁኑኑ ይቀላቀሉ!* ⬇️`;
+
+          const results = [
+            {
+              type: 'article',
+              id: 'smartx_promo_share',
+              title: '📢 Smart X Ethiopian - 100% FREE AI & Study App',
+              description: 'Grade 9-12 Short Notes, Model Exams, 10,000+ Quizzes & Smart AI Assistant',
+              thumb_url: 'https://placehold.co/200x200/0284c7/ffffff.png?text=Smart+X',
+              input_message_content: {
+                message_text: promoMessage,
+                parse_mode: 'Markdown'
+              },
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '🤖 Try AI Assistant ➔', url: 'https://t.me/SmartXEthiopiaBot?start=ai' }
+                  ],
+                  [
+                    { text: '📝 Pre-Register Free ➔', url: 'https://t.me/SmartXEthiopiaBot?start=register' }
+                  ]
+                ]
+              }
+            }
+          ];
+
+          try {
+            return await ctx.answerInlineQuery(results, {
+              cache_time: 0,
+              is_personal: true
+            });
+          } catch (err) {
+            console.error('[Inline Query Error]:', err.message);
+          }
+        });
+
         // --- ADMIN BROADCAST SYSTEM ---
         const handleAdminBroadcastCommand = (ctx) => {
           const userId = ctx.from.id;
