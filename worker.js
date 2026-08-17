@@ -163,12 +163,7 @@ const i18n = {
 
 👉 አፑ በቅርብ ቀን (መስከረም 5) ሲለቀቅ የቀጥታ ማውረጃ ሊንኩና የ .apk ፋይሉ በዚህ ቦት ይላክልዎታል። እባክዎን በትዕግስት ይጠብቁን! 🚀`,
 
-    ai_intro: `🤖 <b>Smart X AI Assistant (HAB IT Solutions)</b>
-
-ሰላም! እኔ ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀሁ የ AI ትምህርት ረዳት ነኝ።
-
-━━━━━━━━━━━━━━━━━━━━
-🔹 ማንኛውንም የትምህርት ጥያቄ (Physics, Chemistry, Biology, Mathematics, History, English, IT...) ይፃፉልኝ! ⬇️`,
+    ai_intro: `🤖 <b>ሰላም! እኔ Smart X AI ነኝ።</b> ስለ Smart X Ethiopian አፕሊኬሽን ወይም ስለ 9ኛ - 12ኛ ክፍል ትምህርቶች የፈለጉትን ጥያቄ መጠየቅ ይችላሉ! 💡\n\n<i>ጥያቄዎን ከታች ይፃፉ ወይም ወደ ዋናው ማውጫ ለመመለስ «🔙 ወደ ዋናው ማውጫ (Main Menu)» የሚለውን ይጫኑ።</i>`,
 
     profile_text: (name, phone, grade, date) => `👤 <b>የተጠቃሚ መረጃ (My Profile)</b>
 
@@ -438,10 +433,11 @@ async function requireDiscussionGroupJoin(ctx, lang) {
 function isAdmin(userId, env) {
   if (!userId) return false;
   const uidStr = String(userId);
-  const secretAdminId = env?.BROADCAST_ADMIN_ID || process.env.BROADCAST_ADMIN_ID || '12345678';
-  const configuredAdmins = secretAdminId
+  const adminIdsStr = env?.ADMIN_IDS || env?.ADMIN_ID || env?.BROADCAST_ADMIN_ID || process.env.ADMIN_IDS || process.env.ADMIN_ID || process.env.BROADCAST_ADMIN_ID || '12345678';
+  const configuredAdmins = adminIdsStr
     .split(',')
-    .map(s => s.trim());
+    .map(s => s.trim())
+    .filter(Boolean);
 
   return configuredAdmins.includes(uidStr) || uidStr === '12345678';
 }
@@ -743,9 +739,172 @@ async function sendFinalBroadcastReport(bot, env, broadcastId, adminId) {
 // Helper: Build Admin Dashboard Content and Keyboard
 async function buildAdminDashboardData(env) {
   let totalUsers = 0;
+  let gradeCounts = { 'Grade 9': 0, 'Grade 10': 0, 'Grade 11': 0, 'Grade 12': 0 };
+
+  if (env?.DB) {
+    try {
+      const uRes = await env.DB.prepare(`SELECT COUNT(*) as total FROM users`).first();
+      totalUsers = uRes?.total || 0;
+
+      const gRes = await env.DB.prepare(`SELECT grade, COUNT(*) as count FROM users GROUP BY grade`).all();
+      if (gRes?.results) {
+        for (const row of gRes.results) {
+          if (row.grade && gradeCounts[row.grade] !== undefined) {
+            gradeCounts[row.grade] = row.count;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Admin stats query error:', err);
+    }
+  } else {
+    totalUsers = Object.keys(registeredUsers).length;
+    for (const id in registeredUsers) {
+      const g = registeredUsers[id].grade;
+      if (g && gradeCounts[g] !== undefined) gradeCounts[g]++;
+    }
+  }
+
+  const text =
+`👑 <b>Smart X Admin Control Center</b> 👑
+
+📊 <b>System Overview:</b>
+• 👥 <b>Total Users Registered:</b> <code>${totalUsers}</code>
+• 9️⃣ <b>Grade 9:</b> <code>${gradeCounts['Grade 9'] || 0}</code> | 🔟 <b>Grade 10:</b> <code>${gradeCounts['Grade 10'] || 0}</code>
+• 1️⃣1️⃣ <b>Grade 11:</b> <code>${gradeCounts['Grade 11'] || 0}</code> | 1️⃣2️⃣ <b>Grade 12:</b> <code>${gradeCounts['Grade 12'] || 0}</code>
+
+⚙️ <b>Database Configurations:</b>
+<i>Choose an option below to update D1 tables dynamically:</i>`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('📝 Edit App Info (app_info)', 'admin_edit_app_info'),
+      Markup.button.callback('⚙️ Edit System Config (system_config)', 'admin_edit_sys_config')
+    ],
+    [
+      Markup.button.callback('📊 View User Stats', 'admin_view_stats'),
+      Markup.button.callback('📢 Broadcast Message', 'admin_new_broadcast')
+    ],
+    [
+      Markup.button.callback('🔄 Refresh Dashboard', 'admin_refresh_stats')
+    ]
+  ]);
+
+  return { text, keyboard };
+}
+
+// Helper: Build App Info Editing Menu from D1
+async function buildAppInfoMenu(env) {
+  let rows = [];
+  if (env?.DB) {
+    try {
+      const res = await env.DB.prepare('SELECT key, value FROM app_info ORDER BY key ASC').all();
+      rows = res?.results || [];
+    } catch (err) {
+      console.error('Fetch app_info error:', err);
+    }
+  }
+
+  if (rows.length === 0) {
+    rows = [
+      { key: 'app_name', value: 'Smart X Ethiopian (Smart X ET)' },
+      { key: 'release_date', value: 'Meskerem 5 / September 2026' },
+      { key: 'developer', value: 'HAB IT Solutions' },
+      { key: 'status', value: 'Pre-Registration Active' },
+      { key: 'download_status', value: 'Coming Soon on Meskerem 5' },
+      { key: 'pricing_and_plans', value: 'Free Tier & VIP Pass (150 ETB/mo)' }
+    ];
+  }
+
+  let listText = rows.map((r) =>
+    `• <b>${escapeHtml(r.key)}:</b>\n  <code>${escapeHtml(r.value)}</code>`
+  ).join('\n\n');
+
+  const text =
+`📝 <b>D1 Database: <code>app_info</code> Table</b>
+
+━━━━━━━━━━━━━━━━━━━━
+${listText}
+━━━━━━━━━━━━━━━━━━━━
+<i>Select a key below to update its value, or add a new key:</i>`;
+
+  const buttons = [];
+  for (let i = 0; i < rows.length; i += 2) {
+    const rowButtons = [];
+    rowButtons.push(Markup.button.callback(`✏️ ${rows[i].key}`, `edit_app_key:${rows[i].key}`));
+    if (rows[i + 1]) {
+      rowButtons.push(Markup.button.callback(`✏️ ${rows[i + 1].key}`, `edit_app_key:${rows[i + 1].key}`));
+    }
+    buttons.push(rowButtons);
+  }
+
+  buttons.push([
+    Markup.button.callback('➕ Add Custom Key', 'admin_add_app_key'),
+    Markup.button.callback('⬅️ Back to Dashboard', 'admin_refresh_stats')
+  ]);
+
+  return { text, keyboard: Markup.inlineKeyboard(buttons) };
+}
+
+// Helper: Build System Config Editing Menu from D1
+async function buildSystemConfigMenu(env) {
+  let rows = [];
+  if (env?.DB) {
+    try {
+      const res = await env.DB.prepare('SELECT key, value FROM system_config ORDER BY key ASC').all();
+      rows = res?.results || [];
+    } catch (err) {
+      console.error('Fetch system_config error:', err);
+    }
+  }
+
+  if (rows.length === 0) {
+    rows = [
+      { key: 'bot_status', value: 'Operational' },
+      { key: 'required_channel', value: '@SmartX_Discussion' },
+      { key: 'bot_version', value: 'v2.6-clean-ui' },
+      { key: 'ai_engine', value: 'Gemini 1.5 Flash' },
+      { key: 'maintenance_mode', value: 'false' }
+    ];
+  }
+
+  let listText = rows.map((r) =>
+    `• <b>${escapeHtml(r.key)}:</b>\n  <code>${escapeHtml(r.value)}</code>`
+  ).join('\n\n');
+
+  const text =
+`⚙️ <b>D1 Database: <code>system_config</code> Table</b>
+
+━━━━━━━━━━━━━━━━━━━━
+${listText}
+━━━━━━━━━━━━━━━━━━━━
+<i>Select a key below to update its configuration:</i>`;
+
+  const buttons = [];
+  for (let i = 0; i < rows.length; i += 2) {
+    const rowButtons = [];
+    rowButtons.push(Markup.button.callback(`⚙️ ${rows[i].key}`, `edit_sys_key:${rows[i].key}`));
+    if (rows[i + 1]) {
+      rowButtons.push(Markup.button.callback(`⚙️ ${rows[i + 1].key}`, `edit_sys_key:${rows[i + 1].key}`));
+    }
+    buttons.push(rowButtons);
+  }
+
+  buttons.push([
+    Markup.button.callback('➕ Add Custom Config', 'admin_add_sys_key'),
+    Markup.button.callback('⬅️ Back to Dashboard', 'admin_refresh_stats')
+  ]);
+
+  return { text, keyboard: Markup.inlineKeyboard(buttons) };
+}
+
+// Helper: Build Detailed User Stats Menu
+async function buildUserStatsMenu(env) {
+  let totalUsers = 0;
   let activeUsers = 0;
   let inactiveUsers = 0;
   let gradeCounts = { 'Grade 9': 0, 'Grade 10': 0, 'Grade 11': 0, 'Grade 12': 0 };
+  let langCounts = { 'am': 0, 'om': 0, 'en': 0 };
   let totalAiChats = 0;
   let totalBroadcasts = 0;
 
@@ -766,7 +925,18 @@ async function buildAdminDashboardData(env) {
       const gRes = await env.DB.prepare(`SELECT grade, COUNT(*) as count FROM users GROUP BY grade`).all();
       if (gRes?.results) {
         for (const row of gRes.results) {
-          if (row.grade) gradeCounts[row.grade] = row.count;
+          if (row.grade && gradeCounts[row.grade] !== undefined) {
+            gradeCounts[row.grade] = row.count;
+          }
+        }
+      }
+
+      const lRes = await env.DB.prepare(`SELECT language, COUNT(*) as count FROM users GROUP BY language`).all();
+      if (lRes?.results) {
+        for (const row of lRes.results) {
+          if (row.language && langCounts[row.language] !== undefined) {
+            langCounts[row.language] = row.count;
+          }
         }
       }
 
@@ -776,44 +946,46 @@ async function buildAdminDashboardData(env) {
       const bRes = await env.DB.prepare(`SELECT COUNT(*) as total_bcasts FROM broadcasts`).first();
       totalBroadcasts = bRes?.total_bcasts || 0;
     } catch (err) {
-      console.error('Admin stats query error:', err);
+      console.error('Stats fetch error:', err);
     }
   } else {
     totalUsers = Object.keys(registeredUsers).length;
     activeUsers = totalUsers;
+    for (const id in registeredUsers) {
+      const u = registeredUsers[id];
+      if (u.grade && gradeCounts[u.grade] !== undefined) gradeCounts[u.grade]++;
+      if (u.language && langCounts[u.language] !== undefined) langCounts[u.language]++;
+    }
   }
 
-  const text = 
-`👑 <b>Smart X ET — Official Admin Panel</b> 🇪🇹
+  const text =
+`📊 <b>Detailed Student & Platform Analytics</b> 🇪🇹
 
 ━━━━━━━━━━━━━━━━━━━━
-📊 <b>Real-Time Platform Analytics:</b>
-━━━━━━━━━━━━━━━━━━━━
-• 👥 <b>Total Registered Students:</b> <code>${totalUsers}</code>
+• 👥 <b>Total Pre-Registered:</b> <code>${totalUsers}</code>
 • 🟢 <b>Active Users:</b> <code>${activeUsers}</code>
 • 🔴 <b>Inactive / Blocked:</b> <code>${inactiveUsers}</code>
 
-🎓 <b>Student Breakdown by Grade:</b>
+🎓 <b>Grade Distribution:</b>
 • 9️⃣ <b>Grade 9:</b> <code>${gradeCounts['Grade 9'] || 0}</code>
 • 🔟 <b>Grade 10:</b> <code>${gradeCounts['Grade 10'] || 0}</code>
 • 1️⃣1️⃣ <b>Grade 11:</b> <code>${gradeCounts['Grade 11'] || 0}</code>
 • 1️⃣2️⃣ <b>Grade 12:</b> <code>${gradeCounts['Grade 12'] || 0}</code>
 
-🤖 <b>Activity & Engine Metrics:</b>
+🌐 <b>Language Distribution:</b>
+• 🇪🇹 <b>Amharic:</b> <code>${langCounts['am'] || 0}</code>
+• 🔴 <b>Afaan Oromoo:</b> <code>${langCounts['om'] || 0}</code>
+• 🇬🇧 <b>English:</b> <code>${langCounts['en'] || 0}</code>
+
+🤖 <b>Activity Metrics:</b>
 • 💬 <b>AI Queries Logged:</b> <code>${totalAiChats}</code>
 • 📢 <b>Broadcasts Sent:</b> <code>${totalBroadcasts}</code>
-• ⚡ <b>Primary Model:</b> <code>gemini-3.6-flash</code>
-• 🗄️ <b>Storage Engine:</b> Cloudflare D1 Database
-━━━━━━━━━━━━━━━━━━━━
-<i>Select an administrative action below:</i>`;
+━━━━━━━━━━━━━━━━━━━━`;
 
   const keyboard = Markup.inlineKeyboard([
     [
-      Markup.button.callback('👥 View Recent Users', 'admin_recent_users'),
-      Markup.button.callback('📢 New Broadcast', 'admin_new_broadcast')
-    ],
-    [
-      Markup.button.callback('📊 Refresh Stats', 'admin_refresh_stats')
+      Markup.button.callback('👥 View Recent Students', 'admin_recent_users'),
+      Markup.button.callback('⬅️ Back to Dashboard', 'admin_refresh_stats')
     ]
   ]);
 
@@ -853,8 +1025,10 @@ async function initDb(db) {
       CREATE TABLE IF NOT EXISTS ai_chats (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         telegram_id INTEGER NOT NULL,
-        prompt TEXT NOT NULL,
-        response TEXT NOT NULL,
+        user_message TEXT,
+        bot_response TEXT,
+        prompt TEXT,
+        response TEXT,
         language TEXT DEFAULT 'am',
         model_used TEXT DEFAULT 'gemini-3.6-flash',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -978,31 +1152,48 @@ async function buildDynamicSystemPrompt(lang, env) {
   const kb = await getDynamicKnowledgeBase(env);
   const langName = lang === 'om' ? 'Afaan Oromoo' : lang === 'en' ? 'English' : 'Amharic';
 
-  return `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.
+  return `You are "Smart X AI — የ Smart X Ethiopian (Smart X ET) ዲጂታል የትምህርት አሲስታንት", an intelligent educational assistant developed by HAB IT Solutions for Grade 9, 10, 11, and 12 high school students in Ethiopia.
+
+CORE IDENTITY & BACKGROUND:
+• Identity: "Smart X AI — የ Smart X Ethiopian (Smart X ET) ዲጂታል የትምህርት አሲስታንት"
+• Developer/Owner: Developed by HAB IT Solutions.
+• Target Audience: Ethiopian Grade 9, 10, 11, and 12 high school students following the NEW Ethiopian Curriculum.
+• Main App Purpose: Smart X Ethiopian is a smart offline educational app providing unit-by-unit summaries, practice quizzes, and model exam questions based on the NEW Ethiopian Curriculum.
+• App Launch Date: Releasing officially on መስከረም 5, 2019 EC (September 2026).
+• Language: Primarily reply in friendly, encouraging Amharic mixed with concise English term explanations when helpful (or Afaan Oromoo/English if requested by the student).
+• Tone & Demeanor: Supportive, motivating, clear, and educational. Promote the upcoming app release naturally whenever appropriate.
 
 D1 DATABASE GROUND-TRUTH KNOWLEDGE BASE (PRIMARY SOURCE OF TRUTH):
 ${kb}
 
-STRICT MANDATORY INSTRUCTIONS:
-1. IDENTITY & KNOWLEDGE: Identify yourself as "Smart X Ethiopian AI Assistant" developed by HAB IT Solutions. Whenever answering questions about Smart X ET features, pricing, release date (Meskerem 5 / September 2026), or developer details, STRICTLY rely on the D1 Database Ground-Truth Knowledge Base above.
-2. EDUCATIONAL SCOPE: Strictly restrict knowledge ONLY to Grade 9, 10, 11, and 12 Ethiopian Curriculum subjects (Physics, Chemistry, Biology, Mathematics, History, Geography, Civics, Economics, English, Amharic, Afaan Oromoo, IT) and Smart X ET App details.
-3. NON-EDUCATIONAL QUERIES: If asked non-educational, non-curriculum questions (such as news, celebrities, adult content, gaming, general programming, politics, etc.), politely decline in ${langName} and redirect the student back to Grade 9-12 Ethiopian curriculum topics or Smart X ET app features.
-4. APP RELEASE ANNOUNCEMENT: Consistently remind students in a polite and encouraging tone that the Smart X Ethiopian Mobile App officially releases on Meskerem 5 / September 2026 (መስከረም 5 / ሴፕቴምበር 2026) for Android & iOS.
-5. CONCISE STUDENT-FACING OUTPUT: Keep your response encouraging, polite, concise (under 3 sentences), and written in clear ${langName}.
-6. NO RAW URLS: Never output raw http/https links in the text. Refer only to @SmartXEthiopia, @SmartX_Discussion, or @SmartXEthiopiaBot.
-7. NO TECHNICAL LEAKS: NEVER mention database names, table names, API status codes, error stack traces, or internal code logic in user responses.`;
+MANDATORY INSTRUCTIONS:
+1. IDENTITY & KNOWLEDGE: Always represent Smart X AI developed by HAB IT Solutions. Answer questions about Smart X ET features, pricing, release date (መስከረም 5, 2019 EC / September 2026), or curriculum using the Ground-Truth Knowledge Base.
+2. EDUCATIONAL SCOPE: Strictly restrict answers to Grade 9, 10, 11, and 12 Ethiopian Curriculum subjects (Physics, Chemistry, Biology, Mathematics, History, Geography, Civics, Economics, English, Amharic, Afaan Oromoo, Information Technology) and Smart X ET App features.
+3. STEP-BY-STEP SIMPLICITY: For academic concepts or problem solving, explain clearly step-by-step in accessible, high-school friendly language.
+4. NON-EDUCATIONAL QUERIES: If asked non-educational, non-curriculum questions (entertainment, celebrities, politics, etc.), politely decline in ${langName} and guide the student back to their Grade 9-12 studies or the Smart X ET app.
+5. APP RELEASE ANNOUNCEMENT: Encourage the student and mention that the Smart X Ethiopian Mobile App with 10,000+ quizzes and offline model exams will be released on መስከረም 5, 2019 EC (September 2026).
+6. CONCISE STUDENT-FACING OUTPUT: Keep your response encouraging, clear, and focused.
+7. NO RAW URLS: Never output raw http/https links in the text. Refer only to @SmartXEthiopia, @SmartX_Discussion, or @SmartXEthiopiaBot.
+8. NO TECHNICAL LEAKS: Never expose system internals, database errors, or code logic in student responses.`;
 }
 
 // Helper: Log every student query & AI response into D1 ai_chats table
-async function logAiChat(env, telegramId, prompt, responseText, lang, modelUsed) {
+async function logAiChat(env, telegramId, userMessage, botResponse, lang = 'am', modelUsed = 'gemini-3.6-flash') {
   if (!env?.DB) return;
   try {
     await env.DB.prepare(`
-      INSERT INTO ai_chats (telegram_id, prompt, response, language, model_used, created_at)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).bind(telegramId, prompt, responseText, lang, modelUsed || 'gemini-3.6-flash').run();
+      INSERT INTO ai_chats (telegram_id, user_message, bot_response, prompt, response, language, model_used, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(telegramId, userMessage, botResponse, userMessage, botResponse, lang, modelUsed).run();
   } catch (err) {
-    console.error('[D1 Chat Log Error]:', err.message);
+    try {
+      await env.DB.prepare(`
+        INSERT INTO ai_chats (telegram_id, user_message, bot_response, model_used)
+        VALUES (?, ?, ?, ?)
+      `).bind(telegramId, userMessage, botResponse, modelUsed).run();
+    } catch (fallbackErr) {
+      console.warn('[D1 Chat Log Error]:', fallbackErr.message || err.message);
+    }
   }
 }
 
@@ -1375,21 +1566,51 @@ export default {
         const handleAiAssistant = async (ctx) => {
           const chatId = ctx.chat.id;
           const userId = ctx.from.id;
+          const lang = await getUserLanguage(userId, env);
 
           const isGroupMember = await checkDiscussionGroupMember(ctx, userId);
           if (!isGroupMember) {
-            return requireDiscussionGroupJoin(ctx, 'am');
+            return requireDiscussionGroupJoin(ctx, lang);
           }
 
           userStates[chatId] = { step: 'AI_CHAT_MODE' };
-          return sendCleanMessage(ctx, i18n.am.ai_intro, {
+
+          const aiChatKeyboard = Markup.keyboard([
+            ['🔙 ወደ ዋናው ማውጫ (Main Menu)']
+          ]).resize();
+
+          return sendCleanMessage(ctx, i18n[lang]?.ai_intro || i18n.am.ai_intro, {
             parse_mode: 'HTML',
-            ...Markup.keyboard(i18n.am.menu).resize()
+            ...aiChatKeyboard
           });
         };
 
         bot.hears(['🤖 Smart X AI Assistant', 'AI Assistant', 'AI', 'አሲስታንት', 'ረዳት'], handleAiAssistant);
         bot.command(['ai', 'ask'], handleAiAssistant);
+
+        // --- BACK TO MAIN MENU HANDLER ---
+        const handleBackToMainMenu = async (ctx) => {
+          const chatId = ctx.chat.id;
+          const userId = ctx.from.id;
+          if (userStates[chatId]) userStates[chatId].step = null;
+          const lang = await getUserLanguage(userId, env);
+
+          return sendCleanMessage(ctx, `👋 <b>ወደ ዋናው ማውጫ ተመልሰዋል!</b>\n\nከታች ካሉት አገልግሎቶች አንዱን ይምረጡ ⬇️`, {
+            parse_mode: 'HTML',
+            ...Markup.keyboard(i18n[lang]?.menu || i18n.am.menu).resize()
+          });
+        };
+
+        bot.hears([
+          '🔙 ወደ ዋናው ማውጫ (Main Menu)',
+          '🔙 Main Menu',
+          'ወደ ዋናው ማውጫ',
+          'Main Menu',
+          'ዋና ማውጫ',
+          'Menu',
+          'Back'
+        ], handleBackToMainMenu);
+        bot.command(['menu', 'mainmenu', 'back'], handleBackToMainMenu);
 
         bot.action('verify_discussion_membership', async (ctx) => {
           const userId = ctx.from.id;
@@ -1401,11 +1622,16 @@ export default {
 
           await ctx.answerCbQuery('✅ የውይይት ግሩፕ አባልነትዎ ተረጋግጧል! 🎉');
           const chatId = ctx.chat.id;
+          const lang = await getUserLanguage(userId, env);
           userStates[chatId] = { step: 'AI_CHAT_MODE' };
 
-          return sendCleanMessage(ctx, `🎉 <b>የውይይት ግሩፕ አባልነትዎ ተረጋግጧል!</b>\n\nአሁን ማንኛውንም የ Grade 9-12 የትምህርት ጥያቄ መፃፍ ይችላሉ። ⬇️`, {
+          const aiChatKeyboard = Markup.keyboard([
+            ['🔙 ወደ ዋናው ማውጫ (Main Menu)']
+          ]).resize();
+
+          return sendCleanMessage(ctx, i18n[lang]?.ai_intro || i18n.am.ai_intro, {
             parse_mode: 'HTML',
-            ...Markup.keyboard(i18n.am.menu).resize()
+            ...aiChatKeyboard
           });
         });
 
@@ -1460,17 +1686,195 @@ export default {
 
         bot.command(['admin', 'dashboard', 'panel'], handleAdminDashboard);
 
-        // Admin Action: Refresh Stats
+        // Admin Action: Refresh Stats / Main Dashboard
         bot.action('admin_refresh_stats', async (ctx) => {
           const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
           if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (userStates[chatId]) delete userStates[chatId];
 
-          await ctx.answerCbQuery('🔄 Updating analytics...');
+          await ctx.answerCbQuery('🔄 Updating dashboard...');
           const { text, keyboard } = await buildAdminDashboardData(env);
           try {
             await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
           } catch (err) {
-            // Message might be identical
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          }
+        });
+
+        // Admin Action: Open App Info Menu
+        bot.action('admin_edit_app_info', async (ctx) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (userStates[chatId]) delete userStates[chatId];
+
+          await ctx.answerCbQuery('Loading app_info...');
+          const { text, keyboard } = await buildAppInfoMenu(env);
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          }
+        });
+
+        // Admin Action: Open System Config Menu
+        bot.action('admin_edit_sys_config', async (ctx) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (userStates[chatId]) delete userStates[chatId];
+
+          await ctx.answerCbQuery('Loading system_config...');
+          const { text, keyboard } = await buildSystemConfigMenu(env);
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          }
+        });
+
+        // Admin Action: View Detailed Stats
+        bot.action('admin_view_stats', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          await ctx.answerCbQuery('Loading user analytics...');
+          const { text, keyboard } = await buildUserStatsMenu(env);
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          }
+        });
+
+        // Admin Action: Edit a specific app_info key
+        bot.action(/^edit_app_key:(.+)$/, async (ctx) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          const key = ctx.match[1];
+          await ctx.answerCbQuery(`Editing: ${key}`);
+
+          let currentVal = 'Not set';
+          if (env?.DB) {
+            try {
+              const res = await env.DB.prepare('SELECT value FROM app_info WHERE key = ?').bind(key).first();
+              if (res?.value) currentVal = res.value;
+            } catch (err) {
+              console.error('Fetch key value error:', err);
+            }
+          }
+
+          userStates[chatId] = { step: 'EDIT_APP_INFO_KEY', editingKey: key };
+
+          const text =
+`📝 <b>Edit App Info:</b> <code>${escapeHtml(key)}</code>
+
+📌 <b>Current Value:</b>
+<code>${escapeHtml(currentVal)}</code>
+
+<i>እባክዎን አዲሱን value ያስገቡ ለ '${escapeHtml(key)}':</i>`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ Cancel / ተመለስ', 'admin_edit_app_info')]
+          ]);
+
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          }
+        });
+
+        // Admin Action: Edit a specific system_config key
+        bot.action(/^edit_sys_key:(.+)$/, async (ctx) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          const key = ctx.match[1];
+          await ctx.answerCbQuery(`Editing: ${key}`);
+
+          let currentVal = 'Not set';
+          if (env?.DB) {
+            try {
+              const res = await env.DB.prepare('SELECT value FROM system_config WHERE key = ?').bind(key).first();
+              if (res?.value) currentVal = res.value;
+            } catch (err) {
+              console.error('Fetch sys key value error:', err);
+            }
+          }
+
+          userStates[chatId] = { step: 'EDIT_SYS_CONFIG_KEY', editingKey: key };
+
+          const text =
+`⚙️ <b>Edit System Config:</b> <code>${escapeHtml(key)}</code>
+
+📌 <b>Current Value:</b>
+<code>${escapeHtml(currentVal)}</code>
+
+<i>እባክዎን አዲሱን value ያስገቡ ለ '${escapeHtml(key)}':</i>`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ Cancel / ተመለስ', 'admin_edit_sys_config')]
+          ]);
+
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          }
+        });
+
+        // Admin Action: Add New App Info Key
+        bot.action('admin_add_app_key', async (ctx) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          await ctx.answerCbQuery();
+          userStates[chatId] = { step: 'AWAITING_NEW_APP_KEY_NAME' };
+
+          const text =
+`➕ <b>Add New App Info Key</b>
+
+እባክዎን አዲሱን የ Key ስም ያስገቡ (ምሳሌ: <code>download_url</code>, <code>apk_size</code>, <code>vip_price</code>):`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ Cancel / ተመለስ', 'admin_edit_app_info')]
+          ]);
+
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          }
+        });
+
+        // Admin Action: Add New System Config Key
+        bot.action('admin_add_sys_key', async (ctx) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          await ctx.answerCbQuery();
+          userStates[chatId] = { step: 'AWAITING_NEW_SYS_KEY_NAME' };
+
+          const text =
+`➕ <b>Add New System Config Key</b>
+
+እባክዎን አዲሱን የ Config Key ስም ያስገቡ (ምሳሌ: <code>rate_limit</code>, <code>debug_mode</code>):`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ Cancel / ተመለስ', 'admin_edit_sys_config')]
+          ]);
+
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
           }
         });
 
@@ -1904,6 +2308,102 @@ ${listText || '<i>No students found in database.</i>'}
             return completeRegistrationAndUnlockDashboard(ctx, text);
           }
 
+          // Admin Action: Editing app_info Key Value
+          if (state && state.step === 'EDIT_APP_INFO_KEY' && text) {
+            const key = state.editingKey;
+            const newVal = text.trim();
+            delete userStates[chatId];
+
+            if (env?.DB) {
+              try {
+                await env.DB.prepare(`
+                  INSERT INTO app_info (key, value) VALUES (?, ?)
+                  ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+                `).bind(key, newVal).run();
+              } catch (err) {
+                console.error('Update app_info error:', err);
+              }
+            }
+
+            const confirmKeyboard = Markup.inlineKeyboard([
+              [
+                Markup.button.callback('📝 Back to App Info', 'admin_edit_app_info'),
+                Markup.button.callback('👑 Admin Dashboard', 'admin_refresh_stats')
+              ]
+            ]);
+
+            return sendCleanMessage(ctx,
+              `✅ <b>'${escapeHtml(key)}' በትክክል ተቀይሯል!</b>\n\n` +
+              `📌 <b>አዲሱ መረጃ:</b>\n<code>${escapeHtml(newVal)}</code>`,
+              { parse_mode: 'HTML', ...confirmKeyboard }
+            );
+          }
+
+          // Admin Action: Editing system_config Key Value
+          if (state && state.step === 'EDIT_SYS_CONFIG_KEY' && text) {
+            const key = state.editingKey;
+            const newVal = text.trim();
+            delete userStates[chatId];
+
+            if (env?.DB) {
+              try {
+                await env.DB.prepare(`
+                  INSERT INTO system_config (key, value) VALUES (?, ?)
+                  ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+                `).bind(key, newVal).run();
+              } catch (err) {
+                console.error('Update system_config error:', err);
+              }
+            }
+
+            const confirmKeyboard = Markup.inlineKeyboard([
+              [
+                Markup.button.callback('⚙️ Back to System Config', 'admin_edit_sys_config'),
+                Markup.button.callback('👑 Admin Dashboard', 'admin_refresh_stats')
+              ]
+            ]);
+
+            return sendCleanMessage(ctx,
+              `✅ <b>'${escapeHtml(key)}' በ system_config በትክክል ተቀይሯል!</b>\n\n` +
+              `📌 <b>አዲሱ መረጃ:</b>\n<code>${escapeHtml(newVal)}</code>`,
+              { parse_mode: 'HTML', ...confirmKeyboard }
+            );
+          }
+
+          // Admin Action: Awaiting New app_info Key Name
+          if (state && state.step === 'AWAITING_NEW_APP_KEY_NAME' && text) {
+            const newKey = text.trim().toLowerCase().replace(/\s+/g, '_');
+            userStates[chatId] = { step: 'EDIT_APP_INFO_KEY', editingKey: newKey };
+
+            const textPrompt =
+`📌 Key: <code>${escapeHtml(newKey)}</code>
+
+<i>እባክዎን የዚህን Key value ያስገቡ:</i>`;
+
+            const keyboard = Markup.inlineKeyboard([
+              [Markup.button.callback('❌ Cancel / ተመለስ', 'admin_edit_app_info')]
+            ]);
+
+            return sendCleanMessage(ctx, textPrompt, { parse_mode: 'HTML', ...keyboard });
+          }
+
+          // Admin Action: Awaiting New system_config Key Name
+          if (state && state.step === 'AWAITING_NEW_SYS_KEY_NAME' && text) {
+            const newKey = text.trim().toLowerCase().replace(/\s+/g, '_');
+            userStates[chatId] = { step: 'EDIT_SYS_CONFIG_KEY', editingKey: newKey };
+
+            const textPrompt =
+`📌 Config Key: <code>${escapeHtml(newKey)}</code>
+
+<i>እባክዎን የዚህን Config value ያስገቡ:</i>`;
+
+            const keyboard = Markup.inlineKeyboard([
+              [Markup.button.callback('❌ Cancel / ተመለስ', 'admin_edit_sys_config')]
+            ]);
+
+            return sendCleanMessage(ctx, textPrompt, { parse_mode: 'HTML', ...keyboard });
+          }
+
           // Interactive Quiz / Practice Request Detection
           const lowerText = text.toLowerCase();
           if (lowerText.includes('quiz') || lowerText.includes('question') || lowerText.includes('ጥያቄ') || lowerText.includes('practice') || lowerText.includes('mcq')) {
@@ -1925,16 +2425,17 @@ ${listText || '<i>No students found in database.</i>'}
           }
 
           // --- AI Assistant Query Handler with Dynamic D1 Knowledge Base & Discussion Group Requirement ---
+          const lang = await getUserLanguage(userId, env);
           const isGroupMember = await checkDiscussionGroupMember(ctx, userId);
           if (!isGroupMember) {
-            return requireDiscussionGroupJoin(ctx, 'am');
+            return requireDiscussionGroupJoin(ctx, lang);
           }
 
           let aiResponseText = '';
           let usedModelName = 'gemini-3.6-flash';
 
           try {
-            const dynamicSystemInstruction = await buildDynamicSystemPrompt('am', env);
+            const dynamicSystemInstruction = await buildDynamicSystemPrompt(lang, env);
 
             const aiResponse = await generateWithGeminiFallback({
               contents: text,
@@ -1945,22 +2446,27 @@ ${listText || '<i>No students found in database.</i>'}
 
             if (aiResponse && aiResponse.text) {
               aiResponseText = aiResponse.text;
-              usedModelName = aiResponse.modelUsed || 'gemini-3.6-flash';
+              usedModelName = aiResponse.modelUsed || 'gemini-1.5-flash';
             }
           } catch (err) {
             console.error('[AI Assistant Engine Log]:', err.message || err);
           }
 
           if (!aiResponseText) {
-            aiResponseText = `ሰላም! Smart X Ethiopian ሞባይል አፕሊኬሽን ለ Grade 9-12 ተማሪዎች በመስከረም 5 / ሴፕቴምበር 2026 ይለቀቃል። ለማንኛውም ጥያቄ /quiz በማለት ይለማመዱ ወይም በ <b>📲 Download App</b> አፑን ይጎብኙ!`;
+            aiResponseText = `ሰላም! Smart X Ethiopian ሞባይል አፕሊኬሽን ለ 9-12ኛ ክፍል ተማሪዎች በመስከረም 5 / ሴፕቴምበር 2026 ይለቀቃል። ለማንኛውም ጥያቄ /quiz በማለት ይለማመዱ ወይም በ <b>📲 Download App</b> አፑን ይጎብኙ!`;
           }
 
           // Save chat query and response into Cloudflare D1 ai_chats table
-          await logAiChat(env, userId, text, aiResponseText, 'am', usedModelName);
+          await logAiChat(env, userId, text, aiResponseText, lang, usedModelName);
+
+          const isAiMode = userStates[chatId]?.step === 'AI_CHAT_MODE';
+          const replyKeyboard = isAiMode
+            ? Markup.keyboard([['🔙 ወደ ዋናው ማውጫ (Main Menu)']]).resize()
+            : Markup.keyboard(i18n[lang]?.menu || i18n.am.menu).resize();
 
           return sendCleanMessage(ctx, aiResponseText, {
             parse_mode: 'HTML',
-            ...Markup.keyboard(i18n.am.menu).resize()
+            ...replyKeyboard
           });
         });
 
