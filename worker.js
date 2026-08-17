@@ -9,12 +9,24 @@ const GEMINI_MODELS = [
   'gemini-3-flash'
 ];
 
-// In-memory caches for local development or session tracking
+// In-memory caches for local development or fast session tracking
 const userStates = {};
 const registeredUsers = {};
 const userLanguages = {};
 const broadcastDrafts = {};
 const activeQuizzes = {}; // Store generated quiz states for callback evaluation
+const lastBotMessages = {}; // Track last bot message per chat for clean screen replacement
+
+// Helper: Escape HTML special characters for Telegram HTML parse mode
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 // Helper: Extract all available Gemini API keys from environment
 function getGeminiApiKeys(env) {
@@ -81,7 +93,6 @@ async function generateWithGeminiFallback(params, env) {
       } catch (err) {
         console.warn(`[Gemini Fallback Retry] Model '${model}' with key '${apiKey.slice(0, 6)}...' error: ${err.message}`);
         lastError = err;
-        // Automatically try next key / next model
       }
     }
   }
@@ -89,232 +100,252 @@ async function generateWithGeminiFallback(params, env) {
   throw lastError || new Error('All Gemini API keys and models failed.');
 }
 
-// Multi-language Translations Dictionary (Amharic 'am' as primary UI, Afaan Oromoo 'om', English 'en')
+// Multi-language Translations Dictionary (Clean HTML Parse Mode & Concise Text)
 const i18n = {
   am: {
-    welcome_start: (name) => `👋 *ሰላም ${name}! እንኳን ወደ Smart X Ethiopian (Smart X ET) በደህና መጡ!* 🇪🇹
+    welcome_start: (name) => `👋 <b>ሰላም ${escapeHtml(name)}! እንኳን ወደ Smart X Ethiopian (Smart X ET) በደህና መጡ!</b> 🇪🇹
 
 ✨ ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grades 9-12) የተዘጋጀ የ AI የትምህርት ረዳት እና የፈተና መለማመጃ መድረክ።
 
 ━━━━━━━━━━━━━━━━━━━━
-🔹 *ደረጃ 1: እባክዎን የትምህርት ክፍልዎን ይምረጡ* ⬇️
+🔹 <b>ደረጃ 1: እባክዎን የትምህርት ክፍልዎን ይምረጡ</b> ⬇️
 ━━━━━━━━━━━━━━━━━━━━`,
+
+    welcome_back: (name, phone, grade) => `👋 <b>እንኳን በደህና ተመለሱ ${escapeHtml(name)}!</b> 🇪🇹
+
+✨ <b>Smart X Ethiopian (Smart X ET)</b> — የ 9-12ኛ ክፍል የ AI የትምህርት ረዳት እና የፈተና ማዕከል
+
+📋 <b>የእርስዎ የተመዘገበ መረጃ:</b>
+• 👤 <b>ስም:</b> ${escapeHtml(name)}
+• 📱 <b>ስልክ:</b> ${escapeHtml(phone)}
+• 🎓 <b>ክፍል:</b> ${escapeHtml(grade)}
+• 💬 <b>ግሩፕ:</b> @SmartX_Discussion
+• 💎 <b>ሁኔታ:</b> VIP Early Access (100% Free)
+
+━━━━━━━━━━━━━━━━━━━━
+🔹 ከታች ካሉት ዋና አገልግሎቶች ይምረጡ ⬇️`,
+
     channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
-📢 *ደረጃ 2: የኦፊሴላዊ ቻናል አባልነት ማረጋገጫ* ⬇️
+📢 <b>ደረጃ 2: የውይይት ግሩፕ አባልነት ማረጋገጫ</b> ⬇️
 ━━━━━━━━━━━━━━━━━━━━
-✅ የተመረጠው ክፍል: *${grade}*
+✅ የተመረጠው ክፍል: <b>${escapeHtml(grade)}</b>
 
-➔ ወደ ቀጣዩ ደረጃ ለመሻገር እና አፑን 100% በነፃ ለመጠቀም እባክዎን የ Smart X Ethiopian ኦፊሴላዊ ቻናል ይቀላቀሉ!
+➔ ወደ ቀጣዩ ደረጃ ለመሻገር እና አፑን 100% በነፃ ለመጠቀም እባክዎን የ Smart X Ethiopian የውይይት ግሩፕ (@SmartX_Discussion) ይቀላቀሉ!
 
-🔹 ቻናሉን ከተቀላቀሉ በኋላ **«✅ አረጋግጥ (Verify Membership)»** የሚለውን በተን ይጫኑ።`,
+🔹 ግሩፑን ከተቀላቀሉ በኋላ <b>«✅ አረጋግጥ (Verify Membership)»</b> የሚለውን በተን ይጫኑ።`,
+
     phone_request_step: `━━━━━━━━━━━━━━━━━━━━
-📱 *ደረጃ 3: የስልክ ቁጥር ማረጋገጫ* ⬇️
+📱 <b>ደረጃ 3: የስልክ ቁጥር ማረጋገጫ</b> ⬇️
 ━━━━━━━━━━━━━━━━━━━━
-🎉 የቻናል አባልነትዎ በተሳካ ሁኔታ ተረጋግጧል!
+🎉 የውይይት ግሩፕ አባልነትዎ በተሳካ ሁኔታ ተረጋግጧል!
 
 ምዝገባዎን ለማጠናቀቅ እና ልዩ የቅድመ-ምዝገባ እድሎችን (VIP Access & Early APK Release) ለማግኘት እባክዎን ከታች ያለውን በተን በመጫን ስልክ ቁጥርዎን ያጋሩን ወይም በጽሁፍ ይላኩልን፡`,
-    reg_success: (name, phone, grade) => `🎉 *እንኳን ደስ አለዎት! ምዝገባዎ በስኬት ተጠናቋል!* 🚀
 
-📋 *የተመዘገቡት መረጃዎች:*
-• 👤 *ስም:* ${name}
-• 📱 *ስልክ:* ${phone}
-• 🎓 *ክፍል:* ${grade}
-• 📢 *ቻናል:* ✅ የተረጋገጠ (@SmartXEthiopia)
-• 💎 *ሁኔታ:* 100% ነፃ ቅድመ-ተመዝጋቢ (VIP Early Access)
+    reg_success: (name, phone, grade) => `🎉 <b>እንኳን ደስ አለዎት! ምዝገባዎ በስኬት ተጠናቋል!</b> 🚀
+
+📋 <b>የተመዘገቡት መረጃዎች:</b>
+• 👤 <b>ስም:</b> ${escapeHtml(name)}
+• 📱 <b>ስልክ:</b> ${escapeHtml(phone)}
+• 🎓 <b>ክፍል:</b> ${escapeHtml(grade)}
+• 💬 <b>ግሩፕ:</b> ✅ የተረጋገጠ (@SmartX_Discussion)
+• 💎 <b>ሁኔታ:</b> 100% ነፃ ቅድመ-ተመዝጋቢ (VIP Early Access)
 
 ━━━━━━━━━━━━━━━━━━━━
-🔹 *ከታች ካሉት ዋና አገልግሎቶች ይምረጡ* ⬇️
+🔹 <b>ከታች ካሉት ዋና አገልግሎቶች ይምረጡ</b> ⬇️
 ━━━━━━━━━━━━━━━━━━━━`,
+
     menu: [
-      ['🤖 Smart X AI Assistant', '📲 Download App (Play Store Hub)'],
+      ['🤖 Smart X AI Assistant', '📲 Download App'],
       ['🔗 Share & Invite Friends', '👤 My Profile']
     ],
-    app_hub_text: `📱 *Smart X Ethiopian — Play Store App Hub* ⭐️⭐️⭐️⭐️⭐️
 
-━━━━━━━━━━━━━━━━━━━━
-📦 *የመተግበሪያ መረጃ (App Specifications):*
-━━━━━━━━━━━━━━━━━━━━
-• 🏷️ *የአፕ ስም:* Smart X Ethiopian (Smart X ET)
-• 🏢 *አልሚ:* HAB IT Solutions
-• 📊 *ስሪት:* v1.0.0 (Official Release)
-• 💎 *ዋጋ:* 🎁 100% በነፃ (100% FREE)
-• 🎯 *ዒላማ:* የ 9ኛ - 12ኛ ክፍል አዲሱ የኢትዮጵያ ካሪኩለም
-• ⏳ *የምዝገባ ሁኔታ:* ቅድመ-ተመዝግበዋል (Pre-Registered)
+    app_hub_text: `📱 <b>Smart X Ethiopian አፕሊኬሽን ገና አልተለቀቀም!</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🚀 *የ APK ፋይል ማውረጃ መረጃ (APK Direct Download):*
-━━━━━━━━━━━━━━━━━━━━
-➔ አፑ በይፋ በመስከረም 5 / ሴፕቴምበር 2026 ሲለቀቅ **ቀጥታ በዚህ ቴሌግራም ቦት ውስጥ** የ \`.apk\` ፋይሉን ያለምንም ተጨማሪ ዳታ በቀላሉ ማውረድ ይችላሉ! 📥
+👉 አፑ በቅርብ ቀን (መስከረም 5) ሲለቀቅ የቀጥታ ማውረጃ ሊንኩና የ .apk ፋይሉ በዚህ ቦት ይላክልዎታል። እባክዎን በትዕግስት ይጠብቁን! 🚀`,
 
-➔ አስቀድመው ስለተመዘገቡ አፑ እንደተለቀቀ ፈጣን የማውረጃ ሊንክ እና የ 50% VIP ቅናሽ ማሳወቂያ ይደርስዎታል።`,
-    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*
+    ai_intro: `🤖 <b>Smart X AI Assistant (HAB IT Solutions)</b>
 
 ሰላም! እኔ ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀሁ የ AI ትምህርት ረዳት ነኝ።
 
 ━━━━━━━━━━━━━━━━━━━━
 🔹 ማንኛውንም የትምህርት ጥያቄ (Physics, Chemistry, Biology, Mathematics, History, English, IT...) ይፃፉልኝ! ⬇️`,
-    profile_text: (name, phone, grade, date) => `👤 *የተጠቃሚ መረጃ (My Profile)*
+
+    profile_text: (name, phone, grade, date) => `👤 <b>የተጠቃሚ መረጃ (My Profile)</b>
 
 ━━━━━━━━━━━━━━━━━━━━
-• 👤 *ስም:* ${name}
-• 📱 *ስልክ:* ${phone}
-• 🎓 *የትምህርት ክፍል:* ${grade}
-• 📢 *ቻናል:* ✅ የተረጋገጠ (@SmartXEthiopia)
-• 💎 *ሁኔታ:* 100% ነፃ ቅድመ-ተመዝጋቢ (VIP Access)
-• 📅 *የተመዘገቡበት ቀን:* ${date || 'Just now'}
+• 👤 <b>ስም:</b> ${escapeHtml(name)}
+• 📱 <b>ስልክ:</b> ${escapeHtml(phone)}
+• 🎓 <b>የትምህርት ክፍል:</b> ${escapeHtml(grade)}
+• 📢 <b>ቻናል:</b> ✅ የተረጋገጠ (@SmartXEthiopia)
+• 💬 <b>ግሩፕ:</b> ✅ የተረጋገጠ (@SmartX_Discussion)
+• 💎 <b>ሁኔታ:</b> 100% ነፃ ቅድመ-ተመዝጋቢ (VIP Access)
+• 📅 <b>የተመዘገቡበት ቀን:</b> ${escapeHtml(date || 'Just now')}
 ━━━━━━━━━━━━━━━━━━━━`,
-    share_text: (userId) => `🔗 *ጓደኞችዎን ይጋብዙ — Smart X Ethiopian*
+
+    share_text: (userId) => `🔗 <b>ጓደኞችዎን ይጋብዙ — Smart X Ethiopian</b>
 
 ━━━━━━━━━━━━━━━━━━━━
 የእርስዎን ልዩ የግብዣ ሊንክ ለጓደኞችዎ፣ ለክፍል ጓደኞችዎ ወይም በቴሌግራም ግሩፖች በማጋራት አብረው ይማሩ!
 
-🎁 *የእርስዎ መጋሪያ ሊንክ:*
-https://t.me/SmartXEthiopiaBot?start=ref_${userId}
-━━━━━━━━━━━━━━━━━━━━`,
-    system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.
-
-STRICT MANDATORY RULES:
-1. IDENTITY: Identify yourself as "Smart X Ethiopian AI Assistant" developed by HAB IT Solutions.
-2. SCOPE OF KNOWLEDGE: STRICTLY restrict knowledge ONLY to Grade 9, 10, 11, and 12 Ethiopian Curriculum subjects (Physics, Chemistry, Biology, Mathematics, History, Geography, Civics, Economics, English, Amharic, Afaan Oromoo, IT) and details about the Smart X Ethiopian (Smart X ET) Mobile App.
-3. NON-EDUCATIONAL QUERIES: If the user asks non-educational, non-curriculum questions (such as news, celebrities, adult content, gaming, general programming, politics, etc.), politely decline in Amharic and redirect them back to Grade 9-12 Ethiopian high school topics or Smart X ET features.
-4. APP RELEASE ANNOUNCEMENT: In EVERY response, politely remind students that the Smart X Ethiopian Mobile App officially releases on Meskerem 5 / September 2026 (መስከረም 5 / ሴፕቴምበር 2026) for Android & iOS with 10,000+ quizzes and notes.
-5. LANGUAGE: Respond accurately and concisely in Amharic.`
+🎁 <b>የእርስዎ የመጋበዣ ኮድ:</b> <code>ref_${userId}</code>
+🤖 <b>ኦፊሴላዊ ቦት:</b> @SmartXEthiopiaBot
+━━━━━━━━━━━━━━━━━━━━`
   },
 
   om: {
-    welcome_start: (name) => `👋 *Akkam ${name}! Baga gara Smart X Ethiopian (Smart X ET) nagaan dhuftan!* 🇪🇹
+    welcome_start: (name) => `👋 <b>Akkam ${escapeHtml(name)}! Baga gara Smart X Ethiopian (Smart X ET) nagaan dhuftan!</b> 🇪🇹
 
 ✨ Gargaaraa AI fi Sirna Barnoota Haaraa Kutaalee 9-12 Itoophiyaa.
 
 ━━━━━━━━━━━━━━━━━━━━
-🔹 *Sadarkaa 1: Maaloo Kutaa Barnootaa Filadhaa* ⬇️
+🔹 <b>Sadarkaa 1: Maaloo Kutaa Barnootaa Filadhaa</b> ⬇️
 ━━━━━━━━━━━━━━━━━━━━`,
-    channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
-📢 *Sadarkaa 2: Chanaalii Ufisaa Mirkaneessuu* ⬇️
-━━━━━━━━━━━━━━━━━━━━
-✅ Kutaa Filatame: *${grade}*
 
-➔ Sadarkaa itti aanutti darbuuf fi appii kana 100% bilisaan argachuuf chanaalii keenya makamaa!`,
-    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
-📱 *Sadarkaa 3: Lakk. Bilbilaa Mirkaneessuu* ⬇️
+    welcome_back: (name, phone, grade) => `👋 <b>Baga nagaan deebitan ${escapeHtml(name)}!</b> 🇪🇹
+
+✨ <b>Smart X Ethiopian (Smart X ET)</b> — Kutaalee 9-12
+
+📋 <b>Odeeffannoo Keessan:</b>
+• 👤 <b>Maqaa:</b> ${escapeHtml(name)}
+• 📱 <b>Bilbila:</b> ${escapeHtml(phone)}
+• 🎓 <b>Kutaa:</b> ${escapeHtml(grade)}
+• 💬 <b>Garee Marii:</b> @SmartX_Discussion
+• 💎 <b>Sadarkaa:</b> VIP Early Access (100% Bilisa)
+
 ━━━━━━━━━━━━━━━━━━━━
-🎉 Chanaaliin keessan mirkanaa'eera!
+🔹 Tajaajila barbaaddan filadhaa ⬇️`,
+
+    channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
+📢 <b>Sadarkaa 2: Garee Marii Mirkaneessuu</b> ⬇️
+━━━━━━━━━━━━━━━━━━━━
+✅ Kutaa Filatame: <b>${escapeHtml(grade)}</b>
+
+➔ Sadarkaa itti aanutti darbuuf fi appii kana 100% bilisaan argachuuf garee marii keenya (@SmartX_Discussion) makamaa!`,
+
+    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
+📱 <b>Sadarkaa 3: Lakk. Bilbilaa Mirkaneessuu</b> ⬇️
+━━━━━━━━━━━━━━━━━━━━
+🎉 Gareen marii keessan mirkanaa'eera!
 
 Galmee xumuruuf maaloo lakk. bilbilaa keessan nuuf ergaa:`,
-    reg_success: (name, phone, grade) => `🎉 *Baga gammaddan! Galmeen keessan xumurameera!* 🚀
 
-📋 *Odeeffannoo:*
-• 👤 *Maqaa:* ${name}
-• 📱 *Bilbila:* ${phone}
-• 🎓 *Kutaa:* ${grade}
-• 📢 *Chanaalii:* ✅ Mirkanaa'e (@SmartXEthiopia)
-• 💎 *Sadarkaa:* 100% Bilisa (VIP Access)`,
+    reg_success: (name, phone, grade) => `🎉 <b>Baga gammaddan! Galmeen keessan xumurameera!</b> 🚀
+
+📋 <b>Odeeffannoo:</b>
+• 👤 <b>Maqaa:</b> ${escapeHtml(name)}
+• 📱 <b>Bilbila:</b> ${escapeHtml(phone)}
+• 🎓 <b>Kutaa:</b> ${escapeHtml(grade)}
+• 💬 <b>Garee Marii:</b> ✅ Mirkanaa'e (@SmartX_Discussion)
+• 💎 <b>Sadarkaa:</b> 100% Bilisa (VIP Access)`,
+
     menu: [
-      ['🤖 Smart X AI Assistant', '📲 Download App (Play Store Hub)'],
+      ['🤖 Smart X AI Assistant', '📲 Download App'],
       ['🔗 Share & Invite Friends', '👤 My Profile']
     ],
-    app_hub_text: `📱 *Smart X Ethiopian — Play Store App Hub* ⭐️⭐️⭐️⭐️⭐️
 
-━━━━━━━━━━━━━━━━━━━━
-📦 *Odeeffannoo Appilikeeshinii:*
-━━━━━━━━━━━━━━━━━━━━
-• 🏷️ *Maqaa:* Smart X Ethiopian (Smart X ET)
-• 🏢 *Ijaaraa:* HAB IT Solutions
-• 💎 *Gatii:* 🎁 100% Bilisa (100% FREE)
-• 🎯 *Kutaalee:* 9-12 Sirna Barnoota Haaraa
-• ⏳ *Haala:* Galmaa'eera (Pre-Registered)
+    app_hub_text: `📱 <b>Appilikeeshiniin Smart X Ethiopian ammayyuu hin gadhiifamne!</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🚀 *Buufata APK Kallattii (Direct APK Download):*
-━━━━━━━━━━━━━━━━━━━━
-➔ Appiin kun Fulbaana 5 / September 2026 yoo gadhiifamu **kallattiin botii kana keessaa** faayilii \`.apk\` buufachuu dandeessu! 📥`,
-    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*
+👉 Appiin kun dhihootti (Fulbaana 5) yeroo gadhiifamu liankiin buufataa kallattii fi faayiliin .apk botii kanaan isiniif ergama. Maaloo obsaan nu eegaa! 🚀`,
+
+    ai_intro: `🤖 <b>Smart X AI Assistant (HAB IT Solutions)</b>
 
 Akkam! Gaaffii barnootaa kutaalee 9-12 kamiyyuu na gaafachuu dandeessu! ⬇️`,
-    profile_text: (name, phone, grade, date) => `👤 *Piroofaayilii Koo (My Profile)*
+
+    profile_text: (name, phone, grade, date) => `👤 <b>Piroofaayilii Koo (My Profile)</b>
 
 ━━━━━━━━━━━━━━━━━━━━
-• 👤 *Maqaa:* ${name}
-• 📱 *Bilbila:* ${phone}
-• 🎓 *Kutaa:* ${grade}
-• 📢 *Chanaalii:* ✅ Mirkanaa'e (@SmartXEthiopia)
-• 📅 *Guyyaa:* ${date || 'Amma'}
+• 👤 <b>Maqaa:</b> ${escapeHtml(name)}
+• 📱 <b>Bilbila:</b> ${escapeHtml(phone)}
+• 🎓 <b>Kutaa:</b> ${escapeHtml(grade)}
+• 📢 <b>Chanaalii:</b> ✅ Mirkanaa'e (@SmartXEthiopia)
+• 💬 <b>Garee Marii:</b> ✅ Mirkanaa'e (@SmartX_Discussion)
+• 📅 <b>Guyyaa:</b> ${escapeHtml(date || 'Amma')}
 ━━━━━━━━━━━━━━━━━━━━`,
-    share_text: (userId) => `🔗 *Hiriyoota Keessan Affeeraa — Smart X ET*
 
-Liankii keessan kanaan hiriyoota keessan affeeraa:
-https://t.me/SmartXEthiopiaBot?start=ref_${userId}`,
-    system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.`
+    share_text: (userId) => `🔗 <b>Hiriyoota Keessan Affeeraa — Smart X ET</b>
+
+Liankii kanaan hiriyoota keessan affeeraa:
+🤖 @SmartXEthiopiaBot (Koodii: <code>ref_${userId}</code>)`
   },
 
   en: {
-    welcome_start: (name) => `👋 *Hello ${name}! Welcome to Smart X Ethiopian (Smart X ET)!* 🇪🇹
+    welcome_start: (name) => `👋 <b>Hello ${escapeHtml(name)}! Welcome to Smart X Ethiopian (Smart X ET)!</b> 🇪🇹
 
 ✨ AI Study Assistant & Practice Exam Platform for Ethiopian Grade 9-12 New Curriculum.
 
 ━━━━━━━━━━━━━━━━━━━━
-🔹 *Step 1: Please select your Grade level* ⬇️
+🔹 <b>Step 1: Please select your Grade level</b> ⬇️
 ━━━━━━━━━━━━━━━━━━━━`,
-    channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
-📢 *Step 2: Mandatory Channel Verification* ⬇️
-━━━━━━━━━━━━━━━━━━━━
-✅ Selected Grade: *${grade}*
 
-➔ To proceed and unlock 100% FREE VIP early access, please join our official Telegram channel!`,
-    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
-📱 *Step 3: Phone Number Verification* ⬇️
+    welcome_back: (name, phone, grade) => `👋 <b>Welcome Back, ${escapeHtml(name)}!</b> 🇪🇹
+
+✨ <b>Smart X Ethiopian (Smart X ET)</b> — High School Educational Hub
+
+📋 <b>Your Registration:</b>
+• 👤 <b>Name:</b> ${escapeHtml(name)}
+• 📱 <b>Phone:</b> ${escapeHtml(phone)}
+• 🎓 <b>Grade:</b> ${escapeHtml(grade)}
+• 💬 <b>Discussion:</b> @SmartX_Discussion
+• 💎 <b>Status:</b> VIP Early Access (100% Free)
+
 ━━━━━━━━━━━━━━━━━━━━
-🎉 Channel membership verified!
+🔹 Choose a feature below ⬇️`,
+
+    channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
+📢 <b>Step 2: Mandatory Discussion Group Verification</b> ⬇️
+━━━━━━━━━━━━━━━━━━━━
+✅ Selected Grade: <b>${escapeHtml(grade)}</b>
+
+➔ To proceed and unlock 100% FREE VIP early access, please join our official discussion group (@SmartX_Discussion)!`,
+
+    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
+📱 <b>Step 3: Phone Number Verification</b> ⬇️
+━━━━━━━━━━━━━━━━━━━━
+🎉 Discussion group membership verified!
 
 Please share or enter your phone number to complete pre-registration:`,
-    reg_success: (name, phone, grade) => `🎉 *Congratulations! Pre-Registration Completed!* 🚀
 
-📋 *Registration Summary:*
-• 👤 *Name:* ${name}
-• 📱 *Phone:* ${phone}
-• 🎓 *Grade:* ${grade}
-• 📢 *Channel:* ✅ Verified (@SmartXEthiopia)
-• 💎 *Status:* 100% Free VIP Pre-Registered`,
+    reg_success: (name, phone, grade) => `🎉 <b>Congratulations! Pre-Registration Completed!</b> 🚀
+
+📋 <b>Registration Summary:</b>
+• 👤 <b>Name:</b> ${escapeHtml(name)}
+• 📱 <b>Phone:</b> ${escapeHtml(phone)}
+• 🎓 <b>Grade:</b> ${escapeHtml(grade)}
+• 💬 <b>Group:</b> ✅ Verified (@SmartX_Discussion)
+• 💎 <b>Status:</b> 100% Free VIP Pre-Registered`,
+
     menu: [
-      ['🤖 Smart X AI Assistant', '📲 Download App (Play Store Hub)'],
+      ['🤖 Smart X AI Assistant', '📲 Download App'],
       ['🔗 Share & Invite Friends', '👤 My Profile']
     ],
-    app_hub_text: `📱 *Smart X Ethiopian — Play Store App Hub* ⭐️⭐️⭐️⭐️⭐️
 
-━━━━━━━━━━━━━━━━━━━━
-📦 *App Specifications:*
-━━━━━━━━━━━━━━━━━━━━
-• 🏷️ *App Name:* Smart X Ethiopian (Smart X ET)
-• 🏢 *Developer:* HAB IT Solutions
-• 💎 *Pricing:* 🎁 100% FREE
-• 🎯 *Target:* Grades 9-12 Ethiopian New Curriculum
-• ⏳ *Status:* Pre-Registered
+    app_hub_text: `📱 <b>Smart X Ethiopian App is not released yet!</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🚀 *Direct APK Download:*
-━━━━━━━━━━━━━━━━━━━━
-➔ When officially launched on Meskerem 5 / September 2026, you will be able to download the \`.apk\` file directly inside this Telegram bot! 📥`,
-    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*
+👉 When the app is launched soon (September / Meskerem 5), the direct download link and .apk file will be sent directly in this bot. Please stay tuned! 🚀`,
+
+    ai_intro: `🤖 <b>Smart X AI Assistant (HAB IT Solutions)</b>
 
 Hello! I am your AI Study Assistant. Ask me any Grade 9-12 curriculum question! ⬇️`,
-    profile_text: (name, phone, grade, date) => `👤 *User Profile*
+
+    profile_text: (name, phone, grade, date) => `👤 <b>User Profile</b>
 
 ━━━━━━━━━━━━━━━━━━━━
-• 👤 *Name:* ${name}
-• 📱 *Phone:* ${phone}
-• 🎓 *Grade:* ${grade}
-• 📢 *Channel:* ✅ Verified (@SmartXEthiopia)
-• 📅 *Registered:* ${date || 'Just now'}
+• 👤 <b>Name:</b> ${escapeHtml(name)}
+• 📱 <b>Phone:</b> ${escapeHtml(phone)}
+• 🎓 <b>Grade:</b> ${escapeHtml(grade)}
+• 📢 <b>Channel:</b> ✅ Verified (@SmartXEthiopia)
+• 💬 <b>Discussion:</b> ✅ Verified (@SmartX_Discussion)
+• 📅 <b>Registered:</b> ${escapeHtml(date || 'Just now')}
 ━━━━━━━━━━━━━━━━━━━━`,
-    share_text: (userId) => `🔗 *Invite Your Friends — Smart X Ethiopian*
 
-Share your invite link with classmates and friends:
-https://t.me/SmartXEthiopiaBot?start=ref_${userId}`,
-    system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.`
+    share_text: (userId) => `🔗 <b>Invite Your Friends — Smart X Ethiopian</b>
+
+Share with classmates and friends:
+🤖 Bot: @SmartXEthiopiaBot (Ref Code: <code>ref_${userId}</code>)`
   }
 };
 
-// --- CURATED PRACTICE QUIZ BANK (Fallback & Instant Practice) ---
+// --- CURATED PRACTICE QUIZ BANK (Instant Practice & Fallback) ---
 const CURATED_QUIZZES = [
   {
     id: 'q_chem10_01',
@@ -373,28 +404,6 @@ async function getUserLanguage(userId, env) {
   return 'am';
 }
 
-// Helper: Save user's language preference
-async function setUserLanguage(userId, lang, env) {
-  userLanguages[userId] = lang;
-  if (env?.DB) {
-    try {
-      await env.DB.prepare(`
-        INSERT INTO users (telegram_id, full_name, phone, grade, stream, language)
-        VALUES (?, 'Pending', 'Pending', 'Grade 10', 'Natural Science', ?)
-        ON CONFLICT(telegram_id) DO UPDATE SET language = excluded.language
-      `).bind(userId, lang).run();
-    } catch (err) {
-      console.error('Save language error:', err);
-    }
-  }
-}
-
-// Helper: Get Localized Main Keyboard
-function getMainMenuKeyboard(lang) {
-  const tObj = i18n[lang] || i18n.am;
-  return Markup.keyboard(tObj.menu).resize();
-}
-
 // Helper: Check if user is a member of @SmartX_Discussion channel/group
 async function checkDiscussionGroupMember(ctx, userId) {
   try {
@@ -411,13 +420,13 @@ async function checkDiscussionGroupMember(ctx, userId) {
 // Helper: Prompt student to join @SmartX_Discussion before using AI Assistant
 async function requireDiscussionGroupJoin(ctx, lang) {
   const msgText = lang === 'om'
-    ? `📢 *Gargaaraa AI wajjin haasa'uuf maaloo Garee Marii Smart X (SmartX Discussion) makamaa!*\n\nGaaffii AI Assistant gaafachuu keessan dura maaloo garee marii keenyaa (**@SmartX_Discussion**) makamaa.`
+    ? `📢 <b>Gargaaraa AI wajjin haasa'uuf maaloo Garee Marii Smart X (@SmartX_Discussion) makamaa!</b>\n\nGaaffii AI Assistant gaafachuu keessan dura maaloo garee marii keenyaa (<b>@SmartX_Discussion</b>) makamaa.`
     : lang === 'en'
-    ? `📢 *Please join the Smart X Discussion Group (@SmartX_Discussion) before asking questions to the AI Assistant!*\n\nJoin our official discussion community to unlock unlimited AI Q&A and Grade 9-12 curriculum support.`
-    : `📢 *ከ AI Assistant ጋር ለመወያየት እባክዎን የ Smart X Discussion Group ይቀላቀሉ!*\n\nለጥያቄዎችዎ መልስ ከማግኘትዎ በፊት እባክዎን የውይይት ግሩፓችንን (**@SmartX_Discussion**) ይቀላቀሉ።`;
+    ? `📢 <b>Please join the Smart X Discussion Group (@SmartX_Discussion) before asking questions to the AI Assistant!</b>\n\nJoin our official discussion community to unlock unlimited AI Q&A and Grade 9-12 curriculum support.`
+    : `📢 <b>ከ AI Assistant ጋር ለመወያየት እባክዎን የ Smart X Discussion Group (@SmartX_Discussion) ይቀላቀሉ!</b>\n\nለጥያቄዎችዎ መልስ ከማግኘትዎ በፊት እባክዎን የውይይት ግሩፓችንን (<b>@SmartX_Discussion</b>) ይቀላቀሉ።`;
 
-  return ctx.reply(msgText, {
-    parse_mode: 'Markdown',
+  return sendCleanMessage(ctx, msgText, {
+    parse_mode: 'HTML',
     ...Markup.inlineKeyboard([
       [Markup.button.url('💬 Join Discussion Group (@SmartX_Discussion)', 'https://t.me/SmartX_Discussion')],
       [Markup.button.callback('✅ Verify Discussion Membership / አባልነት አረጋግጥ', 'verify_discussion_membership')]
@@ -485,17 +494,19 @@ Return ONLY valid JSON with this exact structure:
       }
     }, env);
 
-    const parsed = JSON.parse(aiRes.text);
-    if (parsed.question && Array.isArray(parsed.options) && parsed.options.length >= 4) {
-      return {
-        id: 'ai_' + Date.now(),
-        subject: topicOrSubject || 'General',
-        grade: `Grade ${grade}`,
-        question: parsed.question,
-        options: parsed.options,
-        correct_index: typeof parsed.correct_index === 'number' ? parsed.correct_index : 0,
-        explanation: parsed.explanation || 'Detailed explanation provided by Smart X ET AI Engine.'
-      };
+    if (aiRes && aiRes.text) {
+      const parsed = JSON.parse(aiRes.text);
+      if (parsed.question && Array.isArray(parsed.options) && typeof parsed.correct_index === 'number') {
+        return {
+          id: 'ai_' + Date.now(),
+          subject: topicOrSubject || 'General',
+          grade: `Grade ${grade}`,
+          question: parsed.question,
+          options: parsed.options,
+          correct_index: parsed.correct_index,
+          explanation: parsed.explanation || 'Good job!'
+        };
+      }
     }
   } catch (err) {
     console.error('AI Quiz generation failed, falling back to curated bank:', err);
@@ -518,16 +529,16 @@ async function sendInteractiveQuiz(ctx, quiz, lang) {
     return Markup.button.callback(label, `quiz_opt_${quizId}_${idx}`);
   });
 
-  const messageText = `❓ *Smart X ET Practice Quiz (${quiz.grade} - ${quiz.subject})*\n\n*${quiz.question}*\n\n` +
-    quiz.options.map(o => `• ${o}`).join('\n');
+  const messageText = `❓ <b>Smart X ET Practice Quiz (${escapeHtml(quiz.grade)} - ${escapeHtml(quiz.subject)})</b>\n\n<b>${escapeHtml(quiz.question)}</b>\n\n` +
+    quiz.options.map(o => `• ${escapeHtml(o)}`).join('\n');
 
-  return ctx.reply(messageText, {
-    parse_mode: 'Markdown',
+  return sendCleanMessage(ctx, messageText, {
+    parse_mode: 'HTML',
     ...Markup.inlineKeyboard([
       optButtons,
       [
         Markup.button.callback('🔄 New Quiz / ሌላ ጥያቄ', 'quiz_generate_new'),
-        Markup.button.callback('📝 Pre-Register Now', 'start_reg_wizard')
+        Markup.button.callback('📝 Pre-Register Free', 'start_reregister')
       ]
     ])
   });
@@ -716,20 +727,100 @@ async function sendFinalBroadcastReport(bot, env, broadcastId, adminId) {
     const failed = b.failed_count || 0;
 
     const reportMsg =
-      `🎉 *የብሮድካስት ስራ በተሳካ ሁኔታ ተጠናቋል! (Broadcast Completed)*\n\n` +
-      `🆔 *Broadcast ID:* #${broadcastId}\n` +
-      `• 👥 *ጠቅላላ ተቀባዮች:* ${total}\n` +
-      `• 📬 *በተሳካ ሁኔታ የተላኩ:* ${sent}\n` +
-      `• 🚫 *የከለከሉ (Blocked):* ${blocked}\n` +
-      `• ❌ *የከሸፉ (Failed):* ${failed}`;
+      `🎉 <b>የብሮድካስት ስራ በተሳካ ሁኔታ ተጠናቋል! (Broadcast Completed)</b>\n\n` +
+      `🆔 <b>Broadcast ID:</b> #${broadcastId}\n` +
+      `• 👥 <b>ጠቅላላ ተቀባዮች:</b> ${total}\n` +
+      `• 📬 <b>በተሳካ ሁኔታ የተላኩ:</b> ${sent}\n` +
+      `• 🚫 <b>የከለከሉ (Blocked):</b> ${blocked}\n` +
+      `• ❌ <b>የከሸፉ (Failed):</b> ${failed}`;
 
-    await bot.telegram.sendMessage(adminId, reportMsg, { parse_mode: 'Markdown' });
+    await bot.telegram.sendMessage(adminId, reportMsg, { parse_mode: 'HTML' });
   } catch (err) {
     console.error('Final report error:', err);
   }
 }
 
-// Initialize Database Schema & Seed Dynamic Knowledge Base
+// Helper: Build Admin Dashboard Content and Keyboard
+async function buildAdminDashboardData(env) {
+  let totalUsers = 0;
+  let activeUsers = 0;
+  let inactiveUsers = 0;
+  let gradeCounts = { 'Grade 9': 0, 'Grade 10': 0, 'Grade 11': 0, 'Grade 12': 0 };
+  let totalAiChats = 0;
+  let totalBroadcasts = 0;
+
+  if (env?.DB) {
+    try {
+      const uRes = await env.DB.prepare(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
+          SUM(CASE WHEN is_active = 0 OR is_blocked = 1 THEN 1 ELSE 0 END) as inactive
+        FROM users
+      `).first();
+
+      totalUsers = uRes?.total || 0;
+      activeUsers = uRes?.active || 0;
+      inactiveUsers = uRes?.inactive || 0;
+
+      const gRes = await env.DB.prepare(`SELECT grade, COUNT(*) as count FROM users GROUP BY grade`).all();
+      if (gRes?.results) {
+        for (const row of gRes.results) {
+          if (row.grade) gradeCounts[row.grade] = row.count;
+        }
+      }
+
+      const cRes = await env.DB.prepare(`SELECT COUNT(*) as total_chats FROM ai_chats`).first();
+      totalAiChats = cRes?.total_chats || 0;
+
+      const bRes = await env.DB.prepare(`SELECT COUNT(*) as total_bcasts FROM broadcasts`).first();
+      totalBroadcasts = bRes?.total_bcasts || 0;
+    } catch (err) {
+      console.error('Admin stats query error:', err);
+    }
+  } else {
+    totalUsers = Object.keys(registeredUsers).length;
+    activeUsers = totalUsers;
+  }
+
+  const text = 
+`👑 <b>Smart X ET — Official Admin Panel</b> 🇪🇹
+
+━━━━━━━━━━━━━━━━━━━━
+📊 <b>Real-Time Platform Analytics:</b>
+━━━━━━━━━━━━━━━━━━━━
+• 👥 <b>Total Registered Students:</b> <code>${totalUsers}</code>
+• 🟢 <b>Active Users:</b> <code>${activeUsers}</code>
+• 🔴 <b>Inactive / Blocked:</b> <code>${inactiveUsers}</code>
+
+🎓 <b>Student Breakdown by Grade:</b>
+• 9️⃣ <b>Grade 9:</b> <code>${gradeCounts['Grade 9'] || 0}</code>
+• 🔟 <b>Grade 10:</b> <code>${gradeCounts['Grade 10'] || 0}</code>
+• 1️⃣1️⃣ <b>Grade 11:</b> <code>${gradeCounts['Grade 11'] || 0}</code>
+• 1️⃣2️⃣ <b>Grade 12:</b> <code>${gradeCounts['Grade 12'] || 0}</code>
+
+🤖 <b>Activity & Engine Metrics:</b>
+• 💬 <b>AI Queries Logged:</b> <code>${totalAiChats}</code>
+• 📢 <b>Broadcasts Sent:</b> <code>${totalBroadcasts}</code>
+• ⚡ <b>Primary Model:</b> <code>gemini-3.6-flash</code>
+• 🗄️ <b>Storage Engine:</b> Cloudflare D1 Database
+━━━━━━━━━━━━━━━━━━━━
+<i>Select an administrative action below:</i>`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('👥 View Recent Users', 'admin_recent_users'),
+      Markup.button.callback('📢 New Broadcast', 'admin_new_broadcast')
+    ],
+    [
+      Markup.button.callback('📊 Refresh Stats', 'admin_refresh_stats')
+    ]
+  ]);
+
+  return { text, keyboard };
+}
+
+// Initialize Database Schema & Seed Knowledge Base
 async function initDb(db) {
   if (!db) return;
   try {
@@ -796,13 +887,7 @@ async function initDb(db) {
       );
     `);
 
-    try {
-      await db.exec(`ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'am';`);
-    } catch (e) {
-      // Column already exists
-    }
-
-    // Seed ground-truth app knowledge into D1 if app_info is empty
+    // Seed ground-truth records into D1 app_info & system_config tables
     await seedKnowledgeBase(db);
   } catch (err) {
     console.error('D1 Init Error:', err);
@@ -824,6 +909,7 @@ async function seedKnowledgeBase(db) {
         ['pricing_and_plans', 'Free tier available with 1,000+ practice questions; Full VIP Pass with 10,000+ Quizzes, Subject Summaries, Model Exams, and Offline AI Tutor for 150 ETB/month or 400 ETB/term.'],
         ['features', '1. 10,000+ Chapter-wise Multiple Choice Quizzes for Grade 9-12 New Curriculum; 2. Instant Explanations & Reference Links; 3. AI Study Assistant for Math, Physics, Chemistry, Biology, History; 4. Gamified Leaderboard & Daily Practice Streak; 5. Offline Access Mode.'],
         ['official_channel', '@SmartXEthiopia on Telegram'],
+        ['discussion_group', '@SmartX_Discussion on Telegram'],
         ['pre_registration_perks', 'Pre-registered users receive 50% discount on subscription and early access on Meskerem 5 / September 2026 release day.']
       ];
 
@@ -835,7 +921,7 @@ async function seedKnowledgeBase(db) {
       }
 
       const sysItems = [
-        ['bot_version', 'v2.5-d1-driven'],
+        ['bot_version', 'v2.6-clean-ui'],
         ['ai_engine', 'Gemini 3.6 Flash Multi-Model Engine'],
         ['status', 'Operational']
       ];
@@ -875,7 +961,6 @@ async function getDynamicKnowledgeBase(env) {
     return dbRecords.map(r => `• ${r.key}: ${r.value}`).join('\n');
   }
 
-  // Fallback ground-truth knowledge if D1 query is empty during initial load
   return `• app_name: Smart X Ethiopian (Smart X ET)
 • developer: HAB IT Solutions
 • release_date: Meskerem 5 / September 2026 (መስከረም 5 / ሴፕቴምበር 2026)
@@ -884,6 +969,7 @@ async function getDynamicKnowledgeBase(env) {
 • pricing_and_plans: Free tier available; Full VIP Pass 150 ETB/month or 400 ETB/term for 10,000+ quizzes & summaries
 • features: 10,000+ Chapter-wise Quizzes, Instant Explanations, Model Exams, AI Study Assistant, Offline Mode
 • official_channel: @SmartXEthiopia on Telegram
+• discussion_group: @SmartX_Discussion on Telegram
 • pre_registration_perks: 50% discount for pre-registered students upon Meskerem 5 release`;
 }
 
@@ -903,7 +989,8 @@ STRICT MANDATORY INSTRUCTIONS:
 3. NON-EDUCATIONAL QUERIES: If asked non-educational, non-curriculum questions (such as news, celebrities, adult content, gaming, general programming, politics, etc.), politely decline in ${langName} and redirect the student back to Grade 9-12 Ethiopian curriculum topics or Smart X ET app features.
 4. APP RELEASE ANNOUNCEMENT: Consistently remind students in a polite and encouraging tone that the Smart X Ethiopian Mobile App officially releases on Meskerem 5 / September 2026 (መስከረም 5 / ሴፕቴምበር 2026) for Android & iOS.
 5. CONCISE STUDENT-FACING OUTPUT: Keep your response encouraging, polite, concise (under 3 sentences), and written in clear ${langName}.
-6. NO TECHNICAL LEAKS: NEVER mention database names, table names, API status codes, error stack traces, or internal code logic in user responses.`;
+6. NO RAW URLS: Never output raw http/https links in the text. Refer only to @SmartXEthiopia, @SmartX_Discussion, or @SmartXEthiopiaBot.
+7. NO TECHNICAL LEAKS: NEVER mention database names, table names, API status codes, error stack traces, or internal code logic in user responses.`;
 }
 
 // Helper: Log every student query & AI response into D1 ai_chats table
@@ -919,12 +1006,10 @@ async function logAiChat(env, telegramId, prompt, responseText, lang, modelUsed)
   }
 }
 
-// Message cleanup tracking store (chatId -> lastMessageId)
-const lastBotMessages = {};
-
+// Clean message sender using HTML parse mode by default and deleting prior message
 async function sendCleanMessage(ctx, text, extra = {}) {
   const chatId = ctx.chat?.id;
-  if (!chatId) return ctx.reply(text, extra);
+  if (!chatId) return ctx.reply(text, { parse_mode: 'HTML', ...extra });
 
   if (lastBotMessages[chatId]) {
     try {
@@ -934,7 +1019,7 @@ async function sendCleanMessage(ctx, text, extra = {}) {
     }
   }
 
-  const sentMsg = await ctx.reply(text, extra);
+  const sentMsg = await ctx.reply(text, { parse_mode: 'HTML', ...extra });
   if (sentMsg?.message_id) {
     lastBotMessages[chatId] = sentMsg.message_id;
   }
@@ -975,12 +1060,41 @@ export default {
 
     if (url.pathname === '/webhook' && request.method === 'POST') {
       try {
-        // --- 1. /start Handler (Step 1: Grade Selection with Message Cleanup) ---
-        const startOnboarding = async (ctx) => {
-          const userName = ctx.from?.first_name || 'ተማሪ';
+        // --- 1. /start & /register Handler (Welcome Back for Registered, Onboarding for New) ---
+        const handleStartOrRegister = async (ctx) => {
           const userId = ctx.from.id;
           const chatId = ctx.chat.id;
+          const userName = ctx.from?.first_name || 'ተማሪ';
 
+          // Check if user is ALREADY registered in D1 database or memory cache
+          let existingUser = registeredUsers[userId];
+          if (!existingUser && env.DB) {
+            try {
+              const row = await env.DB.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(userId).first();
+              if (row && row.phone && row.phone !== 'N/A' && row.phone !== 'Pending') {
+                existingUser = row;
+                registeredUsers[userId] = row;
+              }
+            } catch (err) {
+              console.error('Check existing user error:', err);
+            }
+          }
+
+          // Case A: User is ALREADY REGISTERED -> Show "Welcome Back!" & Unlock Dashboard
+          if (existingUser && existingUser.phone && existingUser.phone !== 'N/A' && existingUser.phone !== 'Pending') {
+            const name = existingUser.full_name || userName;
+            const phone = existingUser.phone;
+            const grade = existingUser.grade || 'Grade 10';
+            const welcomeBackMsg = i18n.am.welcome_back(name, phone, grade);
+            const mainDashboardKeyboard = Markup.keyboard(i18n.am.menu).resize();
+
+            return sendCleanMessage(ctx, welcomeBackMsg, {
+              parse_mode: 'HTML',
+              ...mainDashboardKeyboard
+            });
+          }
+
+          // Case B: User is NOT YET REGISTERED -> Start 3-Step Onboarding (Grade Selection)
           userStates[chatId] = {
             step: 'AWAITING_GRADE',
             data: {
@@ -1002,15 +1116,15 @@ export default {
           ]);
 
           return sendCleanMessage(ctx, welcomeMsg, {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...gradeKeyboard
           });
         };
 
-        bot.start(startOnboarding);
-        bot.command(['register', 'onboarding', 'signup'], startOnboarding);
+        bot.start(handleStartOrRegister);
+        bot.command(['register', 'onboarding', 'signup'], handleStartOrRegister);
 
-        // --- Step 1 Action: Grade Selection -> Step 2: Channel Verification Check ---
+        // --- Step 1 Action: Grade Selection -> Step 2: Discussion Group Check ---
         bot.action(/set_grade_(\d+)/, async (ctx) => {
           const gradeNum = ctx.match[1];
           const chatId = ctx.chat.id;
@@ -1025,63 +1139,47 @@ export default {
 
           await ctx.answerCbQuery(`ክፍል ${gradeNum} ተመርጧል! ✅`);
 
-          // Verify if already a member of @SmartXEthiopia
-          let isMember = false;
-          try {
-            const member = await ctx.telegram.getChatMember('@SmartXEthiopia', userId);
-            if (['creator', 'administrator', 'member'].includes(member.status)) {
-              isMember = true;
-            }
-          } catch (err) {
-            // In dev environment or mock allow smooth transition
-          }
+          // Verify if already a member of @SmartX_Discussion
+          const isMember = await checkDiscussionGroupMember(ctx, userId);
 
           if (isMember) {
-            // Already joined channel -> Proceed directly to Step 3 (Phone Collection)
+            // Already joined group -> Proceed directly to Step 3 (Phone Collection)
             userStates[chatId].step = 'AWAITING_PHONE';
             const phoneKeyboard = Markup.keyboard([
               [Markup.button.contactRequest('📱 ስልክ ቁጥር አጋራ (Share Contact)')]
             ]).resize().oneTime();
 
             return sendCleanMessage(ctx, i18n.am.phone_request_step, {
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
               ...phoneKeyboard
             });
           }
 
-          // Not joined -> Show Step 2: Channel Verification UI
+          // Not joined -> Show Step 2: Discussion Group Verification UI
           userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
           const verifyKeyboard = Markup.inlineKeyboard([
-            [Markup.button.url('📢 ቻናሉን ይቀላቀሉ (Join Channel)', 'https://t.me/SmartXEthiopia')],
+            [Markup.button.url('💬 ግሩፑን ይቀላቀሉ (Join Group)', 'https://t.me/SmartX_Discussion')],
             [Markup.button.callback('✅ አረጋግጥ (Verify Membership)', 'verify_channel_step')]
           ]);
 
           return sendCleanMessage(ctx, i18n.am.channel_verify_step(grade), {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...verifyKeyboard
           });
         });
 
-        // --- Step 2 Action: Channel Verification Callback ---
+        // --- Step 2 Action: Discussion Group Verification Callback ---
         bot.action('verify_channel_step', async (ctx) => {
           const userId = ctx.from.id;
           const chatId = ctx.chat.id;
 
-          let isMember = false;
-          try {
-            const member = await ctx.telegram.getChatMember('@SmartXEthiopia', userId);
-            if (['creator', 'administrator', 'member'].includes(member.status)) {
-              isMember = true;
-            }
-          } catch (err) {
-            isMember = true;
-          }
+          const isMember = await checkDiscussionGroupMember(ctx, userId);
 
           if (!isMember) {
-            return ctx.answerCbQuery('⚠️ እባክዎን መጀመሪያ @SmartXEthiopia ቻናል ይቀላቀሉ!', { show_alert: true });
+            return ctx.answerCbQuery('⚠️ እባክዎን መጀመሪያ @SmartX_Discussion ግሩፕ ይቀላቀሉ!', { show_alert: true });
           }
 
-          await ctx.answerCbQuery('✅ የቻናል አባልነትዎ ተረጋግጧል! 🎉');
+          await ctx.answerCbQuery('✅ የውይይት ግሩፕ አባልነትዎ ተረጋግጧል! 🎉');
 
           if (!userStates[chatId]) {
             userStates[chatId] = { step: 'AWAITING_PHONE', data: { grade: 'Grade 10' } };
@@ -1093,12 +1191,12 @@ export default {
           ]).resize().oneTime();
 
           return sendCleanMessage(ctx, i18n.am.phone_request_step, {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...phoneKeyboard
           });
         });
 
-        // --- Step 4 Helper: Save to Cloudflare D1 & Unlock Main Dashboard ---
+        // --- Step 3 Helper: Save to Cloudflare D1 & Unlock Dashboard ---
         const completeRegistrationAndUnlockDashboard = async (ctx, phone) => {
           const userId = ctx.from.id;
           const chatId = ctx.chat.id;
@@ -1119,7 +1217,8 @@ export default {
                   grade = excluded.grade,
                   language = 'am',
                   is_channel_member = 1,
-                  is_active = 1
+                  is_active = 1,
+                  registered_at = CURRENT_TIMESTAMP
               `).bind(userId, fullName, cleanPhone, grade).run();
             } catch (err) {
               console.error('D1 Save User Error:', err);
@@ -1128,11 +1227,11 @@ export default {
 
           registeredUsers[userId] = {
             telegram_id: userId,
-            fullName,
+            full_name: fullName,
             phone: cleanPhone,
             grade,
             language: 'am',
-            is_active: true,
+            is_active: 1,
             registered_at: new Date().toISOString()
           };
 
@@ -1141,43 +1240,45 @@ export default {
           const mainDashboardKeyboard = Markup.keyboard(i18n.am.menu).resize();
 
           return sendCleanMessage(ctx, i18n.am.reg_success(fullName, cleanPhone, grade), {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...mainDashboardKeyboard
           });
         };
 
-        // Phone contact receiver
         bot.on('contact', async (ctx) => {
           const phone = ctx.message.contact?.phone_number || '';
           return completeRegistrationAndUnlockDashboard(ctx, phone);
         });
 
-        // --- DASHBOARD BUTTON 1: 📲 Download App (Play Store Hub) ---
-        const handlePlayStoreHub = async (ctx) => {
-          const hubKeyboard = Markup.inlineKeyboard([
-            [Markup.button.callback('🔔 Get Notified on Launch / መልቀቂያውን አስታውቀኝ', 'notify_on_launch')],
-            [Markup.button.url('🔗 Share App Link / አፑን ለጓደኞች አጋራ', `https://t.me/share/url?url=https://t.me/SmartXEthiopiaBot?start=promo&text=${encodeURIComponent('ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ 100% ነፃ የ AI ትምህርት እና የፈተና መተግበሪያ!')}`)]
-          ]);
+        // --- DASHBOARD BUTTON 1: 📲 Download App (Simplified & Direct) ---
+        const handleDownloadApp = async (ctx) => {
+          const userId = ctx.from.id;
+          const lang = await getUserLanguage(userId, env);
+          const appText = i18n[lang]?.app_hub_text || i18n.am.app_hub_text;
 
-          return sendCleanMessage(ctx, i18n.am.app_hub_text, {
-            parse_mode: 'Markdown',
-            ...hubKeyboard
+          return sendCleanMessage(ctx, appText, {
+            parse_mode: 'HTML',
+            ...Markup.keyboard(i18n[lang]?.menu || i18n.am.menu).resize()
           });
         };
 
-        bot.hears(['📲 Download App (Play Store Hub)', 'Download App', 'Play Store Hub', 'አፕ አውርድ', 'Download'], handlePlayStoreHub);
-        bot.command(['hub', 'download', 'apk', 'app'], handlePlayStoreHub);
-
-        bot.action('notify_on_launch', async (ctx) => {
-          return ctx.answerCbQuery('🔔 ማሳወቂያው በርቷል! በመስከረም 5 አፑ ልክ እንደተለቀቀ ቀጥታ በዚህ ቦት ውስጥ ፈጣን የማውረጃ ፋይል ይደርስዎታል። 🚀', { show_alert: true });
-        });
+        bot.hears([
+          '📲 Download App',
+          'Download App',
+          '📲 Download App (Play Store Hub)',
+          'Play Store Hub',
+          'አፕ አውርድ',
+          'Download',
+          'App'
+        ], handleDownloadApp);
+        bot.command(['download', 'app', 'hub', 'apk'], handleDownloadApp);
 
         // --- DASHBOARD BUTTON 2: 👤 My Profile ---
         const handleMyProfile = async (ctx) => {
           const userId = ctx.from.id;
           let user = registeredUsers[userId];
 
-          if (env.DB && (!user || user.phone === 'N/A')) {
+          if (env.DB && (!user || user.phone === 'N/A' || user.phone === 'Pending')) {
             try {
               const row = await env.DB.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(userId).first();
               if (row) user = row;
@@ -1195,7 +1296,7 @@ export default {
           ]);
 
           return sendCleanMessage(ctx, i18n.am.profile_text(name, phone, grade, regDate), {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...profileKeyboard
           });
         };
@@ -1216,15 +1317,40 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, '🔹 *እባክዎን አዲሱን የትምህርት ክፍልዎን ይምረጡ* ⬇️', {
-            parse_mode: 'Markdown',
+          return sendCleanMessage(ctx, '🔹 <b>እባክዎን አዲሱን የትምህርት ክፍልዎን ይምረጡ</b> ⬇️', {
+            parse_mode: 'HTML',
             ...gradeKeyboard
           });
         });
 
         bot.action('start_reregister', async (ctx) => {
           await ctx.answerCbQuery();
-          return startOnboarding(ctx);
+          const chatId = ctx.chat.id;
+          const userId = ctx.from.id;
+
+          userStates[chatId] = {
+            step: 'AWAITING_GRADE',
+            data: {
+              fullName: ctx.from?.first_name ? `${ctx.from.first_name} ${ctx.from?.last_name || ''}`.trim() : 'ተማሪ',
+              telegramId: userId
+            }
+          };
+
+          const gradeKeyboard = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('9ኛ ክፍል (Grade 9)', 'set_grade_9'),
+              Markup.button.callback('10ኛ ክፍል (Grade 10)', 'set_grade_10')
+            ],
+            [
+              Markup.button.callback('11ኛ ክፍል (Grade 11)', 'set_grade_11'),
+              Markup.button.callback('12ኛ ክፍል (Grade 12)', 'set_grade_12')
+            ]
+          ]);
+
+          return sendCleanMessage(ctx, i18n.am.welcome_start(ctx.from?.first_name || 'ተማሪ'), {
+            parse_mode: 'HTML',
+            ...gradeKeyboard
+          });
         });
 
         // --- DASHBOARD BUTTON 3: 🔗 Share & Invite Friends ---
@@ -1237,7 +1363,7 @@ export default {
           ]);
 
           return sendCleanMessage(ctx, i18n.am.share_text(userId), {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...shareKeyboard
           });
         };
@@ -1257,7 +1383,7 @@ export default {
 
           userStates[chatId] = { step: 'AI_CHAT_MODE' };
           return sendCleanMessage(ctx, i18n.am.ai_intro, {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...Markup.keyboard(i18n.am.menu).resize()
           });
         };
@@ -1277,8 +1403,8 @@ export default {
           const chatId = ctx.chat.id;
           userStates[chatId] = { step: 'AI_CHAT_MODE' };
 
-          return sendCleanMessage(ctx, `🎉 *የውይይት ግሩፕ አባልነትዎ ተረጋግጧል!*\n\nአሁን ማንኛውንም የ Grade 9-12 የትምህርት ጥያቄ መፃፍ ይችላሉ። ⬇️`, {
-            parse_mode: 'Markdown',
+          return sendCleanMessage(ctx, `🎉 <b>የውይይት ግሩፕ አባልነትዎ ተረጋግጧል!</b>\n\nአሁን ማንኛውንም የ Grade 9-12 የትምህርት ጥያቄ መፃፍ ይችላሉ። ⬇️`, {
+            parse_mode: 'HTML',
             ...Markup.keyboard(i18n.am.menu).resize()
           });
         });
@@ -1286,28 +1412,28 @@ export default {
         // --- FAQ HANDLER ---
         const handleFaq = async (ctx) => {
           const faqText = 
-`❓ *Smart X Ethiopian (Smart X ET) — ተደጋግመው የሚጠየቁ ጥያቄዎች (FAQ)*
+`❓ <b>Smart X Ethiopian (Smart X ET) — ተደጋግመው የሚጠየቁ ጥያቄዎች (FAQ)</b>
 
 ━━━━━━━━━━━━━━━━━━━━
-1️⃣ *Smart X ET ምንድነው?*
+1️⃣ <b>Smart X ET ምንድነው?</b>
 • ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀ የ AI Study Assistant እና 10,000+ Quizzes የያዘ የሞባይል አፕሊኬሽን ነው።
 
-2️⃣ *አፑ መቼ ይለቀቃል?*
-• አፑ በይፋ **መስከረም 5 / ሴፕቴምበር 2026** ለ Android እና iOS ይለቀቃል።
+2️⃣ <b>አፑ መቼ ይለቀቃል?</b>
+• አፑ በይፋ <b>መስከረም 5 / ሴፕቴምበር 2026</b> ለ Android እና iOS ይለቀቃል።
 
-3️⃣ *አፑን እንዴት ማውረድ እችላለሁ?*
-• አፑ ሲለቀቅ **ቀጥታ በዚህ ቴሌግራም ቦት ውስጥ** የ \`.apk\` ፋይሉን ያለምንም ተጨማሪ ወጪ ማውረድ ይችላሉ።
+3️⃣ <b>አፑን እንዴት ማውረድ እችላለሁ?</b>
+• አፑ ሲለቀቅ <b>ቀጥታ በዚህ ቴሌግራም ቦት (@SmartXEthiopiaBot) ውስጥ</b> የ <code>.apk</code> ፋይሉን ያለምንም ተጨማሪ ወጪ ማውረድ ይችላሉ።
 
-4️⃣ *የ AI Assistant አገልግሎት እንዴት መጠቀም እችላለሁ?*
-• \`🤖 Smart X AI Assistant\` የሚለውን በተን በመጫን ማንኛውንም የትምህርት ጥያቄ (Math, Physics, Chemistry, Bio...) መፃፍ ይችላሉ።
+4️⃣ <b>የ AI Assistant አገልግሎት እንዴት መጠቀም እችላለሁ?</b>
+• <code>🤖 Smart X AI Assistant</code> የሚለውን በተን በመጫን ማንኛውንም የትምህርት ጥያቄ (Math, Physics, Chemistry, Bio...) መፃፍ ይችላሉ።
 
-5️⃣ *ኦፊሴላዊ ቻናሎች የት ይገኛሉ?*
+5️⃣ <b>ኦፊሴላዊ ቻናሎች የት ይገኛሉ?</b>
 • ቻናል: @SmartXEthiopia
 • ውይይት: @SmartX_Discussion
-• አልሚ: HAB IT Solutions (smartx.ethiopia.dev@gmail.com)`;
+• አልሚ: HAB IT Solutions`;
 
           return sendCleanMessage(ctx, faqText, {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...Markup.inlineKeyboard([
               [Markup.button.url('📢 Official Channel', 'https://t.me/SmartXEthiopia')],
               [Markup.button.url('💬 Discussion Group', 'https://t.me/SmartX_Discussion')]
@@ -1318,23 +1444,113 @@ export default {
         bot.hears(['❓ FAQ', 'FAQ', 'ጥያቄዎች'], handleFaq);
         bot.command('faq', handleFaq);
 
-        // --- INLINE QUERY PROMOTIONAL SHARING HANDLER (ANTI-SPAM OPTIMIZED) ---
+        // --- DEDICATED ADMIN DASHBOARD (`/admin`, `/dashboard`, `/panel`) ---
+        const handleAdminDashboard = async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) {
+            return ctx.reply('⛔ <b>Access Denied!</b> Admin authorization required.', { parse_mode: 'HTML' });
+          }
+
+          const { text, keyboard } = await buildAdminDashboardData(env);
+          return sendCleanMessage(ctx, text, {
+            parse_mode: 'HTML',
+            ...keyboard
+          });
+        };
+
+        bot.command(['admin', 'dashboard', 'panel'], handleAdminDashboard);
+
+        // Admin Action: Refresh Stats
+        bot.action('admin_refresh_stats', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          await ctx.answerCbQuery('🔄 Updating analytics...');
+          const { text, keyboard } = await buildAdminDashboardData(env);
+          try {
+            await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+          } catch (err) {
+            // Message might be identical
+          }
+        });
+
+        // Admin Action: View Recent Users
+        bot.action('admin_recent_users', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          await ctx.answerCbQuery();
+          let userRows = [];
+          let totalCount = 0;
+
+          if (env?.DB) {
+            try {
+              const cRes = await env.DB.prepare('SELECT COUNT(*) as total FROM users').first();
+              totalCount = cRes?.total || 0;
+              const rowsRes = await env.DB.prepare('SELECT telegram_id, full_name, phone, grade, registered_at FROM users ORDER BY registered_at DESC LIMIT 10').all();
+              userRows = rowsRes?.results || [];
+            } catch (e) {
+              console.error('Fetch users error:', e);
+            }
+          }
+
+          let listText = userRows.map((u, i) => 
+            `${i + 1}. <b>${escapeHtml(u.full_name)}</b> (<code>#${u.telegram_id}</code>)\n   • 🎓 ${escapeHtml(u.grade)} | 📱 <code>${escapeHtml(u.phone)}</code>`
+          ).join('\n\n');
+
+          const responseText = 
+`👥 <b>Recent Pre-Registered Students (Total: ${totalCount}):</b>
+
+━━━━━━━━━━━━━━━━━━━━
+${listText || '<i>No students found in database.</i>'}
+━━━━━━━━━━━━━━━━━━━━
+💡 <i>To delete a student record, send:</i> <code>/delete_user &lt;telegram_id&gt;</code>`;
+
+          const backKeyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('⬅️ Back to Admin Dashboard', 'admin_refresh_stats')]
+          ]);
+
+          return sendCleanMessage(ctx, responseText, {
+            parse_mode: 'HTML',
+            ...backKeyboard
+          });
+        });
+
+        // Admin Action: Trigger New Broadcast Flow
+        bot.action('admin_new_broadcast', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+
+          await ctx.answerCbQuery();
+          const chatId = ctx.chat.id;
+          userStates[chatId] = { step: 'AWAITING_BROADCAST_CONTENT' };
+
+          return sendCleanMessage(ctx,
+            `📢 <b>Admin Broadcast Creation (HTML Mode)</b>\n\n` +
+            `Send or forward the message you want to broadcast to all pre-registered users in D1 Database.\n\n` +
+            `Supports clean HTML formatting (<b>bold</b>, <i>italic</i>, <code>code</code>, etc.).\n\n` +
+            `Send <code>/cancel_broadcast</code> to cancel.`,
+            { parse_mode: 'HTML' }
+          );
+        });
+
+        // --- INLINE QUERY PROMOTIONAL SHARING HANDLER (ANTI-SPAM SIDE-BY-SIDE BUTTONS) ---
         bot.on('inline_query', async (ctx) => {
           const promoMessage = 
-`🎓 *SMART X ETHIOPIAN (GRADE 9 - 12)* 🎓
-🎁 *100% FREE* | ⏳ *COMING SOON*
+`🎓 <b>SMART X ETHIOPIAN (GRADE 9 - 12)</b> 🎓
+🎁 <b>100% FREE</b> | ⏳ <b>COMING SOON</b>
 
 ✨ ለአዲሱ የኢትዮጵያ ስርዓተ-ትምህርት የተዘጋጀ አዲስ መተግበሪያ!
 
-📌 *በውስጡ ያካተታቸው:*
+📌 <b>በውስጡ ያካተታቸው:</b>
 • 📖 Chapter-wise Short Notes
 • 📝 Model Exams & Worksheets
 • 📚 10,000+ Quizzes with Explanations
-• 🤖 24/7 Smart AI Study Assistant
+• 🤖 24/7 Smart AI Study Assistant (@SmartXEthiopiaBot)
 
-💪 *"የዛሬ ጥረት የነገ ስኬትህ ነው!"*
+💪 <i>"የዛሬ ጥረት የነገ ስኬትህ ነው!"</i>
 
-👇 *አሁኑኑ ለመጀመር ከታች ይጫኑ!*`;
+👇 <b>አሁኑኑ ለመጀመር ከታች ይጫኑ!</b>`;
 
           const results = [
             {
@@ -1345,12 +1561,12 @@ export default {
               thumb_url: 'https://placehold.co/200x200/0284c7/ffffff.png?text=Smart+X',
               input_message_content: {
                 message_text: promoMessage,
-                parse_mode: 'Markdown'
+                parse_mode: 'HTML'
               },
               ...Markup.inlineKeyboard([
                 [
-                  Markup.button.url('🤖 AI Assistant ➔', 'https://t.me/SmartXEthiopiaBot?start=ai'),
-                  Markup.button.url('📝 Pre-Register ➔', 'https://t.me/SmartXEthiopiaBot?start=register')
+                  Markup.button.url('🤖 AI Assistant', 'https://t.me/SmartXEthiopiaBot?start=ai'),
+                  Markup.button.url('📝 Pre-Register Free', 'https://t.me/SmartXEthiopiaBot?start=register')
                 ]
               ])
             }
@@ -1372,15 +1588,15 @@ export default {
           const chatId = ctx.chat.id;
 
           if (!isAdmin(userId, env)) {
-            return ctx.reply('⛔ Access Denied! Admin command only.', { parse_mode: 'HTML' });
+            return ctx.reply('⛔ <b>Access Denied!</b> Admin command only.', { parse_mode: 'HTML' });
           }
 
           userStates[chatId] = { step: 'AWAITING_BROADCAST_CONTENT' };
 
-          return ctx.reply(
+          return sendCleanMessage(ctx,
             `📢 <b>Admin Broadcast Creation (HTML Mode)</b>\n\n` +
             `Send or forward the message you want to broadcast to all pre-registered users in D1 Database.\n\n` +
-            `Supports HTML formatting (<b>bold</b>, <i>italic</i>, <code>code</code>, <a href="...">link</a>, and plain text with underscores <code>_</code>).\n\n` +
+            `Supports HTML formatting (<b>bold</b>, <i>italic</i>, <code>code</code>, and plain text with underscores <code>_</code>).\n\n` +
             `Type <code>/cancel_broadcast</code> to cancel.`,
             { parse_mode: 'HTML' }
           );
@@ -1390,18 +1606,18 @@ export default {
 
         bot.command('cancel_broadcast', (ctx) => {
           const chatId = ctx.chat.id;
-          if (userStates[chatId]?.step === 'AWAITING_BROADCAST_CONTENT') {
+          if (userStates[chatId]?.step === 'AWAITING_BROADCAST_CONTENT' || userStates[chatId]?.step === 'AWAITING_BROADCAST_BUTTON') {
             userStates[chatId].step = null;
             delete broadcastDrafts[chatId];
-            return ctx.reply('❌ Broadcast creation cancelled.');
+            return sendCleanMessage(ctx, '❌ Broadcast creation cancelled.');
           }
-          return ctx.reply('No active broadcast session.');
+          return sendCleanMessage(ctx, 'No active broadcast session.');
         });
 
         bot.command('send_broadcast', async (ctx) => {
           const userId = ctx.from.id;
           if (!isAdmin(userId, env)) {
-            return ctx.reply('⛔ Access Denied! Admin command only.');
+            return ctx.reply('⛔ <b>Access Denied!</b> Admin command only.', { parse_mode: 'HTML' });
           }
 
           let payload = null;
@@ -1410,7 +1626,7 @@ export default {
           } else {
             const text = ctx.message.text.replace('/send_broadcast', '').trim();
             if (!text) return ctx.reply('⚠️ Please provide message text or reply to a message.');
-            payload = { type: 'text', text, caption: '', parse_mode: 'Markdown', from_chat_id: ctx.chat.id, message_id: ctx.message.message_id };
+            payload = { type: 'text', text, caption: '', parse_mode: 'HTML', from_chat_id: ctx.chat.id, message_id: ctx.message.message_id };
           }
 
           return startBroadcastProcess(ctx, payload);
@@ -1457,7 +1673,7 @@ export default {
 
           if (recipientIds.length === 0) {
             recipientIds = Object.keys(registeredUsers)
-              .filter(id => registeredUsers[id].is_active !== false)
+              .filter(id => registeredUsers[id].is_active !== false && registeredUsers[id].is_active !== 0)
               .map(id => Number(id));
           }
 
@@ -1488,27 +1704,27 @@ export default {
             }
           }
 
-          await ctx.reply(
-            `🚀 *Broadcast queued in Cloudflare D1!*\n\n🆔 *ID:* #${broadcastId}\n📬 *Total:* ${totalRecipients}\n⚡ *Rate Limit:* ~25-30 msgs/min (Rate-Limit Safe)`,
-            { parse_mode: 'Markdown' }
+          await sendCleanMessage(ctx,
+            `🚀 <b>Broadcast queued in Cloudflare D1!</b>\n\n🆔 <b>ID:</b> #${broadcastId}\n📬 <b>Total:</b> ${totalRecipients}\n⚡ <b>Rate Limit:</b> ~25-30 msgs/min (Rate-Limit Safe)`,
+            { parse_mode: 'HTML' }
           );
 
           const batchRes = await processBroadcastQueueBatch(bot, env, 25);
 
-          return ctx.reply(
-            `📊 *First Batch Result:*\n• Delivered: ${batchRes.sent || 0}\n• Blocked: ${batchRes.blocked || 0}\n• Failed: ${batchRes.failed || 0}\n\nRemaining items will be processed via Cloudflare Worker Cron Trigger. Use \`/broadcast_status\` for reports.`,
-            { parse_mode: 'Markdown' }
+          return sendCleanMessage(ctx,
+            `📊 <b>First Batch Result:</b>\n• Delivered: ${batchRes.sent || 0}\n• Blocked: ${batchRes.blocked || 0}\n• Failed: ${batchRes.failed || 0}\n\nRemaining items will be processed automatically. Send <code>/broadcast_status</code> for reports.`,
+            { parse_mode: 'HTML' }
           );
         }
 
         const handleBroadcastStatus = async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.reply('⛔ Admin command only.');
+          if (!isAdmin(userId, env)) return ctx.reply('⛔ <b>Access Denied!</b> Admin command only.', { parse_mode: 'HTML' });
           if (!env.DB) return ctx.reply('⚠️ D1 Database not available.');
 
           try {
             const b = await env.DB.prepare(`SELECT * FROM broadcasts ORDER BY id DESC LIMIT 1`).first();
-            if (!b) return ctx.reply('ℹ️ No broadcast logs found.');
+            if (!b) return sendCleanMessage(ctx, 'ℹ️ No broadcast logs found.');
 
             const total = b.total_recipients || 0;
             const sent = b.sent_count || 0;
@@ -1518,20 +1734,20 @@ export default {
             const totalAttempted = sent + blocked + failed;
             const successRate = totalAttempted > 0 ? ((sent / totalAttempted) * 100).toFixed(1) : '100.0';
 
-            return ctx.reply(
-              `📊 *Smart X ET Broadcast Status Report*\n\n` +
-              `🆔 *ID:* #${b.id}\n` +
-              `📌 *Status:* ${b.status}\n` +
-              `• 👥 *Total:* ${total}\n` +
-              `• 📬 *Delivered:* ${sent}\n` +
-              `• 🚫 *Blocked:* ${blocked}\n` +
-              `• ❌ *Failed:* ${failed}\n` +
-              `• ⏳ *Pending:* ${pending}\n` +
-              `🎯 *Success Rate:* ${successRate}%`,
-              { parse_mode: 'Markdown' }
+            return sendCleanMessage(ctx,
+              `📊 <b>Smart X ET Broadcast Status Report</b>\n\n` +
+              `🆔 <b>ID:</b> #${b.id}\n` +
+              `📌 <b>Status:</b> ${b.status}\n` +
+              `• 👥 <b>Total:</b> ${total}\n` +
+              `• 📬 <b>Delivered:</b> ${sent}\n` +
+              `• 🚫 <b>Blocked:</b> ${blocked}\n` +
+              `• ❌ <b>Failed:</b> ${failed}\n` +
+              `• ⏳ <b>Pending:</b> ${pending}\n` +
+              `🎯 <b>Success Rate:</b> ${successRate}%`,
+              { parse_mode: 'HTML' }
             );
           } catch (err) {
-            return ctx.reply(`⚠️ Error fetching report: ${err.message}`);
+            return sendCleanMessage(ctx, `⚠️ Error fetching report: ${escapeHtml(err.message)}`);
           }
         };
 
@@ -1542,16 +1758,16 @@ export default {
         bot.command(['delete_user', 'delete_registration', 'delete'], async (ctx) => {
           const adminId = ctx.from.id;
           if (!isAdmin(adminId, env)) {
-            return ctx.reply('⛔ Access Denied! Admin authority command only.');
+            return ctx.reply('⛔ <b>Access Denied!</b> Admin authority command only.', { parse_mode: 'HTML' });
           }
 
           const args = ctx.message.text.split(' ').slice(1);
           const targetId = args[0] ? parseInt(args[0], 10) : null;
 
           if (!targetId || isNaN(targetId)) {
-            return ctx.reply(
-              '⚠️ *Admin Delete User Command Usage:*\n\n`/delete_user <telegram_id>`\nExample: `/delete_user 123456789`',
-              { parse_mode: 'Markdown' }
+            return sendCleanMessage(ctx,
+              '⚠️ <b>Admin Delete User Usage:</b>\n\n<code>/delete_user &lt;telegram_id&gt;</code>\nExample: <code>/delete_user 123456789</code>',
+              { parse_mode: 'HTML' }
             );
           }
 
@@ -1568,15 +1784,15 @@ export default {
           delete registeredUsers[targetId];
           delete userLanguages[targetId];
 
-          return ctx.reply(
-            `🗑️ *Admin Authority Action Completed:*\n\nUser registration data for Telegram ID \`#${targetId}\` has been permanently deleted from Cloudflare D1 database and active session cache!`,
-            { parse_mode: 'Markdown' }
+          return sendCleanMessage(ctx,
+            `🗑️ <b>Admin Authority Action Completed:</b>\n\nUser registration data for Telegram ID <code>#${targetId}</code> has been permanently removed!`,
+            { parse_mode: 'HTML' }
           );
         });
 
         bot.command(['users', 'list_users', 'registered_users'], async (ctx) => {
           const adminId = ctx.from.id;
-          if (!isAdmin(adminId, env)) return ctx.reply('⛔ Access Denied! Admin authority command only.');
+          if (!isAdmin(adminId, env)) return ctx.reply('⛔ <b>Access Denied!</b> Admin authority command only.', { parse_mode: 'HTML' });
 
           let totalCount = 0;
           let userRows = [];
@@ -1586,16 +1802,16 @@ export default {
               const countRes = await env.DB.prepare('SELECT COUNT(*) as total FROM users').first();
               totalCount = countRes?.total || 0;
 
-              const rowsRes = await env.DB.prepare('SELECT telegram_id, full_name, phone, grade, language FROM users ORDER BY registered_at DESC LIMIT 10').all();
+              const rowsRes = await env.DB.prepare('SELECT telegram_id, full_name, phone, grade FROM users ORDER BY registered_at DESC LIMIT 10').all();
               userRows = rowsRes?.results || [];
             } catch (e) {}
           }
 
-          let userListText = userRows.map((u, i) => `${i + 1}. *${u.full_name}* (\`#${u.telegram_id}\`) - ${u.grade} [${u.phone}]`).join('\n');
+          let userListText = userRows.map((u, i) => `${i + 1}. <b>${escapeHtml(u.full_name)}</b> (<code>#${u.telegram_id}</code>) - ${escapeHtml(u.grade)} [${escapeHtml(u.phone)}]`).join('\n');
 
-          return ctx.reply(
-            `👥 *Total Pre-Registered Users:* ${totalCount}\n\n*Recent Registrations:*\n${userListText || 'No registered users in DB.'}\n\nTo delete a registered user, run:\n\`/delete_user <telegram_id>\``,
-            { parse_mode: 'Markdown' }
+          return sendCleanMessage(ctx,
+            `👥 <b>Total Pre-Registered Students:</b> ${totalCount}\n\n<b>Recent Registrations:</b>\n${userListText || 'No registered users in DB.'}\n\nTo delete a registered user, run:\n<code>/delete_user &lt;telegram_id&gt;</code>`,
+            { parse_mode: 'HTML' }
           );
         });
 
@@ -1605,7 +1821,6 @@ export default {
           const msg = ctx.message;
           const text = (msg.text || msg.caption || '').trim();
           const userId = ctx.from.id;
-          const lang = await getUserLanguage(userId, env);
 
           if (text.startsWith('/')) return;
 
@@ -1620,7 +1835,7 @@ export default {
             broadcastDrafts[chatId] = payload;
             userStates[chatId].step = 'AWAITING_BROADCAST_BUTTON';
 
-            return ctx.reply(
+            return sendCleanMessage(ctx,
               `🔗 <b>Add Inline URL Button to Broadcast (Optional)</b>\n\n` +
               `Would you like to attach an inline URL button to this broadcast message?\n\n` +
               `<b>Format:</b> <code>Button Text | https://your-link.com</code>\n` +
@@ -1657,7 +1872,7 @@ export default {
 
             draft.parse_mode = 'HTML';
 
-            const btnPreview = draft.button ? `• <b>Inline Button:</b> <a href="${draft.button.url}">${draft.button.text}</a>` : `• <b>Inline Button:</b> None`;
+            const btnPreview = draft.button ? `• <b>Inline Button:</b> <a href="${draft.button.url}">${escapeHtml(draft.button.text)}</a>` : `• <b>Inline Button:</b> None`;
             const contentPreview = draft.text || draft.caption || '(No text content)';
 
             const previewKeyboard = [];
@@ -1669,7 +1884,7 @@ export default {
               Markup.button.callback('❌ Cancel Draft', 'cancel_broadcast_draft')
             ]);
 
-            return ctx.reply(
+            return sendCleanMessage(ctx,
               `🔍 <b>Broadcast Message Preview (HTML Mode):</b>\n\n` +
               `• <b>Type:</b> ${draft.type.toUpperCase()}\n` +
               `${btnPreview}\n\n` +
@@ -1737,14 +1952,14 @@ export default {
           }
 
           if (!aiResponseText) {
-            aiResponseText = `ሰላም! Smart X Ethiopian ሞባይል አፕሊኬሽን ለ Grade 9-12 ተማሪዎች በመስከረም 5 / ሴፕቴምበር 2026 ይለቀቃል። ለማንኛውም ጥያቄ /quiz በማለት ይለማመዱ ወይም በ \`📲 Download App (Play Store Hub)\` አፑን ይጎብኙ!`;
+            aiResponseText = `ሰላም! Smart X Ethiopian ሞባይል አፕሊኬሽን ለ Grade 9-12 ተማሪዎች በመስከረም 5 / ሴፕቴምበር 2026 ይለቀቃል። ለማንኛውም ጥያቄ /quiz በማለት ይለማመዱ ወይም በ <b>📲 Download App</b> አፑን ይጎብኙ!`;
           }
 
           // Save chat query and response into Cloudflare D1 ai_chats table
           await logAiChat(env, userId, text, aiResponseText, 'am', usedModelName);
 
           return sendCleanMessage(ctx, aiResponseText, {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             ...Markup.keyboard(i18n.am.menu).resize()
           });
         });
