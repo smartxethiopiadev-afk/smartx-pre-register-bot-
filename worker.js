@@ -89,27 +89,88 @@ async function generateWithGeminiFallback(params, env) {
   throw lastError || new Error('All Gemini API keys and models failed.');
 }
 
-// Multi-language Translations Dictionary (Amharic 'am', Afaan Oromoo 'om', English 'en')
+// Multi-language Translations Dictionary (Amharic 'am' as primary UI, Afaan Oromoo 'om', English 'en')
 const i18n = {
   am: {
-    welcome_start: (name) => `👋 *ሰላም ${name}! እንኳን ወደ Smart X Ethiopian (Smart X ET) በደህና መጡ!*
+    welcome_start: (name) => `👋 *ሰላም ${name}! እንኳን ወደ Smart X Ethiopian (Smart X ET) በደህና መጡ!* 🇪🇹
 
-ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀ የ AI Study Assistant እና Interactive Quiz Engine።
+✨ ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grades 9-12) የተዘጋጀ የ AI የትምህርት ረዳት እና የፈተና መለማመጃ መድረክ።
 
-እባክዎን የሚፈልጉትን ቋንቋ ይምረጡ / Select language:`,
-    lang_confirm: `🇪🇹 ቋንቋዎ በአማርኛ ተመርጧል!`,
-    main_menu_title: `እንኳን ወደ Smart X ET በደህና መጡ! ከታች ካሉት አማራጮች ይምረጡ፡`,
+━━━━━━━━━━━━━━━━━━━━
+🔹 *ደረጃ 1: እባክዎን የትምህርት ክፍልዎን ይምረጡ* ⬇️
+━━━━━━━━━━━━━━━━━━━━`,
+    channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
+📢 *ደረጃ 2: የኦፊሴላዊ ቻናል አባልነት ማረጋገጫ* ⬇️
+━━━━━━━━━━━━━━━━━━━━
+✅ የተመረጠው ክፍል: *${grade}*
+
+➔ ወደ ቀጣዩ ደረጃ ለመሻገር እና አፑን 100% በነፃ ለመጠቀም እባክዎን የ Smart X Ethiopian ኦፊሴላዊ ቻናል ይቀላቀሉ!
+
+🔹 ቻናሉን ከተቀላቀሉ በኋላ **«✅ አረጋግጥ (Verify Membership)»** የሚለውን በተን ይጫኑ።`,
+    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
+📱 *ደረጃ 3: የስልክ ቁጥር ማረጋገጫ* ⬇️
+━━━━━━━━━━━━━━━━━━━━
+🎉 የቻናል አባልነትዎ በተሳካ ሁኔታ ተረጋግጧል!
+
+ምዝገባዎን ለማጠናቀቅ እና ልዩ የቅድመ-ምዝገባ እድሎችን (VIP Access & Early APK Release) ለማግኘት እባክዎን ከታች ያለውን በተን በመጫን ስልክ ቁጥርዎን ያጋሩን ወይም በጽሁፍ ይላኩልን፡`,
+    reg_success: (name, phone, grade) => `🎉 *እንኳን ደስ አለዎት! ምዝገባዎ በስኬት ተጠናቋል!* 🚀
+
+📋 *የተመዘገቡት መረጃዎች:*
+• 👤 *ስም:* ${name}
+• 📱 *ስልክ:* ${phone}
+• 🎓 *ክፍል:* ${grade}
+• 📢 *ቻናል:* ✅ የተረጋገጠ (@SmartXEthiopia)
+• 💎 *ሁኔታ:* 100% ነፃ ቅድመ-ተመዝጋቢ (VIP Early Access)
+
+━━━━━━━━━━━━━━━━━━━━
+🔹 *ከታች ካሉት ዋና አገልግሎቶች ይምረጡ* ⬇️
+━━━━━━━━━━━━━━━━━━━━`,
     menu: [
-      ['⚙️ መቼቶች', '🤖 Smart X AI Assistant'],
-      ['❓ የዛሬው Quiz', '📱 ስለ Smart X ET'],
-      ['📢 ኦፊሴላዊ ቻናል', '💬 እገዛና አስተያየት']
+      ['🤖 Smart X AI Assistant', '📲 Download App (Play Store Hub)'],
+      ['🔗 Share & Invite Friends', '👤 My Profile']
     ],
-    settings_title: `⚙️ *Smart X ET - የመቼቶች ገጽ (Settings)*\n\nእባክዎን ማድረግ የሚፈልጉትን ይምረጡ፡`,
-    btn_change_lang: `🌐 ቋንቋ ቀይር (Change Language)`,
-    btn_update_profile: `📝 ፕሮፋይል አዘምን / Pre-Register`,
-    btn_view_profile: `👤 ፕሮፋይሌን እይ (My Profile)`,
-    btn_verify_channel: `📢 Channel አባልነት አረጋግጥ`,
-    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*\n\nሰላም! እኔ ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) እና ለ Smart X ET አፕሊኬሽን የተዘጋጀሁ AI Assistant ነኝ።\n\nመጠየቅ የሚፈልጉትን የትምህርት ጥያቄ (Physics, Chemistry, Biology, Math, History, IT...) ይፃፉልኝ!`,
+    app_hub_text: `📱 *Smart X Ethiopian — Play Store App Hub* ⭐️⭐️⭐️⭐️⭐️
+
+━━━━━━━━━━━━━━━━━━━━
+📦 *የመተግበሪያ መረጃ (App Specifications):*
+━━━━━━━━━━━━━━━━━━━━
+• 🏷️ *የአፕ ስም:* Smart X Ethiopian (Smart X ET)
+• 🏢 *አልሚ:* HAB IT Solutions
+• 📊 *ስሪት:* v1.0.0 (Official Release)
+• 💎 *ዋጋ:* 🎁 100% በነፃ (100% FREE)
+• 🎯 *ዒላማ:* የ 9ኛ - 12ኛ ክፍል አዲሱ የኢትዮጵያ ካሪኩለም
+• ⏳ *የምዝገባ ሁኔታ:* ቅድመ-ተመዝግበዋል (Pre-Registered)
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 *የ APK ፋይል ማውረጃ መረጃ (APK Direct Download):*
+━━━━━━━━━━━━━━━━━━━━
+➔ አፑ በይፋ በመስከረም 5 / ሴፕቴምበር 2026 ሲለቀቅ **ቀጥታ በዚህ ቴሌግራም ቦት ውስጥ** የ \`.apk\` ፋይሉን ያለምንም ተጨማሪ ዳታ በቀላሉ ማውረድ ይችላሉ! 📥
+
+➔ አስቀድመው ስለተመዘገቡ አፑ እንደተለቀቀ ፈጣን የማውረጃ ሊንክ እና የ 50% VIP ቅናሽ ማሳወቂያ ይደርስዎታል።`,
+    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*
+
+ሰላም! እኔ ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀሁ የ AI ትምህርት ረዳት ነኝ።
+
+━━━━━━━━━━━━━━━━━━━━
+🔹 ማንኛውንም የትምህርት ጥያቄ (Physics, Chemistry, Biology, Mathematics, History, English, IT...) ይፃፉልኝ! ⬇️`,
+    profile_text: (name, phone, grade, date) => `👤 *የተጠቃሚ መረጃ (My Profile)*
+
+━━━━━━━━━━━━━━━━━━━━
+• 👤 *ስም:* ${name}
+• 📱 *ስልክ:* ${phone}
+• 🎓 *የትምህርት ክፍል:* ${grade}
+• 📢 *ቻናል:* ✅ የተረጋገጠ (@SmartXEthiopia)
+• 💎 *ሁኔታ:* 100% ነፃ ቅድመ-ተመዝጋቢ (VIP Access)
+• 📅 *የተመዘገቡበት ቀን:* ${date || 'Just now'}
+━━━━━━━━━━━━━━━━━━━━`,
+    share_text: (userId) => `🔗 *ጓደኞችዎን ይጋብዙ — Smart X Ethiopian*
+
+━━━━━━━━━━━━━━━━━━━━
+የእርስዎን ልዩ የግብዣ ሊንክ ለጓደኞችዎ፣ ለክፍል ጓደኞችዎ ወይም በቴሌግራም ግሩፖች በማጋራት አብረው ይማሩ!
+
+🎁 *የእርስዎ መጋሪያ ሊንክ:*
+https://t.me/SmartXEthiopiaBot?start=ref_${userId}
+━━━━━━━━━━━━━━━━━━━━`,
     system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.
 
 STRICT MANDATORY RULES:
@@ -117,95 +178,139 @@ STRICT MANDATORY RULES:
 2. SCOPE OF KNOWLEDGE: STRICTLY restrict knowledge ONLY to Grade 9, 10, 11, and 12 Ethiopian Curriculum subjects (Physics, Chemistry, Biology, Mathematics, History, Geography, Civics, Economics, English, Amharic, Afaan Oromoo, IT) and details about the Smart X Ethiopian (Smart X ET) Mobile App.
 3. NON-EDUCATIONAL QUERIES: If the user asks non-educational, non-curriculum questions (such as news, celebrities, adult content, gaming, general programming, politics, etc.), politely decline in Amharic and redirect them back to Grade 9-12 Ethiopian high school topics or Smart X ET features.
 4. APP RELEASE ANNOUNCEMENT: In EVERY response, politely remind students that the Smart X Ethiopian Mobile App officially releases on Meskerem 5 / September 2026 (መስከረም 5 / ሴፕቴምበር 2026) for Android & iOS with 10,000+ quizzes and notes.
-5. LANGUAGE: Respond accurately and concisely in Amharic.`,
-
-    about_text: `📱 *ስለ Smart X Ethiopian (Smart X ET)*\n\n• *የአፑ ስም:* Smart X Ethiopian / Smart X ET\n• *አልሚ:* HAB IT Solutions\n• *ዓላማ:* ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grades 9-12) የተዘጋጀ የ Quiz እና የትምህርት ማጠቃለያ አፕሊኬሽን።\n• *የመልቀቂያ ጊዜ:* መስከረም 5 / ሴፕቴምበር 2026 (September 2026)\n• *ፕላትፎርም:* Android & iOS (በ Flutter የተሰራ)\n\n🚀 በሴፕቴምበር 2026 ሲለቀቅ የመጀመርያው ተጠቃሚ ለመሆን አሁኑኑ /register በማድረግ ይመዝገቡ!`,
-    channel_info: `📢 *የ Smart X Ethiopian ኦፊሴላዊ ቴሌግራም ቻናል*\n\nየቅርብ ጊዜ መረጃዎችን፣ ትምህርታዊ ማጠቃለያዎችን እና ማሳወቂያዎችን ለማግኘት @SmartXEthiopia ይቀላቀሉ!`,
-    support_info: `💬 *ደጋፊዎች እና አስተያየት (Support & Feedback)*\n\nለማንኛውም ጥያቄ ወይም አስተያየት፡\n• *Telegram Channel:* @SmartXEthiopia\n• *Developer:* HAB IT Solutions\n• *Email:* smartx.ethiopia.dev@gmail.com\n\nአስተያየትዎን ስላጋሩን እናመሰግናለን! 🙏`,
-    reg_start_msg: `📝 *Smart X Ethiopian - የቅድመ-ምዝገባ ቅጽ*\n\nእባክዎን **ሙሉ ስምዎን** ይፃፉልኝ፡`,
-    reg_ask_grade: (name) => `እሺ ${name}! 👋 እባክዎን የትምህርት ክፍልዎን (Grade) ይምረጡ፡`,
-    reg_ask_stream: (grade) => `👍 ተመርጧል፡ *${grade}*\n\nእባክዎን የትምህርት ዘርፍዎን (Stream) ይምረጡ፡`,
-    reg_ask_phone: (stream) => `✅ ዘርፍ፡ *${stream}*\n\nእባክዎን **ስልክ ቁጥርዎን** ያጋሩን ወይም በጽሁፍ ይፃፉልን፡`,
-    reg_channel_step: `📢 *የመጨረሻ ደረጃ፡ የኦፊሴላዊ ቴሌግራም ቻናል ይቀላቀሉ*\n\nምዝገባዎን ለማጠናቀቅ እባክዎን የ Smart X Ethiopian ኦፊሴላዊ ቻናል (**@SmartXEthiopia**) ይቀላቀሉ።`,
-    reg_success: (name, phone, grade, stream) => `🎉 *እንኳን ደስ አለዎት! ቅድመ-ምዝገባዎ በ Cloudflare D1 ዳታቤዝ ተጠናቋል!* 🚀\n\n📋 *መረጃዎች፡*\n• *ስም:* ${name}\n• *ስልክ:* ${phone}\n• *ክፍል:* ${grade}\n• *ዘርፍ:* ${stream}\n• *ቻናል:* ✅ የተረጋገጠ (@SmartXEthiopia)\n\nHAB IT Solutions ስለመረጡን እናመሰግናለን!`
+5. LANGUAGE: Respond accurately and concisely in Amharic.`
   },
 
   om: {
-    welcome_start: (name) => `👋 *Akkam ${name}! Baga gara Smart X Ethiopian (Smart X ET) nagaan dhuftan!*
+    welcome_start: (name) => `👋 *Akkam ${name}! Baga gara Smart X Ethiopian (Smart X ET) nagaan dhuftan!* 🇪🇹
 
-Gargaaraa AI fi Quiz Engine Sirna Barnoota Kutaalee 9-12 Itoophiyaa.
+✨ Gargaaraa AI fi Sirna Barnoota Haaraa Kutaalee 9-12 Itoophiyaa.
 
-Maaloo afaan filadhaa / Select language:`,
-    lang_confirm: `🌳 Afaan keessan Afaan Oromootiin filatameera!`,
-    main_menu_title: `Baga gara Smart X ET nagaan dhuftan! Filannoowwan armaan gadii irraa filadhaa:`,
+━━━━━━━━━━━━━━━━━━━━
+🔹 *Sadarkaa 1: Maaloo Kutaa Barnootaa Filadhaa* ⬇️
+━━━━━━━━━━━━━━━━━━━━`,
+    channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
+📢 *Sadarkaa 2: Chanaalii Ufisaa Mirkaneessuu* ⬇️
+━━━━━━━━━━━━━━━━━━━━
+✅ Kutaa Filatame: *${grade}*
+
+➔ Sadarkaa itti aanutti darbuuf fi appii kana 100% bilisaan argachuuf chanaalii keenya makamaa!`,
+    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
+📱 *Sadarkaa 3: Lakk. Bilbilaa Mirkaneessuu* ⬇️
+━━━━━━━━━━━━━━━━━━━━
+🎉 Chanaaliin keessan mirkanaa'eera!
+
+Galmee xumuruuf maaloo lakk. bilbilaa keessan nuuf ergaa:`,
+    reg_success: (name, phone, grade) => `🎉 *Baga gammaddan! Galmeen keessan xumurameera!* 🚀
+
+📋 *Odeeffannoo:*
+• 👤 *Maqaa:* ${name}
+• 📱 *Bilbila:* ${phone}
+• 🎓 *Kutaa:* ${grade}
+• 📢 *Chanaalii:* ✅ Mirkanaa'e (@SmartXEthiopia)
+• 💎 *Sadarkaa:* 100% Bilisa (VIP Access)`,
     menu: [
-      ['⚙️ Qindaa\'inaa', '🤖 Smart X AI Assistant'],
-      ['❓ Quiz Guyyaa', '📱 Waa\'ee Smart X ET'],
-      ['📢 Chanaalii Ufisaa', '💬 Deeggarsa & Yaada']
+      ['🤖 Smart X AI Assistant', '📲 Download App (Play Store Hub)'],
+      ['🔗 Share & Invite Friends', '👤 My Profile']
     ],
-    settings_title: `⚙️ *Smart X ET - Fuula Qindaa'inaa (Settings)*\n\nMaaloo isa raawwachuu barbaaddan filadhaa:`,
-    btn_change_lang: `🌐 Afaan Jijjiiri (Change Language)`,
-    btn_update_profile: `📝 Piroofaayilii Haarsi (Update Profile)`,
-    btn_view_profile: `👤 Piroofaayilii Koo (My Profile)`,
-    btn_verify_channel: `📢 Mirkaneessa Chanaalii`,
-    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*\n\nAkkam! Ani gargaaraa AI sirna barnoota haaraa Itoophiyaa (Grade 9-12) fi Smart X ET ti.\n\nGaaffii barnootaa kamiyyuu (Physics, Chemistry, Biology, Math, IT...) na gaafadhaa!`,
-    system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.
+    app_hub_text: `📱 *Smart X Ethiopian — Play Store App Hub* ⭐️⭐️⭐️⭐️⭐️
 
-STRICT MANDATORY RULES:
-1. IDENTITY: Identify yourself as "Smart X Ethiopian AI Assistant" developed by HAB IT Solutions.
-2. SCOPE OF KNOWLEDGE: STRICTLY restrict knowledge ONLY to Grade 9, 10, 11, and 12 Ethiopian Curriculum subjects and Smart X Ethiopian (Smart X ET) Mobile App details.
-3. NON-EDUCATIONAL QUERIES: If the user asks non-educational questions, politely decline in Afaan Oromoo and redirect them back to Grade 9-12 Ethiopian high school topics or Smart X ET features.
-4. APP RELEASE ANNOUNCEMENT: In EVERY response, politely remind students that the Smart X Ethiopian Mobile App officially releases on Meskerem 5 / September 2026 (Fulbaana 5 / September 2026) for Android & iOS.
-5. LANGUAGE: Respond accurately and concisely in Afaan Oromoo.`,
+━━━━━━━━━━━━━━━━━━━━
+📦 *Odeeffannoo Appilikeeshinii:*
+━━━━━━━━━━━━━━━━━━━━
+• 🏷️ *Maqaa:* Smart X Ethiopian (Smart X ET)
+• 🏢 *Ijaaraa:* HAB IT Solutions
+• 💎 *Gatii:* 🎁 100% Bilisa (100% FREE)
+• 🎯 *Kutaalee:* 9-12 Sirna Barnoota Haaraa
+• ⏳ *Haala:* Galmaa'eera (Pre-Registered)
 
-    about_text: `📱 *Waa'ee Smart X Ethiopian (Smart X ET)*\n\n• *Maqaa App:* Smart X Ethiopian / Smart X ET\n• *Ijaaraa:* HAB IT Solutions\n• *Kaayyoo:* Appilikeeshinii Quiz fi Cuunfaa Barnoota Haaraa Kutaalee 9-12 Itoophiyaatiif qophaa'e.\n• *Yeroo Gadhiifamu:* Fulbaana 5 / September 2026\n• *Plaatfoormii:* Android & iOS (Flutter tiin ijaarame)\n\n🚀 Fulbaana 2026 irratti fayyadamaa jalqabaa ta'uuf ammaahuu /register godhaa!`,
-    channel_info: `📢 *Chanaalii Telegraama Ufisaa Smart X Ethiopian*\n\nOdeeffannoowwan haaraa fi cuunfaawwan barnootaa argachuuf @SmartXEthiopia makamaa!`,
-    support_info: `💬 *Deeggarsa & Yaada (Support & Feedback)*\n\nGaaffii fi yaada kamiyyuuf:\n• *Telegram Channel:* @SmartXEthiopia\n• *Developer:* HAB IT Solutions\n• *Email:* smartx.ethiopia.dev@gmail.com\n\nYaada keessaniif galatoomaa! 🙏`,
-    reg_start_msg: `📝 *Smart X Ethiopian - Waraqaa Galmee*\n\nMaaloo **Maqaa keessan guutuu** barreessaa:`,
-    reg_ask_grade: (name) => `Tole ${name}! 👋 Maaloo Kutaa barnoota keessanii filadhaa:`,
-    reg_ask_stream: (grade) => `👍 Filatameera: *${grade}*\n\nMaaloo Damee barnootaa (Stream) keessan filadhaa:`,
-    reg_ask_phone: (stream) => `✅ Damee: *${stream}*\n\nMaaloo **Lakk. Bilbilaa** keessan nuuf qoodaa ykn barreessaa:`,
-    reg_channel_step: `📢 *Sadarkaa Xumuraa: Chanaalii Ufisaa Makamaa*\n\nGalmee keessan xumuruuf maaloo chanaalii @SmartXEthiopia makamaa.`,
-    reg_success: (name, phone, grade, stream) => `🎉 *Baga gammaddan! Galmeen keessan Cloudflare D1 irratti xumurameera!* 🚀\n\n📋 *Odeeffannoo:* \n• *Maqaa:* ${name}\n• *Bilbila:* ${phone}\n• *Kutaa:* ${grade}\n• *Damee:* ${stream}\n• *Chanaalii:* ✅ Mirkanaa'e (@SmartXEthiopia)\n\nHAB IT Solutions filachuu keessaniif galatoomaa!`
+━━━━━━━━━━━━━━━━━━━━
+🚀 *Buufata APK Kallattii (Direct APK Download):*
+━━━━━━━━━━━━━━━━━━━━
+➔ Appiin kun Fulbaana 5 / September 2026 yoo gadhiifamu **kallattiin botii kana keessaa** faayilii \`.apk\` buufachuu dandeessu! 📥`,
+    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*
+
+Akkam! Gaaffii barnootaa kutaalee 9-12 kamiyyuu na gaafachuu dandeessu! ⬇️`,
+    profile_text: (name, phone, grade, date) => `👤 *Piroofaayilii Koo (My Profile)*
+
+━━━━━━━━━━━━━━━━━━━━
+• 👤 *Maqaa:* ${name}
+• 📱 *Bilbila:* ${phone}
+• 🎓 *Kutaa:* ${grade}
+• 📢 *Chanaalii:* ✅ Mirkanaa'e (@SmartXEthiopia)
+• 📅 *Guyyaa:* ${date || 'Amma'}
+━━━━━━━━━━━━━━━━━━━━`,
+    share_text: (userId) => `🔗 *Hiriyoota Keessan Affeeraa — Smart X ET*
+
+Liankii keessan kanaan hiriyoota keessan affeeraa:
+https://t.me/SmartXEthiopiaBot?start=ref_${userId}`,
+    system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.`
   },
 
   en: {
-    welcome_start: (name) => `👋 *Hello ${name}! Welcome to Smart X Ethiopian (Smart X ET)!*
+    welcome_start: (name) => `👋 *Hello ${name}! Welcome to Smart X Ethiopian (Smart X ET)!* 🇪🇹
 
-AI Study Assistant & Practice Quiz Engine for Grade 9-12 Ethiopian New Curriculum.
+✨ AI Study Assistant & Practice Exam Platform for Ethiopian Grade 9-12 New Curriculum.
 
-Please select your language:`,
-    lang_confirm: `🇬🇧 Language selected: English!`,
-    main_menu_title: `Welcome to Smart X ET! Please choose an option from the menu below:`,
+━━━━━━━━━━━━━━━━━━━━
+🔹 *Step 1: Please select your Grade level* ⬇️
+━━━━━━━━━━━━━━━━━━━━`,
+    channel_verify_step: (grade) => `━━━━━━━━━━━━━━━━━━━━
+📢 *Step 2: Mandatory Channel Verification* ⬇️
+━━━━━━━━━━━━━━━━━━━━
+✅ Selected Grade: *${grade}*
+
+➔ To proceed and unlock 100% FREE VIP early access, please join our official Telegram channel!`,
+    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
+📱 *Step 3: Phone Number Verification* ⬇️
+━━━━━━━━━━━━━━━━━━━━
+🎉 Channel membership verified!
+
+Please share or enter your phone number to complete pre-registration:`,
+    reg_success: (name, phone, grade) => `🎉 *Congratulations! Pre-Registration Completed!* 🚀
+
+📋 *Registration Summary:*
+• 👤 *Name:* ${name}
+• 📱 *Phone:* ${phone}
+• 🎓 *Grade:* ${grade}
+• 📢 *Channel:* ✅ Verified (@SmartXEthiopia)
+• 💎 *Status:* 100% Free VIP Pre-Registered`,
     menu: [
-      ['⚙️ Settings', '🤖 Smart X AI Assistant'],
-      ['❓ Daily Quiz', '📱 About Smart X ET'],
-      ['📢 Official Channel', '💬 Support & Feedback']
+      ['🤖 Smart X AI Assistant', '📲 Download App (Play Store Hub)'],
+      ['🔗 Share & Invite Friends', '👤 My Profile']
     ],
-    settings_title: `⚙️ *Smart X ET - Settings Menu*\n\nPlease select an option below:`,
-    btn_change_lang: `🌐 Change Language`,
-    btn_update_profile: `📝 Update Profile / Pre-Register`,
-    btn_view_profile: `👤 View My Profile`,
-    btn_verify_channel: `📢 Verify Channel Membership`,
-    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*\n\nHello! I am your AI Assistant for the Ethiopian Grade 9-12 New Curriculum and Smart X ET App.\n\nAsk me any educational question (Physics, Chemistry, Biology, Math, History, IT...) or app details!`,
-    system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.
+    app_hub_text: `📱 *Smart X Ethiopian — Play Store App Hub* ⭐️⭐️⭐️⭐️⭐️
 
-STRICT MANDATORY RULES:
-1. IDENTITY: Identify yourself as "Smart X Ethiopian AI Assistant" developed by HAB IT Solutions.
-2. SCOPE OF KNOWLEDGE: STRICTLY restrict knowledge ONLY to Grade 9, 10, 11, and 12 Ethiopian Curriculum subjects (Physics, Chemistry, Biology, Mathematics, History, Geography, Civics, Economics, English, Amharic, Afaan Oromoo, IT) and details about the Smart X Ethiopian (Smart X ET) Mobile App.
-3. NON-EDUCATIONAL QUERIES: If the user asks non-educational questions (e.g. celebrities, news, games, general programming, politics, adult content), politely decline in English and redirect them back to Grade 9-12 Ethiopian high school topics or Smart X ET app features.
-4. APP RELEASE ANNOUNCEMENT: In EVERY response, politely remind students that the Smart X Ethiopian Mobile App officially releases on Meskerem 5 / September 2026 for Android & iOS.
-5. LANGUAGE: Respond accurately and concisely in English.`,
+━━━━━━━━━━━━━━━━━━━━
+📦 *App Specifications:*
+━━━━━━━━━━━━━━━━━━━━
+• 🏷️ *App Name:* Smart X Ethiopian (Smart X ET)
+• 🏢 *Developer:* HAB IT Solutions
+• 💎 *Pricing:* 🎁 100% FREE
+• 🎯 *Target:* Grades 9-12 Ethiopian New Curriculum
+• ⏳ *Status:* Pre-Registered
 
-    about_text: `📱 *About Smart X Ethiopian (Smart X ET)*\n\n• *App Name:* Smart X Ethiopian / Smart X ET\n• *Developer:* HAB IT Solutions\n• *Purpose:* Educational Quiz & Course Summary App for Grade 9-12 Ethiopian New Curriculum.\n• *Release Date:* Meskerem 5 / September 2026\n• *Platforms:* Android & iOS (Built with Flutter)\n\n🚀 Pre-register now using /register to gain early access in September 2026!`,
-    channel_info: `📢 *Official Smart X Ethiopian Telegram Channel*\n\nJoin @SmartXEthiopia for official announcements, subject summaries, and study materials!`,
-    support_info: `💬 *Support & Feedback*\n\nFor queries, suggestions, or support:\n• *Telegram Channel:* @SmartXEthiopia\n• *Developer:* HAB IT Solutions\n• *Email:* smartx.ethiopia.dev@gmail.com\n\nThank you for reaching out! 🙏`,
-    reg_start_msg: `📝 *Smart X Ethiopian - Pre-Registration Form*\n\nPlease enter your **Full Name**:`,
-    reg_ask_grade: (name) => `Great ${name}! 👋 Please select your Grade Level:`,
-    reg_ask_stream: (grade) => `👍 Selected: *${grade}*\n\nPlease select your Academic Stream:`,
-    reg_ask_phone: (stream) => `✅ Stream: *${stream}*\n\nPlease share or enter your **Phone Number**:`,
-    reg_channel_step: `📢 *Final Step: Join Official Telegram Channel*\n\nTo complete registration, please join our official channel (@SmartXEthiopia).`,
-    reg_success: (name, phone, grade, stream) => `🎉 *Congratulations! Your Pre-Registration is stored in Cloudflare D1!* 🚀\n\n📋 *Profile Summary:*\n• *Name:* ${name}\n• *Phone:* ${phone}\n• *Grade:* ${grade}\n• *Stream:* ${stream}\n• *Channel:* ✅ Verified (@SmartXEthiopia)\n\nThank you for choosing HAB IT Solutions!`
+━━━━━━━━━━━━━━━━━━━━
+🚀 *Direct APK Download:*
+━━━━━━━━━━━━━━━━━━━━
+➔ When officially launched on Meskerem 5 / September 2026, you will be able to download the \`.apk\` file directly inside this Telegram bot! 📥`,
+    ai_intro: `🤖 *Smart X AI Assistant (HAB IT Solutions)*
+
+Hello! I am your AI Study Assistant. Ask me any Grade 9-12 curriculum question! ⬇️`,
+    profile_text: (name, phone, grade, date) => `👤 *User Profile*
+
+━━━━━━━━━━━━━━━━━━━━
+• 👤 *Name:* ${name}
+• 📱 *Phone:* ${phone}
+• 🎓 *Grade:* ${grade}
+• 📢 *Channel:* ✅ Verified (@SmartXEthiopia)
+• 📅 *Registered:* ${date || 'Just now'}
+━━━━━━━━━━━━━━━━━━━━`,
+    share_text: (userId) => `🔗 *Invite Your Friends — Smart X Ethiopian*
+
+Share your invite link with classmates and friends:
+https://t.me/SmartXEthiopiaBot?start=ref_${userId}`,
+    system_prompt: `You are the "Smart X Ethiopian AI Assistant", an educational AI created by HAB IT Solutions for Grade 9-12 high school students following the New Ethiopian Curriculum.`
   }
 };
 
@@ -814,6 +919,28 @@ async function logAiChat(env, telegramId, prompt, responseText, lang, modelUsed)
   }
 }
 
+// Message cleanup tracking store (chatId -> lastMessageId)
+const lastBotMessages = {};
+
+async function sendCleanMessage(ctx, text, extra = {}) {
+  const chatId = ctx.chat?.id;
+  if (!chatId) return ctx.reply(text, extra);
+
+  if (lastBotMessages[chatId]) {
+    try {
+      await ctx.telegram.deleteMessage(chatId, lastBotMessages[chatId]);
+    } catch (err) {
+      // Ignore if message is already deleted or expired
+    }
+  }
+
+  const sentMsg = await ctx.reply(text, extra);
+  if (sentMsg?.message_id) {
+    lastBotMessages[chatId] = sentMsg.message_id;
+  }
+  return sentMsg;
+}
+
 export default {
   async scheduled(event, env, ctx) {
     const apiKey = env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
@@ -848,572 +975,384 @@ export default {
 
     if (url.pathname === '/webhook' && request.method === 'POST') {
       try {
-        // --- /start Handler with First-Time Language Selection ---
-        bot.start(async (ctx) => {
-          const userName = ctx.from?.first_name || 'Student';
+        // --- 1. /start Handler (Step 1: Grade Selection with Message Cleanup) ---
+        const startOnboarding = async (ctx) => {
+          const userName = ctx.from?.first_name || 'ተማሪ';
           const userId = ctx.from.id;
-          const currentLang = await getUserLanguage(userId, env);
+          const chatId = ctx.chat.id;
 
-          const welcomeKeyboard = Markup.inlineKeyboard([
+          userStates[chatId] = {
+            step: 'AWAITING_GRADE',
+            data: {
+              fullName: ctx.from?.first_name ? `${ctx.from.first_name} ${ctx.from?.last_name || ''}`.trim() : 'ተማሪ',
+              telegramId: userId
+            }
+          };
+
+          const welcomeMsg = i18n.am.welcome_start(userName);
+          const gradeKeyboard = Markup.inlineKeyboard([
             [
-              Markup.button.callback('🇪🇹 አማርኛ', 'set_lang_am'),
-              Markup.button.callback('🌳 Afaan Oromoo', 'set_lang_om'),
-              Markup.button.callback('🇬🇧 English', 'set_lang_en')
+              Markup.button.callback('9ኛ ክፍል (Grade 9)', 'set_grade_9'),
+              Markup.button.callback('10ኛ ክፍል (Grade 10)', 'set_grade_10')
+            ],
+            [
+              Markup.button.callback('11ኛ ክፍል (Grade 11)', 'set_grade_11'),
+              Markup.button.callback('12ኛ ክፍል (Grade 12)', 'set_grade_12')
             ]
           ]);
 
-          const welcomeMsg = i18n[currentLang]?.welcome_start(userName) || i18n.am.welcome_start(userName);
-
-          return ctx.reply(welcomeMsg, {
+          return sendCleanMessage(ctx, welcomeMsg, {
             parse_mode: 'Markdown',
-            ...welcomeKeyboard
+            ...gradeKeyboard
+          });
+        };
+
+        bot.start(startOnboarding);
+        bot.command(['register', 'onboarding', 'signup'], startOnboarding);
+
+        // --- Step 1 Action: Grade Selection -> Step 2: Channel Verification Check ---
+        bot.action(/set_grade_(\d+)/, async (ctx) => {
+          const gradeNum = ctx.match[1];
+          const chatId = ctx.chat.id;
+          const userId = ctx.from.id;
+          const grade = `Grade ${gradeNum}`;
+
+          if (!userStates[chatId]) {
+            userStates[chatId] = { step: 'AWAITING_GRADE', data: {} };
+          }
+          userStates[chatId].data.grade = grade;
+          userStates[chatId].data.fullName = ctx.from?.first_name ? `${ctx.from.first_name} ${ctx.from?.last_name || ''}`.trim() : 'ተማሪ';
+
+          await ctx.answerCbQuery(`ክፍል ${gradeNum} ተመርጧል! ✅`);
+
+          // Verify if already a member of @SmartXEthiopia
+          let isMember = false;
+          try {
+            const member = await ctx.telegram.getChatMember('@SmartXEthiopia', userId);
+            if (['creator', 'administrator', 'member'].includes(member.status)) {
+              isMember = true;
+            }
+          } catch (err) {
+            // In dev environment or mock allow smooth transition
+          }
+
+          if (isMember) {
+            // Already joined channel -> Proceed directly to Step 3 (Phone Collection)
+            userStates[chatId].step = 'AWAITING_PHONE';
+            const phoneKeyboard = Markup.keyboard([
+              [Markup.button.contactRequest('📱 ስልክ ቁጥር አጋራ (Share Contact)')]
+            ]).resize().oneTime();
+
+            return sendCleanMessage(ctx, i18n.am.phone_request_step, {
+              parse_mode: 'Markdown',
+              ...phoneKeyboard
+            });
+          }
+
+          // Not joined -> Show Step 2: Channel Verification UI
+          userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
+          const verifyKeyboard = Markup.inlineKeyboard([
+            [Markup.button.url('📢 ቻናሉን ይቀላቀሉ (Join Channel)', 'https://t.me/SmartXEthiopia')],
+            [Markup.button.callback('✅ አረጋግጥ (Verify Membership)', 'verify_channel_step')]
+          ]);
+
+          return sendCleanMessage(ctx, i18n.am.channel_verify_step(grade), {
+            parse_mode: 'Markdown',
+            ...verifyKeyboard
           });
         });
 
-        // Language Selection Handler -> Directs to Channel & Discussion Group Join Step
-        const handleLangSelection = async (ctx, selectedLang) => {
-          const userId = ctx.from.id;
-          await setUserLanguage(userId, selectedLang, env);
-          await ctx.answerCbQuery(i18n[selectedLang].lang_confirm);
-
-          const channelStepKeyboard = Markup.inlineKeyboard([
-            [Markup.button.url('📢 Official Channel (@SmartXEthiopia)', 'https://t.me/SmartXEthiopia')],
-            [Markup.button.url('💬 Discussion Group (@SmartX_Discussion)', 'https://t.me/SmartX_Discussion')],
-            [Markup.button.callback('➡️ Continue to Pre-Registration / ወደ ቅድመ-ምዝገባ ቀጥል', 'start_reg_wizard')]
-          ]);
-
-          return ctx.reply(
-            i18n[selectedLang].welcome_channel_step,
-            {
-              parse_mode: 'Markdown',
-              ...channelStepKeyboard
-            }
-          );
-        };
-
-        bot.action('set_lang_am', (ctx) => handleLangSelection(ctx, 'am'));
-        bot.action('set_lang_om', (ctx) => handleLangSelection(ctx, 'om'));
-        bot.action('set_lang_en', (ctx) => handleLangSelection(ctx, 'en'));
-
-        bot.command('language', async (ctx) => {
-          return ctx.reply(
-            `🌐 Please select your language / እባክዎን ቋንቋ ይምረጡ / Maaloo afaan filadhaa:`,
-            {
-              ...Markup.inlineKeyboard([
-                [
-                  Markup.button.callback('🇪🇹 አማርኛ', 'set_lang_am'),
-                  Markup.button.callback('🌳 Afaan Oromoo', 'set_lang_om'),
-                  Markup.button.callback('🇬🇧 English', 'set_lang_en')
-                ]
-              ])
-            }
-          );
-        });
-
-        // --- PRE-REGISTRATION WIZARD ---
-        const startRegistrationFlow = async (ctx) => {
-          const chatId = ctx.chat.id;
-          const lang = await getUserLanguage(ctx.from.id, env);
-          userStates[chatId] = { step: 'AWAITING_NAME', data: {} };
-
-          return ctx.reply(i18n[lang].reg_start_msg, { parse_mode: 'Markdown' });
-        };
-
-        bot.command('register', startRegistrationFlow);
-        bot.action('start_reg_wizard', async (ctx) => {
-          await ctx.answerCbQuery();
-          return startRegistrationFlow(ctx);
-        });
-
-        // Registration Step: Grade
-        bot.action(/reg_grade_(.+)/, async (ctx) => {
-          const chatId = ctx.chat.id;
-          const gradeNum = ctx.match[1];
-          const lang = await getUserLanguage(ctx.from.id, env);
-
-          if (!userStates[chatId]) userStates[chatId] = { step: 'AWAITING_GRADE', data: {} };
-          userStates[chatId].data.grade = `Grade ${gradeNum}`;
-          userStates[chatId].step = 'AWAITING_STREAM';
-
-          await ctx.answerCbQuery();
-          return ctx.reply(
-            i18n[lang].reg_ask_stream(`Grade ${gradeNum}`),
-            {
-              parse_mode: 'Markdown',
-              ...Markup.inlineKeyboard([
-                [
-                  Markup.button.callback('🔬 Natural Science', 'reg_stream_natural'),
-                  Markup.button.callback('📚 Social Science', 'reg_stream_social')
-                ],
-                [Markup.button.callback('🎓 General High School', 'reg_stream_general')]
-              ])
-            }
-          );
-        });
-
-        // Registration Step: Stream -> Phone
-        bot.action(/reg_stream_(.+)/, async (ctx) => {
-          const chatId = ctx.chat.id;
-          const streamRaw = ctx.match[1];
-          const lang = await getUserLanguage(ctx.from.id, env);
-          const streamMap = { natural: 'Natural Science', social: 'Social Science', general: 'General High School' };
-          const stream = streamMap[streamRaw] || streamRaw;
-
-          if (!userStates[chatId]) userStates[chatId] = { step: 'AWAITING_STREAM', data: {} };
-          userStates[chatId].data.stream = stream;
-          userStates[chatId].step = 'AWAITING_PHONE';
-
-          await ctx.answerCbQuery();
-          return ctx.reply(
-            i18n[lang].reg_ask_phone(stream),
-            {
-              parse_mode: 'Markdown',
-              ...Markup.keyboard([
-                [Markup.button.contactRequest('📱 Share Phone Number / ስልክ አጋራ')],
-                ['❌ Cancel / ሰርዝ']
-              ]).resize().oneTime()
-            }
-          );
-        });
-
-        // Complete Registration Helper
-        const completeUserRegistration = async (ctx, userData) => {
+        // --- Step 2 Action: Channel Verification Callback ---
+        bot.action('verify_channel_step', async (ctx) => {
           const userId = ctx.from.id;
           const chatId = ctx.chat.id;
-          const lang = await getUserLanguage(userId, env);
-
-          const fullName = userData.fullName || ctx.from?.first_name || 'Student';
-          const phone = userData.phone || 'N/A';
-          const grade = userData.grade || 'Grade 10';
-          const stream = userData.stream || 'Natural Science';
-
-          if (env.DB) {
-            try {
-              await env.DB.prepare(`
-                INSERT INTO users (telegram_id, full_name, phone, grade, stream, language, is_channel_member, is_active, registered_at)
-                VALUES (?, ?, ?, ?, ?, ?, 1, 1, CURRENT_TIMESTAMP)
-                ON CONFLICT(telegram_id) DO UPDATE SET
-                  full_name = excluded.full_name,
-                  phone = excluded.phone,
-                  grade = excluded.grade,
-                  stream = excluded.stream,
-                  language = excluded.language,
-                  is_active = 1
-              `).bind(userId, fullName, phone, grade, stream, lang).run();
-            } catch (err) {
-              console.error('User save error:', err);
-            }
-          }
-
-          registeredUsers[userId] = { telegram_id: userId, fullName, phone, grade, stream, language: lang, is_active: true };
-          if (userStates[chatId]) userStates[chatId].step = null;
-
-          const mainKeyboard = getMainMenuKeyboard(lang);
-
-          return ctx.reply(
-            i18n[lang].reg_success(fullName, phone, grade, stream),
-            {
-              parse_mode: 'Markdown',
-              ...mainKeyboard
-            }
-          );
-        };
-
-        bot.on('contact', async (ctx) => {
-          const chatId = ctx.chat.id;
-          const phone = ctx.message.contact?.phone_number || '';
-          const state = userStates[chatId];
-          if (state && state.step === 'AWAITING_PHONE') {
-            state.data.phone = phone;
-            return completeUserRegistration(ctx, state.data);
-          }
-        });
-
-        const showChannelVerifyStep = async (ctx, data) => {
-          const chatId = ctx.chat.id;
-          const lang = await getUserLanguage(ctx.from.id, env);
-          if (userStates[chatId]) userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
-
-          return ctx.reply(
-            i18n[lang].reg_channel_step,
-            {
-              parse_mode: 'Markdown',
-              ...Markup.inlineKeyboard([
-                [Markup.button.url('📢 Channel (@SmartXEthiopia)', 'https://t.me/SmartXEthiopia')],
-                [Markup.button.callback('✅ Verify Membership / አባልነት አረጋግጥ', 'verify_channel_membership')]
-              ])
-            }
-          );
-        };
-
-        bot.action('verify_channel_membership', async (ctx) => {
-          const userId = ctx.from.id;
-          const chatId = ctx.chat.id;
-          const lang = await getUserLanguage(userId, env);
-          const state = userStates[chatId];
-          const userData = state?.data || registeredUsers[userId] || {};
 
           let isMember = false;
           try {
             const member = await ctx.telegram.getChatMember('@SmartXEthiopia', userId);
-            if (['creator', 'administrator', 'member'].includes(member.status)) isMember = true;
+            if (['creator', 'administrator', 'member'].includes(member.status)) {
+              isMember = true;
+            }
           } catch (err) {
             isMember = true;
           }
 
           if (!isMember) {
-            await ctx.answerCbQuery('Please join @SmartXEthiopia channel first! ❌', { show_alert: true });
-            return showChannelVerifyStep(ctx, userData);
+            return ctx.answerCbQuery('⚠️ እባክዎን መጀመሪያ @SmartXEthiopia ቻናል ይቀላቀሉ!', { show_alert: true });
           }
 
-          const fullName = userData.fullName || ctx.from.first_name || 'Student';
-          const phone = userData.phone || 'N/A';
-          const grade = userData.grade || 'Grade 10';
-          const stream = userData.stream || 'Natural Science';
+          await ctx.answerCbQuery('✅ የቻናል አባልነትዎ ተረጋግጧል! 🎉');
+
+          if (!userStates[chatId]) {
+            userStates[chatId] = { step: 'AWAITING_PHONE', data: { grade: 'Grade 10' } };
+          }
+          userStates[chatId].step = 'AWAITING_PHONE';
+
+          const phoneKeyboard = Markup.keyboard([
+            [Markup.button.contactRequest('📱 ስልክ ቁጥር አጋራ (Share Contact)')]
+          ]).resize().oneTime();
+
+          return sendCleanMessage(ctx, i18n.am.phone_request_step, {
+            parse_mode: 'Markdown',
+            ...phoneKeyboard
+          });
+        });
+
+        // --- Step 4 Helper: Save to Cloudflare D1 & Unlock Main Dashboard ---
+        const completeRegistrationAndUnlockDashboard = async (ctx, phone) => {
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          const stateData = userStates[chatId]?.data || {};
+
+          const fullName = stateData.fullName || ctx.from?.first_name || 'ተማሪ';
+          const grade = stateData.grade || 'Grade 10';
+          const cleanPhone = phone || 'N/A';
 
           if (env.DB) {
             try {
               await env.DB.prepare(`
                 INSERT INTO users (telegram_id, full_name, phone, grade, stream, language, is_channel_member, is_active, registered_at)
-                VALUES (?, ?, ?, ?, ?, ?, 1, 1, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, 'General', 'am', 1, 1, CURRENT_TIMESTAMP)
                 ON CONFLICT(telegram_id) DO UPDATE SET
                   full_name = excluded.full_name,
                   phone = excluded.phone,
                   grade = excluded.grade,
-                  stream = excluded.stream,
-                  language = excluded.language,
+                  language = 'am',
+                  is_channel_member = 1,
                   is_active = 1
-              `).bind(userId, fullName, phone, grade, stream, lang).run();
+              `).bind(userId, fullName, cleanPhone, grade).run();
             } catch (err) {
-              console.error('User save error:', err);
+              console.error('D1 Save User Error:', err);
             }
           }
 
-          registeredUsers[userId] = { telegram_id: userId, fullName, phone, grade, stream, language: lang, is_active: true };
+          registeredUsers[userId] = {
+            telegram_id: userId,
+            fullName,
+            phone: cleanPhone,
+            grade,
+            language: 'am',
+            is_active: true,
+            registered_at: new Date().toISOString()
+          };
+
           if (userStates[chatId]) userStates[chatId].step = null;
 
-          await ctx.answerCbQuery('Verified! 🎉');
-          const mainKeyboard = getMainMenuKeyboard(lang);
+          const mainDashboardKeyboard = Markup.keyboard(i18n.am.menu).resize();
 
-          return ctx.reply(
-            i18n[lang].reg_success(fullName, phone, grade, stream),
-            {
-              parse_mode: 'Markdown',
-              ...mainKeyboard
-            }
-          );
-        });
-
-        // --- ROW 1: Settings & AI Assistant ---
-        const handleSettings = async (ctx) => {
-          const userId = ctx.from.id;
-          const lang = await getUserLanguage(userId, env);
-          const tObj = i18n[lang];
-
-          let profileText = '';
-          if (env.DB) {
-            try {
-              const u = await env.DB.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(userId).first();
-              if (u) {
-                profileText = `\n\n👤 *Your Current Profile:*\n• Name: ${u.full_name}\n• Phone: ${u.phone}\n• Grade: ${u.grade}\n• Stream: ${u.stream}\n• Language: ${u.language.toUpperCase()}`;
-              }
-            } catch (e) {}
-          }
-
-          return ctx.reply(
-            `${tObj.settings_title}${profileText}`,
-            {
-              parse_mode: 'Markdown',
-              ...Markup.inlineKeyboard([
-                [Markup.button.callback(tObj.btn_change_lang, 'show_lang_options')],
-                [Markup.button.callback(tObj.btn_update_profile, 'start_reg_wizard')],
-                [Markup.button.callback(tObj.btn_verify_channel, 'verify_channel_membership')]
-              ])
-            }
-          );
+          return sendCleanMessage(ctx, i18n.am.reg_success(fullName, cleanPhone, grade), {
+            parse_mode: 'Markdown',
+            ...mainDashboardKeyboard
+          });
         };
 
-        bot.action('show_lang_options', async (ctx) => {
-          await ctx.answerCbQuery();
-          return ctx.reply(
-            `🌐 Please select your language / እባክዎን ቋንቋ ይምረጡ / Maaloo afaan filadhaa:`,
-            {
-              ...Markup.inlineKeyboard([
-                [
-                  Markup.button.callback('🇪🇹 አማርኛ', 'set_lang_am'),
-                  Markup.button.callback('🌳 Afaan Oromoo', 'set_lang_om'),
-                  Markup.button.callback('🇬🇧 English', 'set_lang_en')
-                ]
-              ])
-            }
-          );
+        // Phone contact receiver
+        bot.on('contact', async (ctx) => {
+          const phone = ctx.message.contact?.phone_number || '';
+          return completeRegistrationAndUnlockDashboard(ctx, phone);
         });
+
+        // --- DASHBOARD BUTTON 1: 📲 Download App (Play Store Hub) ---
+        const handlePlayStoreHub = async (ctx) => {
+          const hubKeyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('🔔 Get Notified on Launch / መልቀቂያውን አስታውቀኝ', 'notify_on_launch')],
+            [Markup.button.url('🔗 Share App Link / አፑን ለጓደኞች አጋራ', `https://t.me/share/url?url=https://t.me/SmartXEthiopiaBot?start=promo&text=${encodeURIComponent('ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ 100% ነፃ የ AI ትምህርት እና የፈተና መተግበሪያ!')}`)]
+          ]);
+
+          return sendCleanMessage(ctx, i18n.am.app_hub_text, {
+            parse_mode: 'Markdown',
+            ...hubKeyboard
+          });
+        };
+
+        bot.hears(['📲 Download App (Play Store Hub)', 'Download App', 'Play Store Hub', 'አፕ አውርድ', 'Download'], handlePlayStoreHub);
+        bot.command(['hub', 'download', 'apk', 'app'], handlePlayStoreHub);
+
+        bot.action('notify_on_launch', async (ctx) => {
+          return ctx.answerCbQuery('🔔 ማሳወቂያው በርቷል! በመስከረም 5 አፑ ልክ እንደተለቀቀ ቀጥታ በዚህ ቦት ውስጥ ፈጣን የማውረጃ ፋይል ይደርስዎታል። 🚀', { show_alert: true });
+        });
+
+        // --- DASHBOARD BUTTON 2: 👤 My Profile ---
+        const handleMyProfile = async (ctx) => {
+          const userId = ctx.from.id;
+          let user = registeredUsers[userId];
+
+          if (env.DB && (!user || user.phone === 'N/A')) {
+            try {
+              const row = await env.DB.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(userId).first();
+              if (row) user = row;
+            } catch (err) {}
+          }
+
+          const name = user?.full_name || ctx.from?.first_name || 'ተማሪ';
+          const phone = user?.phone || 'N/A';
+          const grade = user?.grade || 'Grade 10';
+          const regDate = user?.registered_at ? new Date(user.registered_at).toLocaleDateString() : 'Just now';
+
+          const profileKeyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('✏️ ክፍል ቀይር / Change Grade', 'change_grade_action')],
+            [Markup.button.callback('🔄 መረጃ አዘምን / Update Profile', 'start_reregister')]
+          ]);
+
+          return sendCleanMessage(ctx, i18n.am.profile_text(name, phone, grade, regDate), {
+            parse_mode: 'Markdown',
+            ...profileKeyboard
+          });
+        };
+
+        bot.hears(['👤 My Profile', 'My Profile', 'ፕሮፋይል', 'Profile'], handleMyProfile);
+        bot.command(['profile', 'myprofile'], handleMyProfile);
+
+        bot.action('change_grade_action', async (ctx) => {
+          await ctx.answerCbQuery();
+          const gradeKeyboard = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('9ኛ ክፍል (Grade 9)', 'set_grade_9'),
+              Markup.button.callback('10ኛ ክፍል (Grade 10)', 'set_grade_10')
+            ],
+            [
+              Markup.button.callback('11ኛ ክፍል (Grade 11)', 'set_grade_11'),
+              Markup.button.callback('12ኛ ክፍል (Grade 12)', 'set_grade_12')
+            ]
+          ]);
+
+          return sendCleanMessage(ctx, '🔹 *እባክዎን አዲሱን የትምህርት ክፍልዎን ይምረጡ* ⬇️', {
+            parse_mode: 'Markdown',
+            ...gradeKeyboard
+          });
+        });
+
+        bot.action('start_reregister', async (ctx) => {
+          await ctx.answerCbQuery();
+          return startOnboarding(ctx);
+        });
+
+        // --- DASHBOARD BUTTON 3: 🔗 Share & Invite Friends ---
+        const handleShareInvite = async (ctx) => {
+          const userId = ctx.from.id;
+          const shareUrl = `https://t.me/share/url?url=https://t.me/SmartXEthiopiaBot?start=ref_${userId}&text=${encodeURIComponent('🔥 ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ 100% ነፃ የ AI ትምህርት እና የ 10,000+ ጥያቄዎች መተግበሪያ! አሁኑኑ ይመዝገቡ!')}`;
+
+          const shareKeyboard = Markup.inlineKeyboard([
+            [Markup.button.url('📲 አሁኑኑ ለጓደኞች አጋራ (Share Now)', shareUrl)]
+          ]);
+
+          return sendCleanMessage(ctx, i18n.am.share_text(userId), {
+            parse_mode: 'Markdown',
+            ...shareKeyboard
+          });
+        };
+
+        bot.hears(['🔗 Share & Invite Friends', 'Share & Invite Friends', 'ጓደኞችን ጋብዝ', 'Share', 'Invite'], handleShareInvite);
+        bot.command(['share', 'invite'], handleShareInvite);
+
+        // --- DASHBOARD BUTTON 4: 🤖 Smart X AI Assistant ---
+        const handleAiAssistant = async (ctx) => {
+          const chatId = ctx.chat.id;
+          const userId = ctx.from.id;
+
+          const isGroupMember = await checkDiscussionGroupMember(ctx, userId);
+          if (!isGroupMember) {
+            return requireDiscussionGroupJoin(ctx, 'am');
+          }
+
+          userStates[chatId] = { step: 'AI_CHAT_MODE' };
+          return sendCleanMessage(ctx, i18n.am.ai_intro, {
+            parse_mode: 'Markdown',
+            ...Markup.keyboard(i18n.am.menu).resize()
+          });
+        };
+
+        bot.hears(['🤖 Smart X AI Assistant', 'AI Assistant', 'AI', 'አሲስታንት', 'ረዳት'], handleAiAssistant);
+        bot.command(['ai', 'ask'], handleAiAssistant);
 
         bot.action('verify_discussion_membership', async (ctx) => {
           const userId = ctx.from.id;
-          const lang = await getUserLanguage(userId, env);
           const isMember = await checkDiscussionGroupMember(ctx, userId);
 
           if (!isMember) {
-            await ctx.answerCbQuery('Please join @SmartX_Discussion group first! ❌', { show_alert: true });
-            return requireDiscussionGroupJoin(ctx, lang);
+            return ctx.answerCbQuery('⚠️ እባክዎን መጀመሪያ @SmartX_Discussion ግሩፕ ይቀላቀሉ!', { show_alert: true });
           }
 
-          await ctx.answerCbQuery('Discussion Group Verified! 🎉');
+          await ctx.answerCbQuery('✅ የውይይት ግሩፕ አባልነትዎ ተረጋግጧል! 🎉');
           const chatId = ctx.chat.id;
           userStates[chatId] = { step: 'AI_CHAT_MODE' };
 
-          const successMsg = lang === 'om'
-            ? `🎉 *Gareen Marii Mirkanaa'eera!* Amma gaaffii barnootaa kamiyyuu AI Assistant gaafachuu dandeessu.`
-            : lang === 'en'
-            ? `🎉 *Discussion Group Verified!* You can now ask any Grade 9-12 curriculum question to the Smart X AI Assistant.`
-            : `🎉 *የውይይት ግሩፕ አባልነትዎ ተረጋግጧል!* አሁን ማንኛውንም የ Grade 9-12 ትምህርታዊ ጥያቄ ለ AI Assistant መጠየቅ ይችላሉ።`;
-
-          return ctx.reply(successMsg, {
+          return sendCleanMessage(ctx, `🎉 *የውይይት ግሩፕ አባልነትዎ ተረጋግጧል!*\n\nአሁን ማንኛውንም የ Grade 9-12 የትምህርት ጥያቄ መፃፍ ይችላሉ። ⬇️`, {
             parse_mode: 'Markdown',
-            ...getMainMenuKeyboard(lang)
+            ...Markup.keyboard(i18n.am.menu).resize()
           });
         });
-
-        bot.hears(['⚙️ Settings / መቼቶች', '⚙️ መቼቶች', '⚙️ Qindaa\'inaa', '⚙️ Settings', 'መቼቶች', 'Qindaa\'inaa'], handleSettings);
-        bot.command('settings', handleSettings);
-
-        const handleAiMode = async (ctx) => {
-          const userId = ctx.from.id;
-          const chatId = ctx.chat.id;
-          const lang = await getUserLanguage(userId, env);
-
-          const isMember = await checkDiscussionGroupMember(ctx, userId);
-          if (!isMember) {
-            return requireDiscussionGroupJoin(ctx, lang);
-          }
-
-          userStates[chatId] = { step: 'AI_CHAT_MODE' };
-          return ctx.reply(i18n[lang].ai_intro, { parse_mode: 'Markdown' });
-        };
-
-        bot.hears(['🤖 Smart X AI Assistant', 'AI Assistant', 'AI', 'አሲስታንት', 'Gargaaraa AI'], handleAiMode);
-        bot.command('ai', handleAiMode);
-
-        // --- ROW 2: Interactive Quiz Engine & Practice System ---
-        const handleQuizTrigger = async (ctx) => {
-          const userId = ctx.from.id;
-          const lang = await getUserLanguage(userId, env);
-
-          // Generate or select dynamic quiz
-          const quiz = await generateAiQuiz('Chemistry', '10', lang, env);
-          return sendInteractiveQuiz(ctx, quiz, lang);
-        };
-
-        bot.hears(['❓ Daily Quiz / የዛሬው Quiz', '❓ የዛሬው Quiz', '❓ Gaaffii Guyyaa', '❓ Daily Quiz', 'የዛሬው Quiz', 'ጥያቄ', 'Quiz'], handleQuizTrigger);
-        bot.command('quiz', handleQuizTrigger);
-
-        // Native Telegram Quiz Poll Command (/poll)
-        bot.command('poll', async (ctx) => {
-          const userId = ctx.from.id;
-          const lang = await getUserLanguage(userId, env);
-          const quiz = await generateAiQuiz('Physics', '11', lang, env);
-
-          const cleanOptions = quiz.options.map(o => o.replace(/^[A-D]\)\s*/, ''));
-
-          return ctx.replyWithQuiz(
-            `[Grade 11 Physics] ${quiz.question}`,
-            cleanOptions,
-            {
-              correct_option_id: quiz.correct_index,
-              explanation: `${quiz.explanation}\n\n📲 Smart X ET App releases Meskerem 5 / September 2026!`,
-              is_anonymous: false
-            }
-          );
-        });
-
-        // Callback handler for Interactive Quiz Button Selections
-        bot.action(/quiz_opt_(.+)_(\d+)/, async (ctx) => {
-          const quizId = ctx.match[1];
-          const selectedIdx = parseInt(ctx.match[2], 10);
-          const userId = ctx.from.id;
-          const lang = await getUserLanguage(userId, env);
-
-          const quiz = activeQuizzes[quizId] || CURATED_QUIZZES[0];
-          const isCorrect = selectedIdx === quiz.correct_index;
-
-          const alertMsg = isCorrect ? '🎉 Correct Answer!' : '❌ Incorrect Answer!';
-          await ctx.answerCbQuery(alertMsg, { show_alert: true });
-
-          const releaseReminder = lang === 'om'
-            ? `\n\n📲 *Appilikeeshiniin Smart X Ethiopian Fulbaana 5 / September 2026 irratti gadhiifama!*`
-            : lang === 'en'
-            ? `\n\n📲 *Smart X Ethiopian Mobile App releases on Meskerem 5 / September 2026!*`
-            : `\n\n📲 *የ Smart X Ethiopian ሞባይል አፕሊኬሽን በመስከረም 5 / ሴፕቴምበር 2026 ይለቀቃል!*`;
-
-          const resultText = isCorrect
-            ? `🎉 *ትክክለኛ መልስ አግኝተዋል! (Correct!)*\n\n💡 *መግለጫ (Explanation):* ${quiz.explanation}${releaseReminder}`
-            : `❌ *መልሱ የተሳሳተ ነው! (Incorrect)*\n\n• *ትክክለኛ መልስ:* ${quiz.options[quiz.correct_index]}\n💡 *መግለጫ (Explanation):* ${quiz.explanation}${releaseReminder}`;
-
-          return ctx.editMessageText(resultText, {
-            parse_mode: 'Markdown',
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback('🔄 Next Quiz / ሌላ ጥያቄ', 'quiz_generate_new'),
-                Markup.button.callback('📝 Pre-Register Now', 'start_reg_wizard')
-              ]
-            ])
-          });
-        });
-
-        bot.action('quiz_generate_new', async (ctx) => {
-          await ctx.answerCbQuery('Generating next quiz...');
-          const lang = await getUserLanguage(ctx.from.id, env);
-          const subjects = ['Physics', 'Chemistry', 'Biology', 'Mathematics', 'History'];
-          const randomSub = subjects[Math.floor(Math.random() * subjects.length)];
-          const randomGrade = String(Math.floor(Math.random() * 4) + 9); // Grade 9-12
-
-          const quiz = await generateAiQuiz(randomSub, randomGrade, lang, env);
-          return sendInteractiveQuiz(ctx, quiz, lang);
-        });
-
-        const handleAbout = async (ctx) => {
-          const lang = await getUserLanguage(ctx.from.id, env);
-          return ctx.reply(i18n[lang].about_text, {
-            parse_mode: 'Markdown',
-            ...Markup.inlineKeyboard([[Markup.button.callback('📝 Pre-Register Now', 'start_reg_wizard')]])
-          });
-        };
-
-        bot.hears(['📱 About Smart X ET / ስለ አፑ', '📱 ስለ Smart X ET', '📱 Waa\'ee Smart X ET', '📱 About Smart X ET', 'ስለ አፑ'], handleAbout);
-        bot.command('info', handleAbout);
-
-        // --- ROW 3: Official Channel & Support ---
-        const handleChannel = async (ctx) => {
-          const lang = await getUserLanguage(ctx.from.id, env);
-          return ctx.reply(
-            i18n[lang].channel_info,
-            {
-              parse_mode: 'Markdown',
-              ...Markup.inlineKeyboard([
-                [Markup.button.url('📢 Channel (@SmartXEthiopia)', 'https://t.me/SmartXEthiopia')],
-                [Markup.button.callback('✅ Verify Membership', 'verify_channel_membership')]
-              ])
-            }
-          );
-        };
-
-        bot.hears(['📢 Official Channel', '📢 ኦፊሴላዊ ቻናል', '📢 Chanaalii Ufisaa', 'ቻናል'], handleChannel);
-
-        const handleSupport = async (ctx) => {
-          const lang = await getUserLanguage(ctx.from.id, env);
-          return ctx.reply(i18n[lang].support_info, { parse_mode: 'Markdown' });
-        };
-
-        bot.hears(['💬 Support & Feedback', '💬 አስተያየትና እገዛ', '💬 Deeggarsa & Yaada', 'እገዛ'], handleSupport);
 
         // --- FAQ HANDLER ---
         const handleFaq = async (ctx) => {
-          const userId = ctx.from.id;
-          const lang = await getUserLanguage(userId, env);
+          const faqText = 
+`❓ *Smart X Ethiopian (Smart X ET) — ተደጋግመው የሚጠየቁ ጥያቄዎች (FAQ)*
 
-          const faqTextMap = {
-            am: `❓ *Smart X Ethiopian (Smart X ET) - ተደጋግመው የሚጠየቁ ጥያቄዎች (FAQ)*\n\n` +
-                `1️⃣ *Smart X ET ምንድነው?*\n` +
-                `• ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀ የ AI Study Assistant እና 10,000+ Quizzes የያዘ የሞባይል አፕሊኬሽን ነው።\n\n` +
-                `2️⃣ *አፑ መቼ ይለቀቃል?*\n` +
-                `• አፑ በይፋ **መስከረም 5 / ሴፕቴምበር 2026** ለ Android እና iOS ይለቀቃል።\n\n` +
-                `3️⃣ *የ AI Assistant አገልግሎት እንዴት መጠቀም እችላለሁ?*\n` +
-                `• የ \`🤖 Smart X AI Assistant\` በተንን በመጫን ማንኛውንም የትምህርት ጥያቄ መጠየቅ ይችላሉ።\n\n` +
-                `4️⃣ *የእገዛ እና የውይይት ቻናሎች የት ይገኛሉ?*\n` +
-                `• Telegram Channel: @SmartXEthiopia\n` +
-                `• Discussion Group: @SmartX_Discussion\n` +
-                `• Developer: HAB IT Solutions (smartx.ethiopia.dev@gmail.com)`,
+━━━━━━━━━━━━━━━━━━━━
+1️⃣ *Smart X ET ምንድነው?*
+• ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grade 9-12) የተዘጋጀ የ AI Study Assistant እና 10,000+ Quizzes የያዘ የሞባይል አፕሊኬሽን ነው።
 
-            om: `❓ *Smart X Ethiopian (Smart X ET) - Gaaffiilee Yeroo Baay'ee Gaafataman (FAQ)*\n\n` +
-                `1️⃣ *Smart X ET maali?*\n` +
-                `• Appilikeeshinii AI Study Assistant fi Quizzes 10,000+ Sirna Barnoota Haaraa Itoophiyaa (Grade 9-12) tiif qophaa'eedha.\n\n` +
-                `2️⃣ *Appiin yoom gadhiifama?*\n` +
-                `• Officialy **Fulbaana 5 / September 2026** irratti Android fi iOS tiif gadhiifama.\n\n` +
-                `3️⃣ *Gargaaraa AI akkamitti fayyadamuun danda'ama?*\n` +
-                `• Botoonii \`🤖 Smart X AI Assistant\` cuqaasuun gaaffii barnootaa kamiyyuu gaafachuu dandeessu.\n\n` +
-                `4️⃣ *Chanaalii fi Gareen marii eessa jira?*\n` +
-                `• Telegram Channel: @SmartXEthiopia\n` +
-                `• Discussion Group: @SmartX_Discussion\n` +
-                `• Developer: HAB IT Solutions`,
+2️⃣ *አፑ መቼ ይለቀቃል?*
+• አፑ በይፋ **መስከረም 5 / ሴፕቴምበር 2026** ለ Android እና iOS ይለቀቃል።
 
-            en: `❓ *Smart X Ethiopian (Smart X ET) - Frequently Asked Questions (FAQ)*\n\n` +
-                `1️⃣ *What is Smart X ET?*\n` +
-                `• An AI-powered study assistant & interactive quiz application designed for the New Ethiopian High School Curriculum (Grades 9-12).\n\n` +
-                `2️⃣ *When will the app officially release?*\n` +
-                `• The mobile app officially launches on **Meskerem 5 / September 2026** for Android & iOS.\n\n` +
-                `3️⃣ *How do I ask questions to the AI Assistant?*\n` +
-                `• Click the \`🤖 Smart X AI Assistant\` button and type any Grade 9-12 subject question.\n\n` +
-                `4️⃣ *Official Community & Channels:*\n` +
-                `• Channel: @SmartXEthiopia\n` +
-                `• Discussion Group: @SmartX_Discussion\n` +
-                `• Developer: HAB IT Solutions (smartx.ethiopia.dev@gmail.com)`
-          };
+3️⃣ *አፑን እንዴት ማውረድ እችላለሁ?*
+• አፑ ሲለቀቅ **ቀጥታ በዚህ ቴሌግራም ቦት ውስጥ** የ \`.apk\` ፋይሉን ያለምንም ተጨማሪ ወጪ ማውረድ ይችላሉ።
 
-          return ctx.reply(faqTextMap[lang] || faqTextMap.am, {
+4️⃣ *የ AI Assistant አገልግሎት እንዴት መጠቀም እችላለሁ?*
+• \`🤖 Smart X AI Assistant\` የሚለውን በተን በመጫን ማንኛውንም የትምህርት ጥያቄ (Math, Physics, Chemistry, Bio...) መፃፍ ይችላሉ።
+
+5️⃣ *ኦፊሴላዊ ቻናሎች የት ይገኛሉ?*
+• ቻናል: @SmartXEthiopia
+• ውይይት: @SmartX_Discussion
+• አልሚ: HAB IT Solutions (smartx.ethiopia.dev@gmail.com)`;
+
+          return sendCleanMessage(ctx, faqText, {
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard([
-              [Markup.button.url('💬 Discussion Group', 'https://t.me/SmartX_Discussion')],
-              [Markup.button.url('📢 Official Channel', 'https://t.me/SmartXEthiopia')]
+              [Markup.button.url('📢 Official Channel', 'https://t.me/SmartXEthiopia')],
+              [Markup.button.url('💬 Discussion Group', 'https://t.me/SmartX_Discussion')]
             ])
           });
         };
 
-        bot.hears(['❓ FAQ / ጥያቄዎች', '❓ FAQ / Gaaffiilee', '❓ FAQ', 'FAQ', 'ጥያቄዎች', 'Gaaffiilee'], handleFaq);
+        bot.hears(['❓ FAQ', 'FAQ', 'ጥያቄዎች'], handleFaq);
         bot.command('faq', handleFaq);
 
-        // --- INLINE QUERY PROMOTIONAL SHARING HANDLER ---
+        // --- INLINE QUERY PROMOTIONAL SHARING HANDLER (ANTI-SPAM OPTIMIZED) ---
         bot.on('inline_query', async (ctx) => {
           const promoMessage = 
-`🚀 *ለኢትዮጵያ የ 9ኛ - 12ኛ ክፍል ተማሪዎች በሙሉ የተዘጋጀ ታላቅ ዜና!* 🇪🇹
+`🎓 *SMART X ETHIOPIAN (GRADE 9 - 12)* 🎓
+🎁 *100% FREE* | ⏳ *COMING SOON*
 
-🔥 *Smart X Ethiopian (Smart X ET)* — የትምህርት ጉዞዎን ወደ ላቀ ደረጃ የሚያሸጋግር አዲስ ዘመናዊ መተግበሪያ!
+✨ ለአዲሱ የኢትዮጵያ ስርዓተ-ትምህርት የተዘጋጀ አዲስ መተግበሪያ!
 
-✨ *ሁኔታ:* ⏳ *COMING SOON* | 🎁 *100% በነፃ (100% FREE)*
+📌 *በውስጡ ያካተታቸው:*
+• 📖 Chapter-wise Short Notes
+• 📝 Model Exams & Worksheets
+• 📚 10,000+ Quizzes with Explanations
+• 🤖 24/7 Smart AI Study Assistant
 
-━━━━━━━━━━━━━━━━━━━━
-📚 *ዋና ዋና አጠቃላይ አገልግሎቶች (Features):*
-━━━━━━━━━━━━━━━━━━━━
-➔ 📖 *Short Notes (Grade 9 - 12):*
-   ╚═ የተቀነባበሩ አጫጭር እና ግልጽ የማጠቃለያ ማስታወሻዎች
+💪 *"የዛሬ ጥረት የነገ ስኬትህ ነው!"*
 
-➔ 📑 *Model Exams & Worksheets (Grade 9 - 12):*
-   ╚═ ደረጃቸውን የጠበቁ የሞዴል ፈተናዎች እና ዎርክሺቶች
-
-➔ 🎯 *10,000+ Practice Quizzes:*
-   ╚═ እያንዳንዱ ጥያቄ ከዝርዝር ማብራሪያ (Detailed Explanations) ጋር
-
-➔ 🤖 *Smart AI Study Assistant:*
-   ╚═ 24/7 የትምህርት ጥያቄዎችዎን በፍጥነት የሚመልስ የ AI ረዳት
-
-━━━━━━━━━━━━━━━━━━━━
-🌟 *የስኬት አነቃቂ መልእክት (Motivational Quote):*
-━━━━━━━━━━━━━━━━━━━━
-*"የዛሬው ጥረትህና ትጋትህ የነገውን ብሩህ ስኬትህን ይወስነዋል! ህልምህን ለማሳካት ዛሬውኑ ተዘጋጅ!"* 💪✨
-
-⬇️ *ከታች ያሉትን ሊንኮች በመጫን አሁኑኑ ይቀላቀሉ!* ⬇️`;
+👇 *አሁኑኑ ለመጀመር ከታች ይጫኑ!*`;
 
           const results = [
             {
               type: 'article',
               id: 'smartx_promo_share',
-              title: '📢 Smart X Ethiopian - 100% FREE AI & Study App',
-              description: 'Grade 9-12 Short Notes, Model Exams, 10,000+ Quizzes & Smart AI Assistant',
+              title: '🎓 Smart X Ethiopian (Grade 9 - 12)',
+              description: '🎁 100% Free Study App • Notes, Quizzes, Model Exams & AI Assistant',
               thumb_url: 'https://placehold.co/200x200/0284c7/ffffff.png?text=Smart+X',
               input_message_content: {
                 message_text: promoMessage,
                 parse_mode: 'Markdown'
               },
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '🤖 Try AI Assistant ➔', url: 'https://t.me/SmartXEthiopiaBot?start=ai' }
-                  ],
-                  [
-                    { text: '📝 Pre-Register Free ➔', url: 'https://t.me/SmartXEthiopiaBot?start=register' }
-                  ]
+              ...Markup.inlineKeyboard([
+                [
+                  Markup.button.url('🤖 AI Assistant ➔', 'https://t.me/SmartXEthiopiaBot?start=ai'),
+                  Markup.button.url('📝 Pre-Register ➔', 'https://t.me/SmartXEthiopiaBot?start=register')
                 ]
-              }
+              ])
             }
           ];
 
@@ -1744,46 +1683,16 @@ export default {
             );
           }
 
-          // Registration Wizard State
+          // Phone Number Input in Registration Flow
           const state = userStates[chatId];
-          if (state && state.step) {
-            if (state.step === 'AWAITING_NAME' && text) {
-              state.data.fullName = text;
-              state.step = 'AWAITING_GRADE';
-
-              return ctx.reply(
-                i18n[lang].reg_ask_grade(text),
-                {
-                  parse_mode: 'Markdown',
-                  ...Markup.inlineKeyboard([
-                    [
-                      Markup.button.callback('Grade 9', 'reg_grade_9'),
-                      Markup.button.callback('Grade 10', 'reg_grade_10')
-                    ],
-                    [
-                      Markup.button.callback('Grade 11', 'reg_grade_11'),
-                      Markup.button.callback('Grade 12', 'reg_grade_12')
-                    ]
-                  ])
-                }
-              );
-            }
-
-            if (state.step === 'AWAITING_PHONE' && text) {
-              if (text.includes('Cancel') || text.includes('ሰርዝ')) {
-                userStates[chatId].step = null;
-                return ctx.reply('Cancelled / ተሰርዟል።', { ...getMainMenuKeyboard(lang) });
-              }
-
-              state.data.phone = text;
-              return completeUserRegistration(ctx, state.data);
-            }
+          if (state && state.step === 'AWAITING_PHONE' && text) {
+            return completeRegistrationAndUnlockDashboard(ctx, text);
           }
 
           // Interactive Quiz / Practice Request Detection
           const lowerText = text.toLowerCase();
-          if (lowerText.includes('quiz') || lowerText.includes('question') || lowerText.includes('ጥያቄ') || lowerText.includes('gaaffii') || lowerText.includes('practice') || lowerText.includes('mcq')) {
-            let extractedSubject = 'General High School';
+          if (lowerText.includes('quiz') || lowerText.includes('question') || lowerText.includes('ጥያቄ') || lowerText.includes('practice') || lowerText.includes('mcq')) {
+            let extractedSubject = 'Chemistry';
             let extractedGrade = '10';
 
             if (lowerText.includes('physic')) extractedSubject = 'Physics';
@@ -1796,21 +1705,21 @@ export default {
             else if (lowerText.includes('11') || lowerText.includes('11ኛ')) extractedGrade = '11';
             else if (lowerText.includes('12') || lowerText.includes('12ኛ')) extractedGrade = '12';
 
-            const quiz = await generateAiQuiz(extractedSubject, extractedGrade, lang, env);
-            return sendInteractiveQuiz(ctx, quiz, lang);
+            const quiz = await generateAiQuiz(extractedSubject, extractedGrade, 'am', env);
+            return sendInteractiveQuiz(ctx, quiz, 'am');
           }
 
           // --- AI Assistant Query Handler with Dynamic D1 Knowledge Base & Discussion Group Requirement ---
           const isGroupMember = await checkDiscussionGroupMember(ctx, userId);
           if (!isGroupMember) {
-            return requireDiscussionGroupJoin(ctx, lang);
+            return requireDiscussionGroupJoin(ctx, 'am');
           }
 
           let aiResponseText = '';
           let usedModelName = 'gemini-3.6-flash';
 
           try {
-            const dynamicSystemInstruction = await buildDynamicSystemPrompt(lang, env);
+            const dynamicSystemInstruction = await buildDynamicSystemPrompt('am', env);
 
             const aiResponse = await generateWithGeminiFallback({
               contents: text,
@@ -1824,27 +1733,19 @@ export default {
               usedModelName = aiResponse.modelUsed || 'gemini-3.6-flash';
             }
           } catch (err) {
-            // Keep technical errors strictly in internal developer logs (never show stack traces to students)
             console.error('[AI Assistant Engine Log]:', err.message || err);
           }
 
-          // Student-Facing Clean Fallback Text (Polite, encouraging, under 3 sentences, no tech jargon)
           if (!aiResponseText) {
-            if (lang === 'om') {
-              aiResponseText = `Baga nagaan dhuftan! Appilikeeshiniin Smart X Ethiopian Kutaalee 9-12 tiif Fulbaana 5 / September 2026 irratti gadhiifama. Shaakalaaf /quiz tuqaa ykn galmeeffachuuf /register fayyadamaa.`;
-            } else if (lang === 'en') {
-              aiResponseText = `Welcome! Smart X Ethiopian Mobile App for Grades 9-12 officially releases on Meskerem 5 / September 2026. Try /quiz for practice or /register to join.`;
-            } else {
-              aiResponseText = `ሰላም! Smart X Ethiopian ሞባይል አፕሊኬሽን ለ Grade 9-12 ተማሪዎች በመስከረም 5 / ሴፕቴምበር 2026 ይለቀቃል። ለማንኛውም ጥያቄ /quiz በማለት ይለማመዱ ወይም በ /register ይመዝገቡ!`;
-            }
+            aiResponseText = `ሰላም! Smart X Ethiopian ሞባይል አፕሊኬሽን ለ Grade 9-12 ተማሪዎች በመስከረም 5 / ሴፕቴምበር 2026 ይለቀቃል። ለማንኛውም ጥያቄ /quiz በማለት ይለማመዱ ወይም በ \`📲 Download App (Play Store Hub)\` አፑን ይጎብኙ!`;
           }
 
           // Save chat query and response into Cloudflare D1 ai_chats table
-          await logAiChat(env, userId, text, aiResponseText, lang, usedModelName);
+          await logAiChat(env, userId, text, aiResponseText, 'am', usedModelName);
 
-          return ctx.reply(aiResponseText, {
+          return sendCleanMessage(ctx, aiResponseText, {
             parse_mode: 'Markdown',
-            ...getMainMenuKeyboard(lang)
+            ...Markup.keyboard(i18n.am.menu).resize()
           });
         });
 
