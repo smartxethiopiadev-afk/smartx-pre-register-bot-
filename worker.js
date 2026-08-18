@@ -139,7 +139,7 @@ const sampleHtmlTemplates = [
 
 🗓️ የሚለቀቅበት ቀን: <b>መስከረም 5</b>
 
-[ 📲 ጓደኞችዎን ይጋብዙ | https://t.me/testing_pent_bot?start=invite ]
+[ 📲 ጓደኞችዎን ይጋብዙ | https://t.me/SmartX_PreRegister_bot?start=invite ]
 [ 💬 የውይይት ግሩፕ | https://t.me/SmartX_Ethio ]`
   }
 ];
@@ -210,7 +210,7 @@ function getBotUsername(ctx, env) {
   if (ctx?.me?.username) return ctx.me.username;
   if (env?.BOT_USERNAME) return env.BOT_USERNAME.replace('@', '');
   if (process.env.BOT_USERNAME) return process.env.BOT_USERNAME.replace('@', '');
-  return 'testing_pent_bot';
+  return 'SmartX_PreRegister_bot';
 }
 
 // Helper: Dynamically fetch channel or system configs from D1
