@@ -5,13 +5,12 @@ const userStates = {};
 const registeredUsers = {};
 const broadcastDrafts = {};
 const adminActionDrafts = {};
-const lastBotMessages = {};
 
-// Fallback Default Promo Templates (Grade 9-12 + General)
+// Fallback Default Promo Templates (Grade 9-12 + General) - NO Parentheses
 const defaultPromoTemplates = [
   {
     id: 1,
-    title: '📚 ለ 9-12ኛ ክፍል (አጠቃላይ)',
+    title: '📚 ለ 9-12ኛ ክፍል አጠቃላይ',
     grade: 'All',
     button_text: '✨ አዎ! እንፈልጋለን',
     content_html:
@@ -106,7 +105,7 @@ async function getDynamicConfig(env, key, defaultVal) {
   return defaultVal;
 }
 
-// Multi-language UI Texts, High-Converting Prompts & Questions
+// Multi-language UI Texts & High-Converting Prompts (Parentheses completely removed)
 const i18n = {
   am: {
     welcome_header:
@@ -118,26 +117,55 @@ const i18n = {
     select_grade_header:
 `🎓 <b>የትምህርት ደረጃህን ምረጥ:</b>
 
-ለክፍልህ የተዘጋጁ የ <b>Short Note</b> ማጠቃለያዎችን እና የ <b>Worksheet</b> ጥያቄዎችን ለማግኘት ክፍልህን ምረጥ ⬇️`,
+ለክፍልህ የተዘጋጁ አጋዥ የ <b>Short Note</b> ማጠቃለያዎችን እና የ <b>Worksheet</b> ጥያቄዎችን ለማግኘት ክፍልህን ምረጥ ⬇️`,
     grades: [
       { text: '📗 9ኛ ክፍል', id: '9' },
       { text: '📘 10ኛ ክፍል', id: '10' },
       { text: '📙 11ኛ ክፍል', id: '11' },
       { text: '🎓 12ኛ ክፍል', id: '12' }
     ],
+    consent_intro: (grade) =>
+`✨ <b>ውድ የ ${escapeHtml(grade)} ተማሪ!</b> 🇪🇹
+
+የትምህርት ውጤትህን ለማሳደግ እና የሚከብዱህን ትምህርቶች በቀላሉ እንድትረዳ የሚያስችል ልዩ የጥናት እቅድ እያዘጋጀን ነው።
+
+ለአንተ የሚሆኑ ትክክለኛ የትምህርት ማጠቃለያዎችን እና የፈተና ጥያቄዎችን እንድናዘጋጅልህ <b>5 ፈጣን ጥያቄዎችን</b> ለመመለስ ፍቃደኛ ነህ?`,
+    consent_yes: '🚀 አዎ፣ ዝግጁ ነኝ',
+    consent_no: '❌ አልፈልግም',
+    consent_declined:
+`✨ <b>ምንም ችግር የለም!</b>
+
+በማንኛውም ሰዓት የትምህርት ማጠቃለያዎችን እና የፈተና ጥያቄዎችን ለማግኘት ዝግጁ ሲሆኑ ከታች ያለውን አዝራር ይጫኑ ⬇️`,
+    consent_retry_btn: '🚀 አሁን ለመጀመር ዝግጁ ነኝ',
     questions: [
-      '📚 <b>ደረጃ 1 ከ 5: የትምህርት ማጠቃለያ (Short Notes)</b>\n\nየሁሉንም ትምህርቶች ምዕራፍ ተኮር አጫጭር ማጠቃለያዎች (Concise Short Notes) ማግኘት ትፈልጋለህ?',
-      '📝 <b>ደረጃ 2 ከ 5: የፈተና ጥያቄዎች (Worksheets)</b>\n\nየሞዴል ፈተናዎች እና የ Worksheet ጥያቄዎችን በየምዕራፉ ከነመልሶቻቸው መለማመድ ትፈልጋለህ?',
-      '💡 <b>ደረጃ 3 ከ 5: የፈተና ዝግጅት (Exam Prep)</b>\n\nአስቸጋሪ እና ውስብስብ የፈተና ጥያቄዎችን በቀላሉ ለመስራት የሚያስችል አጋዥ ትፈልጋለህ?',
-      '📱 <b>ደረጃ 4 ከ 5: ከመስመር ውጭ (100% Offline)</b>\n\nያለ ምንም ኢንተርኔት በ 100% Offline የሚሰራ ዘመናዊ የጥናት መተግበሪያ መጠቀም ትፈልጋለህ?',
-      '🎯 <b>ደረጃ 5 ከ 5: ከፍተኛ ውጤት (Target Score)</b>\n\nበዚህ የትምህርት ዘመን ከፍተኛ ውጤት (High GPA / High Score) ለማምጣት ቆርጠሃል?'
+      '📚 <b>ደረጃ 1 ከ 5: የትምህርት ምዕራፎች ማጠቃለያ</b>\n\nበክፍል ውስጥ የተማርካቸውን ሰፋፊ የትምህርት ምዕራፎች በደቂቃዎች ውስጥ ከነዋና ዋና ነጥቦቻቸው እንድትከልስ የሚያስችል ጥራት ያለው <b>Short Note</b> ማግኘት ትፈልጋለህ?',
+      '📝 <b>ደረጃ 2 ከ 5: ምዕራፍ ተኮር የፈተና ጥያቄዎች እና መልሶች</b>\n\nበትምህርት ቤት ለሚሰጡ ፈተናዎች እና ለብሔራዊ ፈተናዎች በብቃት እንድትዘጋጅ የሚረዱ የተመረጡ <b>Model Worksheets</b> ከነዝርዝር አሰራራቸው ማግኘት ትፈልጋለህ?',
+      '💡 <b>ደረጃ 3 ከ 5: አስቸጋሪ እና ውስብስብ ጥያቄዎች ማብራሪያ</b>\n\nበክፍል ውስጥ በሚሰጡ ከበድ ባሉ የትምህርት ፅንሰ ሃሳቦች እና የፈተና ጥያቄዎች ላይ ደረጃ በደረጃ የሚመራህ ግልጽ የጥናት አጋዥ ይፈልጋሉ?',
+      '📱 <b>ደረጃ 4 ከ 5: ያለ ኢንተርኔት 100% Offline አጠቃቀም</b>\n\nየኢንተርኔት ኮኔክሽን ወይም የሞባይል ዳታ ሳያስፈልግህ በየትኛውም ቦታ እና በማንኛውም ሰዓት በነፃነት የሚያጠና ዘመናዊ የሞባይል መተግበሪያ መጠቀም ትፈልጋለህ?',
+      '🎯 <b>ደረጃ 5 ከ 5: ከፍተኛ የትምህርት ውጤት ግብ</b>\n\nበዚህ የትምህርት ዘመን በክፍልህ እና በሀገር አቀፍ ደረጃ ከፍተኛ ውጤት አስመዝግበህ ወደ ሚቀጥለው ደረጃ በላቀ ውጤት ለማለፍ ቆርጠሃል?'
     ],
-    yes: '✅ አዎ፣ እፈልጋለሁ',
+    yes: '✅ አዎ፣ በእርግጥ',
     no: '❌ አይ',
-    channel_step: (grade, channel) => `✅ የተመረጠ ክፍል: <b>${escapeHtml(grade)}</b>\n\n📢 <b>ቴሌግራም ቻናል:</b>\nሁሉንም የትምህርት ቁሳቁሶች ለማግኘት <b>${escapeHtml(channel)}</b> ይቀላቀሉ:`,
-    join_channel: '💬 ቻናሉን ተቀላቀል',
+    promo_reveal: (name, grade) =>
+`🎉 <b>እንኳን ደስ አለህ ${escapeHtml(name)}!</b> 🚀
+
+ለጥያቄዎችህ እና ለጥናት ፍላጎቶችህ ሙሉ መፍትሄ የሆነው <b>Smart X Ethiopian</b> የተባለው ድንቅ የትምህርት ፕላትፎርም መጥቶልሃል!
+
+✨ የ <b>${escapeHtml(grade)}</b> የሁሉንም ትምህርቶች <b>Short Notes</b>፣ <b>Worksheets</b>፣ እና <b>Model Exams</b> በአንድ ላይ የያዘ እና <b>100% Offline</b> ያለ ምንም ኢንተርኔት የሚሰራ ዘመናዊ መተግበሪያ ተዘጋጅቶልሃል!
+
+🗓️ የሚለቀቅበት ቀን: <b>መስከረም 5</b>`,
+    how_to_get_btn: '📱 የሞባይል መተግበሪያውን እንዴት አገኛለሁ?',
+    register_first_prompt:
+`🎁 <b>የሞባይል መተግበሪያውን በነፃ ለማግኘት መጀመሪያ ይመዝገቡ!</b>
+
+የ <b>Smart X Ethiopian</b> መተግበሪያ <b>መስከረም 5</b> ሲለቀቅ መለያዎን በነፃ ለማንቃት እና VIP Early Access ለማግኘት እነዚህን 2 ቀላል ደረጃዎች ይጨርሱ:
+
+1️⃣ የውይይት ግሩፓችንን ይቀላቀሉ
+2️⃣ ስልክ ቁጥርዎን ያረጋግጡ`,
+    channel_step: (grade, channel) => `📢 <b>የውይይት ግሩፕ ይቀላቀሉ:</b>\n\nየ <b>${escapeHtml(grade)}</b> የትምህርት መረጃዎችን እና አዳዲስ ማስታወቂያዎችን ለማግኘት <b>${escapeHtml(channel)}</b> ይቀላቀሉ:`,
+    join_channel: '💬 ግሩፑን ተቀላቀል',
     verify_channel: '✅ አረጋግጥ',
-    channel_joined_alert: '✅ ቻናል አባልነትዎ ተረጋግጧል!',
+    channel_joined_alert: '✅ አባልነትዎ ተረጋግጧል!',
     channel_not_joined_alert: (channel) => `⚠️ እባክዎን መጀመሪያ ${channel} ይቀላቀሉ!`,
     phone_step: 
 `📱 <b>ምዝገባውን ለመጨረስ ስልክ ቁጥርዎን ያጋሩ</b>
@@ -194,7 +222,7 @@ const i18n = {
 <b>Smart X Ethiopian</b> ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ ዘመናዊ የትምህርት መተግበሪያ ነው።
 
 ✨ <b>ዋና ዋና አገልግሎቶች:</b>
-• 📚 የሁሉንም ትምህርቶች አጫጭር ማጠቃለያዎች (Short Notes)
+• 📚 የሁሉንም ትምህርቶች አጫጭር ማጠቃለያዎች Short Notes
 • 📝 የሞዴል ፈተናዎች እና የ Worksheet ጥያቄዎች ከነመልሶቻቸው
 • ⚡ <b>100% Offline</b> — ያለ ምንም ኢንተርኔት በነፃ ይሰራል
 • 🎯 ለአዲሱ ካሪኩለም በልዩ ጥራት የተዘጋጀ
@@ -204,7 +232,7 @@ const i18n = {
 💬 <b>እገዛ ወይም ጥያቄ ካለዎት:</b>
 • 📢 ኦፊሴላዊ ቻናል: @SmartXEthiopia
 • 💬 የውይይት ግሩፕ: @SmartX_Discussion
-• 👨‍💻 የደንበኞች አገልግሎት: @SmartXSupport`,
+• 👨‍💻 የደንበኞች አገልግሎት: @smart_x_help`,
     contact_admin_btn: '👨‍💻 ድጋፍ አግኝ',
     join_channel_btn: '📢 ቻናሉን ተቀላቀል'
   },
@@ -225,24 +253,53 @@ Choose your grade to unlock tailored <b>Short Notes</b> and <b>Worksheet Questio
       { text: '📙 Grade 11', id: '11' },
       { text: '🎓 Grade 12', id: '12' }
     ],
+    consent_intro: (grade) =>
+`✨ <b>Dear ${escapeHtml(grade)} Student!</b> 🇪🇹
+
+We are preparing an exclusive study platform to help you master challenging subjects and achieve top academic grades.
+
+To help us tailor the most effective Short Notes and Exam Worksheets for your grade, are you willing to answer <b>5 quick questions</b>?`,
+    consent_yes: '🚀 Yes, I am ready',
+    consent_no: '❌ No, Skip',
+    consent_declined:
+`✨ <b>No problem at all!</b>
+
+Whenever you are ready to explore tailored Short Notes and Exam materials, click the button below ⬇️`,
+    consent_retry_btn: '🚀 I am ready now',
     questions: [
-      '📚 <b>Step 1 of 5: Chapter Short Notes</b>\n\nDo you want to access concise Chapter Short Notes for all subjects?',
-      '📝 <b>Step 2 of 5: Practice Worksheets</b>\n\nDo you want to practice Model Exams and Worksheets with detailed solutions?',
-      '💡 <b>Step 3 of 5: Exam Preparation</b>\n\nDo you need step-by-step assistance to easily solve difficult exam questions?',
-      '📱 <b>Step 4 of 5: 100% Offline Access</b>\n\nDo you want to use a 100% Offline study application without needing internet?',
-      '🎯 <b>Step 5 of 5: Target Score</b>\n\nAre you determined to achieve a High Score & Top GPA this academic year?'
+      '📚 <b>Step 1 of 5: Concise Chapter Summaries</b>\n\nDo you want to access comprehensive <b>Short Notes</b> that summarize lengthy textbook chapters with core concepts and key formulas in minutes?',
+      '📝 <b>Step 2 of 5: Chapter Worksheets and Model Exams</b>\n\nDo you want to practice selected <b>Model Exams</b> and <b>Chapter Worksheets</b> equipped with step-by-step detailed explanations and answer keys?',
+      '💡 <b>Step 3 of 5: Mastering Complex Concepts</b>\n\nDo you need clear step-by-step guidance to easily solve difficult concepts and complex exam problems without getting stuck?',
+      '📱 <b>Step 4 of 5: 100% Offline Study Capability</b>\n\nDo you want to use a modern mobile app that functions <b>100% Offline</b> anywhere and anytime without needing an active internet connection?',
+      '🎯 <b>Step 5 of 5: Achieving Top Academic Score</b>\n\nAre you fully dedicated to achieving the highest score and top GPA in your school and national exams this academic year?'
     ],
-    yes: '✅ Yes, I want it',
+    yes: '✅ Yes, definitely',
     no: '❌ No',
-    channel_step: (grade, channel) => `✅ Selected Grade: <b>${escapeHtml(grade)}</b>\n\n📢 <b>Telegram Channel:</b>\nJoin <b>${escapeHtml(channel)}</b> to receive all educational resources:`,
-    join_channel: '💬 Join Channel',
+    promo_reveal: (name, grade) =>
+`🎉 <b>Congratulations ${escapeHtml(name)}!</b> 🚀
+
+The ultimate solution for your academic success, <b>Smart X Ethiopian</b> educational platform is here for you!
+
+✨ Packed with <b>${escapeHtml(grade)}</b> <b>Short Notes</b>, <b>Worksheets</b>, and <b>Model Exams</b> that work <b>100% Offline</b> without internet.
+
+🗓️ Official Launch Date: <b>September 15</b>`,
+    how_to_get_btn: '📱 How can I get the mobile application?',
+    register_first_prompt:
+`🎁 <b>Pre-register now to receive the mobile app for free!</b>
+
+When <b>Smart X Ethiopian</b> launches on <b>September 15</b>, complete these 2 quick steps to activate your VIP Early Access:
+
+1️⃣ Join our discussion community group
+2️⃣ Confirm your phone number`,
+    channel_step: (grade, channel) => `📢 <b>Join Discussion Group:</b>\n\nJoin <b>${escapeHtml(channel)}</b> to receive all ${escapeHtml(grade)} announcements and updates:`,
+    join_channel: '💬 Join Group',
     verify_channel: '✅ Verify',
-    channel_joined_alert: '✅ Channel membership confirmed!',
+    channel_joined_alert: '✅ Membership confirmed!',
     channel_not_joined_alert: (channel) => `⚠️ Please join ${channel} first!`,
     phone_step: 
 `📱 <b>Share your phone number to complete registration</b>
 
-Click the button below to activate your free account when <b>Smart X Ethiopian</b> launches on <b>September 15 (መስከረም 5)</b> ⬇️`,
+Click the button below to activate your free account when <b>Smart X Ethiopian</b> launches on <b>September 15</b> ⬇️`,
     share_contact_btn: '📱 Share',
     notify_prompt: 
 `🔔 <b>Mobile App Release Notification</b>
@@ -250,7 +307,7 @@ Click the button below to activate your free account when <b>Smart X Ethiopian</
 Would you like to receive an instant notification when the <b>Smart X Ethiopian</b> app launches on <b>September 15</b>?`,
     notify_yes: '🔔 Yes, Notify Me',
     notify_no: '🔕 No, Skip',
-    reg_success: (name) => `🎉 <b>Congratulations ${escapeHtml(name)}! Registration Completed!</b> 🚀\n\nYou are now pre-registered for VIP early access to <b>Smart X Ethiopian</b> launching on <b>September 15 (መስከረም 5)</b>.\n\nChoose an option below ⬇️`,
+    reg_success: (name) => `🎉 <b>Congratulations ${escapeHtml(name)}! Registration Completed!</b> 🚀\n\nYou are now pre-registered for VIP early access to <b>Smart X Ethiopian</b> launching on <b>September 15</b>.\n\nChoose an option below ⬇️`,
     welcome_back: (name) => `👋 <b>Welcome back ${escapeHtml(name)}!</b> 🇪🇹\n\n📱 <b>Smart X Ethiopian</b> Educational Platform\n\nChoose an option below ⬇️`,
     menu: [
       ['🔗 Share with Friends', '⚙️ Settings'],
@@ -299,12 +356,12 @@ Choose a setting to modify ⬇️`,
 • ⚡ <b>100% Offline</b> — Works seamlessly without internet connection
 • 🎯 High quality aligned with the new Ethiopian curriculum
 
-🗓️ <b>Launch Date:</b> <b>September 15 (መስከረም 5)</b>
+🗓️ <b>Launch Date:</b> <b>September 15</b>
 
 💬 <b>Need Help or Have Questions?</b>
 • 📢 Official Channel: @SmartXEthiopia
 • 💬 Community Group: @SmartX_Discussion
-• 👨‍💻 Support Admin: @SmartXSupport`,
+• 👨‍💻 Support Admin: @smart_x_help`,
     contact_admin_btn: '👨‍💻 Contact Support',
     join_channel_btn: '📢 Join Channel'
   },
@@ -312,7 +369,7 @@ Choose a setting to modify ⬇️`,
     welcome_header:
 `👋 <b>Baga nagaan gara Smart X Ethiopian dhuftan!</b> 🇪🇹
 
-Wiirtuu barattoota Kutaa 9-12tiif <b>Cuunfaa Barumsaa (Short Notes)</b> fi <b>Gaaffilee Worksheet</b> qopheesse.
+Wiirtuu barattoota Kutaa 9-12tiif <b>Cuunfaa Barumsaa</b> fi <b>Gaaffilee Worksheet</b> qopheesse.
 
 🌐 <b>Afaan keessan filadhaa / Please select your language:</b>`,
     select_grade_header:
@@ -325,24 +382,53 @@ Cuunfaa barumsaa fi gaaffilee worksheet kutaa keessaniif qophaa'e argachuuf fila
       { text: '📙 Kutaa 11', id: '11' },
       { text: '🎓 Kutaa 12', id: '12' }
     ],
+    consent_intro: (grade) =>
+`✨ <b>Barataa ${escapeHtml(grade)} Kabajamaa!</b> 🇪🇹
+
+Qabxii barumsa keetii guddisuufi gosa barnootaa sitti ulfaatan salphaatti akka hubattuuf sagantaa qo'annoo addaa qopheessaa jirra.
+
+Cuunfaa barumsaafi gaaffilee qorumsaa sirrii ta'an akka siif qopheessinuuf <b>gaaffilee gabaaboo 5</b> deebisuuf eeyyamamaadhaa?`,
+    consent_yes: '🚀 Eeyyee, Qophiidha',
+    consent_no: '❌ Lakki',
+    consent_declined:
+`✨ <b>Rakkina hin qabu!</b>
+
+Yeroo barbaaddanitti cuunfaa barumsaafi qophii qorumsaa argachuuf qabduu armaan gadii tuqaa ⬇️`,
+    consent_retry_btn: '🚀 Amma Qophiidha',
     questions: [
-      '📚 <b>Sadarkaa 1 / 5: Cuunfaa Barumsaa (Short Notes)</b>\n\nCuunfaa barumsaa gosa barnoota hundaaf boqonnaa boqonnaan argachuu barbaaddaa?',
-      '📝 <b>Sadarkaa 2 / 5: Qorumsa Moodeelaa (Worksheets)</b>\n\nQorumsa moodeelaa fi gaaffilee Worksheet deebii waliin hojjechuu barbaaddaa?',
-      '💡 <b>Sadarkaa 3 / 5: Qophii Qorumsaa (Exam Prep)</b>\n\nGaaffilee qorumsaa ciccimoo ta\'an salphaatti hubachuuf gargaarsa barbaaddaa?',
-      '📱 <b>Sadarkaa 4 / 5: Intarneetiin Ala (100% Offline)</b>\n\nTajaajila barnootaa 100% toora intarneetiin ala (Offline) hojjetu fayyadamuu barbaaddaa?',
-      '🎯 <b>Sadarkaa 5 / 5: Qabxii Olaanaa (Target Score)</b>\n\nBarana qabxii olaanaa fiduuf qophiidhaa?'
+      '📚 <b>Sadarkaa 1 / 5: Cuunfaa Boqonnaa Barumsaa</b>\n\nBoqonnaa barnootaa bal\'aa ta\'an qabxiilee ijoo isaanii waliin daqiiqaa muraasa keessatti akka irra deebitee qo\'attuuf <b>Cuunfaa Barumsaa</b> qulqullina qabu argachuu barbaaddaa?',
+      '📝 <b>Sadarkaa 2 / 5: Gaaffilee Qorumsaa fi Worksheet</b>\n\nQorumsa manneen barnootaafi qorumsa biyyaalessaaf of qopheessuuf gaaffilee <b>Worksheet</b> filatamoo deebii fi ibsa bal\'aa waliin argachuu barbaaddaa?',
+      '💡 <b>Sadarkaa 3 / 5: Gaaffilee Coccimoo Hubachuu</b>\n\nQabxiilee barnootaa ulfaatoo ta\'an fi gaaffilee qorumsaa ciccimoo salphaatti akka hojjettuuf gargaarsa tartiiba qabu argachuu barbaaddaa?',
+      '📱 <b>Sadarkaa 4 / 5: Intarneetiin Ala Hojjechuu</b>\n\nKonnokshinii intarneetii tokko malee bakka kamittuu fi yeroo kamittuu bilisaan akka qo\'attuuf appilikeeshinii <b>100% Offline</b> ta\'e fayyadamuu barbaaddaa?',
+      '🎯 <b>Sadarkaa 5 / 5: Qabxii Olaanaa Fiduuf Kutannoo</b>\n\nBara barnootaa kanatti daree keessatti fi qorumsa biyyaalessaa irratti qabxii olaanaa fiduun milkaa\'ina guddaa galmeessuuf qophiidhaa?'
     ],
-    yes: '✅ Eeyyee, Nan Barbaada',
+    yes: '✅ Eeyyee, Dhuguma',
     no: '❌ Lakki',
-    channel_step: (grade, channel) => `✅ Kutaa Filatame: <b>${escapeHtml(grade)}</b>\n\n📢 <b>Chaanaalii Telegram:</b>\nQophiiwwan barnootaa hunda argachuuf <b>${escapeHtml(channel)}</b> seenaa:`,
-    join_channel: '💬 Chaanaalii Seeni',
+    promo_reveal: (name, grade) =>
+`🎉 <b>Baga gammaddan ${escapeHtml(name)}!</b> 🚀
+
+Fedhii fi gaaffilee keessaniif furmaata guutuu kan ta'e <b>Smart X Ethiopian</b> wiirtuun barnootaa addaa isiniif dhufeera!
+
+✨ Cuunfaa barumsaa <b>${escapeHtml(grade)}</b>, gaaffilee <b>Worksheet</b> fi qorumsa moodeelaa <b>100% Offline</b> ta'een qophaa'ee isiniif dhiyaateera!
+
+🗓️ Guyyaa Gadhiifamu: <b>Fulbaana 5</b>`,
+    how_to_get_btn: '📱 Appilikeeshinii akkamittan argadha?',
+    register_first_prompt:
+`🎁 <b>Appilikeeshinii moobaayilaa bilisaan argachuuf dura galmaa'aa!</b>
+
+Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5</b> gadhiifamu tajaajila VIP bilisaan banachuuf sadarkaalee 2n kana xumuraa:
+
+1️⃣ Garee marii keenya seenaa
+2️⃣ Lakkoofsa bilbilaa mirkaneessaa`,
+    channel_step: (grade, channel) => `📢 <b>Garee Marii Seenaa:</b>\n\nOodeeffannoo fi qophii ${escapeHtml(grade)} hunda argachuuf <b>${escapeHtml(channel)}</b> seenaa:`,
+    join_channel: '💬 Garee Seeni',
     verify_channel: '✅ Mirkaneessi',
-    channel_joined_alert: '✅ Chaanaalii seenuun keessan mirkanaa\'eera!',
+    channel_joined_alert: '✅ Garee seenuun keessan mirkanaa\'eera!',
     channel_not_joined_alert: (channel) => `⚠️ Mee dura ${channel} seenaa!`,
     phone_step: 
 `📱 <b>Galmee xumuruuf lakkoofsa bilbilaa keessan ergaa</b>
 
-Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5 (መስከረም 5)</b> gadhiifamu tajaajila VIP bilisaan banachuuf qabduu armaan gadii tuqaa ⬇️`,
+Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5</b> gadhiifamu tajaajila VIP bilisaan banachuuf qabduu armaan gadii tuqaa ⬇️`,
     share_contact_btn: '📱 Share',
     notify_prompt: 
 `🔔 <b>Beeksisa Appilikeeshinii</b>
@@ -350,7 +436,7 @@ Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5 (መስከረም 5
 Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5</b> gadhiifamu beeksisni akka isin ga'u barbaadduu?`,
     notify_yes: '🔔 Eeyyee, Na Ga\'i',
     notify_no: '🔕 Lakki, Hin Barbaadu',
-    reg_success: (name) => `🎉 <b>Baga gammaddan ${escapeHtml(name)}! Galmeen keessan xumurameera!</b> 🚀\n\nAppilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5 (መስከረም 5)</b> gadhiifamu carraa addaa argattu.\n\nTajaajiloota armaan gadii filadhaa ⬇️`,
+    reg_success: (name) => `🎉 <b>Baga gammaddan ${escapeHtml(name)}! Galmeen keessan xumurameera!</b> 🚀\n\nAppilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5</b> gadhiifamu carraa addaa argattu.\n\nTajaajiloota armaan gadii filadhaa ⬇️`,
     welcome_back: (name) => `👋 <b>Baga nagaan deebitan ${escapeHtml(name)}!</b> 🇪🇹\n\n📱 <b>Smart X Ethiopian</b> Tajaajila Barnootaa\n\nTajaajiloota armaan gadii filadhaa ⬇️`,
     menu: [
       ['🔗 Hiriyyootaaf Qoodi', '⚙️ Qindaa\'inoota'],
@@ -385,7 +471,7 @@ Qindaa'ina jijjiiruu barbaaddan filadhaa ⬇️`,
     change_lang_btn: '🌐 Afaan Jijjiiri',
     change_grade_btn: '🎓 Kutaa Jijjiiri',
     toggle_notify_btn: (status) => status ? '🔕 Beeksisa Cufi' : '🔔 Beeksisa Bani',
-    back_to_menu_btn: '🔙 Gara Fuula Duraatti',
+    back_to_menu_btn: '🔙 Gara Menuutti',
     back_btn: '🔙 Duubatti',
     help_title: '📞 <b>Gargaarsa & Quunnamtii — Smart X Ethiopian</b> 🇪🇹',
     help_body:
@@ -394,17 +480,17 @@ Qindaa'ina jijjiiruu barbaaddan filadhaa ⬇️`,
 <b>Smart X Ethiopian</b> appilikeeshinii barattoota Kutaa 9-12tiif qophaa'ee dha.
 
 ✨ <b>Faayidaalee Ijoo:</b>
-• 📚 Cuunfaa barumsaa (Short Notes) gosa barnoota hundaaf
+• 📚 Cuunfaa barumsaa Short Notes gosa barnoota hundaaf
 • 📝 Qorumsa moodeelaa fi gaaffilee Worksheet deebii waliin
 • ⚡ <b>100% Offline</b> — Intarneetii malee guutummaatti hojjeta
 • 🎯 Sirna barnootaa haaraa Itoophiyaatiif qulqullinaan kan qophaa'e
 
-🗓️ <b>Guyyaa Gadhiifamu:</b> <b>Fulbaana 5 (መስከረም 5)</b>
+🗓️ <b>Guyyaa Gadhiifamu:</b> <b>Fulbaana 5</b>
 
 💬 <b>Gaaffii yoo qabaattan:</b>
 • 📢 Chaanaalii: @SmartXEthiopia
 • 💬 Garee Maree: @SmartX_Discussion
-• 👨‍💻 Tajaajila Maamiltootaa: @SmartXSupport`,
+• 👨‍💻 Tajaajila Maamiltootaa: @smart_x_help`,
     contact_admin_btn: '👨‍💻 Gargaarsa Argadhu',
     join_channel_btn: '📢 Chaanaalii Seeni'
   }
@@ -447,6 +533,27 @@ function isAdmin(userId, env) {
     .filter(Boolean);
 
   return configuredAdmins.includes(uidStr) || uidStr === '12345678';
+}
+
+// Helper: Transition to next step by clearing previous buttons and sending a clean NEW message
+async function transitionToNewStep(ctx, nextText, extra = {}) {
+  // 1. Remove inline buttons from previous message if this action came from an inline callback
+  if (ctx.callbackQuery?.message) {
+    try {
+      await ctx.editMessageReplyMarkup(undefined).catch(() => {});
+    } catch (e) {}
+  }
+
+  // 2. Send brand NEW message for the next step
+  try {
+    return await ctx.reply(nextText, {
+      parse_mode: 'HTML',
+      ...extra
+    });
+  } catch (err) {
+    console.warn('[transitionToNewStep error]:', err.message);
+    return null;
+  }
 }
 
 // Helper: Extract rich media payload for broadcasts
@@ -789,11 +896,11 @@ async function initDb(db) {
 
     // Seed default system configs
     const sysItems = [
-      ['bot_version', 'v5.4-clean'],
+      ['bot_version', 'v5.5-clean'],
       ['required_channel', '@SmartX_Discussion'],
       ['official_channel', '@SmartXEthiopia'],
-      ['support_username', '@SmartXSupport'],
-      ['release_date', 'መስከረም 5 (September 15)']
+      ['support_username', '@smart_x_help'],
+      ['release_date', 'መስከረም 5']
     ];
 
     for (const [k, v] of sysItems) {
@@ -808,7 +915,7 @@ async function initDb(db) {
     if (!tCount?.cnt || tCount.cnt === 0) {
       for (const t of defaultPromoTemplates) {
         await db.prepare(`
-          INSERT INTO promo_templates (id, title, grade, button_text, content_html, is_active)
+          INSERT OR IGNORE INTO promo_templates (id, title, grade, button_text, content_html, is_active)
           VALUES (?, ?, ?, ?, ?, 1)
         `).bind(t.id, t.title, t.grade, t.button_text, t.content_html).run();
       }
@@ -816,36 +923,6 @@ async function initDb(db) {
 
   } catch (err) {
     console.error('D1 Init Error:', err);
-  }
-}
-
-// Clean message sender using HTML parse mode by default and deleting prior message
-async function sendCleanMessage(ctx, text, extra = {}) {
-  const chatId = ctx.chat?.id;
-  if (!chatId) {
-    try {
-      return await ctx.reply(text, { parse_mode: 'HTML', ...extra });
-    } catch (err) {
-      console.warn('[sendCleanMessage fallback error]:', err.message);
-      return null;
-    }
-  }
-
-  if (lastBotMessages[chatId]) {
-    try {
-      await ctx.telegram.deleteMessage(chatId, lastBotMessages[chatId]);
-    } catch (err) {}
-  }
-
-  try {
-    const sentMsg = await ctx.reply(text, { parse_mode: 'HTML', ...extra });
-    if (sentMsg?.message_id) {
-      lastBotMessages[chatId] = sentMsg.message_id;
-    }
-    return sentMsg;
-  } catch (err) {
-    console.warn('[sendCleanMessage error]:', err.message);
-    return null;
   }
 }
 
@@ -931,10 +1008,7 @@ export default {
             const welcomeBackMsg = langObj.welcome_back(name);
             const mainDashboardKeyboard = Markup.keyboard(langObj.menu).resize();
 
-            return sendCleanMessage(ctx, welcomeBackMsg, {
-              parse_mode: 'HTML',
-              ...mainDashboardKeyboard
-            });
+            return transitionToNewStep(ctx, welcomeBackMsg, mainDashboardKeyboard);
           }
 
           // Case B: User is NOT YET REGISTERED -> Step 1: Language Selection
@@ -958,10 +1032,7 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, i18n.am.welcome_header, {
-            parse_mode: 'HTML',
-            ...langKeyboard
-          });
+          return transitionToNewStep(ctx, i18n.am.welcome_header, langKeyboard);
         };
 
         bot.start(handleStartOrRegister);
@@ -990,10 +1061,7 @@ export default {
             [Markup.button.callback('🔙 ቋንቋ ቀይር / Change Language', 'back_to_language_select')]
           ]);
 
-          return sendCleanMessage(ctx, langObj.select_grade_header, {
-            parse_mode: 'HTML',
-            ...gradeKeyboard
-          });
+          return transitionToNewStep(ctx, langObj.select_grade_header, gradeKeyboard);
         });
 
         // Back to language select during onboarding
@@ -1009,13 +1077,10 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, i18n.am.welcome_header, {
-            parse_mode: 'HTML',
-            ...langKeyboard
-          });
+          return transitionToNewStep(ctx, i18n.am.welcome_header, langKeyboard);
         });
 
-        // --- Step 2 Action: Grade Selected -> Step 3: Question 1 of 5 ---
+        // --- Step 2 Action: Grade Selected -> Step 3: Consent & Demand Check ---
         bot.action(/set_grade_(\d+)/, async (ctx) => {
           await ctx.answerCbQuery().catch(() => {});
           const gradeNum = ctx.match[1];
@@ -1025,11 +1090,49 @@ export default {
 
           const selectedGradeObj = langObj.grades.find(g => g.id === gradeNum) || { text: `${gradeNum}ኛ ክፍል` };
           if (!userStates[chatId]) {
-            userStates[chatId] = { step: 'AWAITING_Q1', data: {} };
+            userStates[chatId] = { step: 'AWAITING_CONSENT', data: {} };
           }
-          userStates[chatId].data.grade = selectedGradeObj.text.replace(/^[^\s]+\s/, ''); // Clean title
+          userStates[chatId].data.grade = selectedGradeObj.text;
           userStates[chatId].data.qAnswers = [];
+          userStates[chatId].step = 'AWAITING_CONSENT';
+
+          const consentText = langObj.consent_intro(selectedGradeObj.text);
+          const consentKeyboard = Markup.inlineKeyboard([
+            [
+              Markup.button.callback(langObj.consent_yes, 'consent_flow_yes'),
+              Markup.button.callback(langObj.consent_no, 'consent_flow_no')
+            ]
+          ]);
+
+          return transitionToNewStep(ctx, consentText, consentKeyboard);
+        });
+
+        // Consent Declined Flow -> Polite encouraging response with instant retry
+        bot.action('consent_flow_no', async (ctx) => {
+          await ctx.answerCbQuery().catch(() => {});
+          const chatId = ctx.chat.id;
+          const lang = userStates[chatId]?.lang || 'am';
+          const langObj = i18n[lang] || i18n.am;
+
+          const retryKeyboard = Markup.inlineKeyboard([
+            [Markup.button.callback(langObj.consent_retry_btn, 'consent_flow_yes')]
+          ]);
+
+          return transitionToNewStep(ctx, langObj.consent_declined, retryKeyboard);
+        });
+
+        // Consent Accepted Flow -> Question 1 of 5
+        bot.action('consent_flow_yes', async (ctx) => {
+          await ctx.answerCbQuery().catch(() => {});
+          const chatId = ctx.chat.id;
+          const lang = userStates[chatId]?.lang || 'am';
+          const langObj = i18n[lang] || i18n.am;
+
+          if (!userStates[chatId]) {
+            userStates[chatId] = { step: 'AWAITING_Q1', data: { qAnswers: [] } };
+          }
           userStates[chatId].step = 'AWAITING_Q1';
+          userStates[chatId].data.qAnswers = [];
 
           const q1Text = langObj.questions[0];
           const q1Keyboard = Markup.inlineKeyboard([
@@ -1039,10 +1142,7 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, q1Text, {
-            parse_mode: 'HTML',
-            ...q1Keyboard
-          });
+          return transitionToNewStep(ctx, q1Text, q1Keyboard);
         });
 
         // --- Helper for 5 Sequential Diagnostic Questions ---
@@ -1050,7 +1150,6 @@ export default {
           bot.action([`answer_q_${qIndex}_yes`, `answer_q_${qIndex}_no`], async (ctx) => {
             await ctx.answerCbQuery().catch(() => {});
             const chatId = ctx.chat.id;
-            const userId = ctx.from.id;
             const lang = userStates[chatId]?.lang || 'am';
             const langObj = i18n[lang] || i18n.am;
             const isYes = ctx.callbackQuery.data.endsWith('_yes');
@@ -1075,44 +1174,55 @@ export default {
                 ]
               ]);
 
-              return sendCleanMessage(ctx, nextQText, {
-                parse_mode: 'HTML',
-                ...nextQKeyboard
-              });
+              return transitionToNewStep(ctx, nextQText, nextQKeyboard);
             }
 
-            // All 5 Questions Completed -> Step 4: Telegram Channel / Group Verification
-            userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
-            const channelHandle = await getDynamicConfig(env, 'required_channel', '@SmartX_Discussion');
+            // All 5 Questions Completed -> Climax & Smart X Ethiopian Platform Reveal & Promo
+            userStates[chatId].step = 'AWAITING_HOW_TO_GET_APP';
+            const studentName = userStates[chatId].data.fullName || ctx.from?.first_name || 'ተማሪ';
             const grade = userStates[chatId].data.grade || '10ኛ ክፍል';
 
-            const isMember = await checkChannelMember(ctx, userId, env);
-            if (isMember) {
-              userStates[chatId].step = 'AWAITING_PHONE';
-              const phoneKeyboard = Markup.keyboard([
-                [Markup.button.contactRequest(langObj.share_contact_btn)]
-              ]).resize().oneTime();
-
-              return sendCleanMessage(ctx, langObj.phone_step, {
-                parse_mode: 'HTML',
-                ...phoneKeyboard
-              });
-            }
-
-            const channelUrl = `https://t.me/${channelHandle.replace('@', '')}`;
-            const verifyKeyboard = Markup.inlineKeyboard([
-              [Markup.button.url(langObj.join_channel, channelUrl)],
-              [Markup.button.callback(langObj.verify_channel, 'verify_channel_step')]
+            const promoText = langObj.promo_reveal(studentName, grade);
+            const promoKeyboard = Markup.inlineKeyboard([
+              [Markup.button.callback(langObj.how_to_get_btn, 'flow_how_to_get_app')]
             ]);
 
-            return sendCleanMessage(ctx, langObj.channel_step(grade, channelHandle), {
-              parse_mode: 'HTML',
-              ...verifyKeyboard
-            });
+            return transitionToNewStep(ctx, promoText, promoKeyboard);
           });
         }
 
-        // --- Step 4 Action: Discussion Group Verification Callback ---
+        // --- Step 4 Action: "How to get the mobile app" Clicked -> Prompt Registration & Channel ---
+        bot.action('flow_how_to_get_app', async (ctx) => {
+          await ctx.answerCbQuery().catch(() => {});
+          const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
+          const lang = userStates[chatId]?.lang || 'am';
+          const langObj = i18n[lang] || i18n.am;
+          const channelHandle = await getDynamicConfig(env, 'required_channel', '@SmartX_Discussion');
+          const grade = userStates[chatId]?.data?.grade || '10ኛ ክፍል';
+
+          const isMember = await checkChannelMember(ctx, userId, env);
+          if (isMember) {
+            userStates[chatId].step = 'AWAITING_PHONE';
+            const phoneKeyboard = Markup.keyboard([
+              [Markup.button.contactRequest(langObj.share_contact_btn)]
+            ]).resize().oneTime();
+
+            return transitionToNewStep(ctx, `${langObj.register_first_prompt}\n\n${langObj.phone_step}`, phoneKeyboard);
+          }
+
+          userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
+          const channelUrl = `https://t.me/${channelHandle.replace('@', '')}`;
+          const verifyKeyboard = Markup.inlineKeyboard([
+            [Markup.button.url(langObj.join_channel, channelUrl)],
+            [Markup.button.callback(langObj.verify_channel, 'verify_channel_step')]
+          ]);
+
+          const combinedMsg = `${langObj.register_first_prompt}\n\n${langObj.channel_step(grade, channelHandle)}`;
+          return transitionToNewStep(ctx, combinedMsg, verifyKeyboard);
+        });
+
+        // --- Step 5 Action: Discussion Group Verification Callback ---
         bot.action('verify_channel_step', async (ctx) => {
           const userId = ctx.from.id;
           const chatId = ctx.chat.id;
@@ -1137,13 +1247,10 @@ export default {
             [Markup.button.contactRequest(langObj.share_contact_btn)]
           ]).resize().oneTime();
 
-          return sendCleanMessage(ctx, langObj.phone_step, {
-            parse_mode: 'HTML',
-            ...phoneKeyboard
-          });
+          return transitionToNewStep(ctx, langObj.phone_step, phoneKeyboard);
         });
 
-        // --- Step 5 Action: Phone Number Received -> Step 6: App Notification Prompt ---
+        // --- Step 6 Action: Phone Number Received -> Step 7: App Notification Prompt ---
         const handlePhoneSubmission = async (ctx, phone) => {
           const chatId = ctx.chat.id;
           const lang = userStates[chatId]?.lang || 'am';
@@ -1155,16 +1262,12 @@ export default {
           userStates[chatId].data.phone = phone || 'N/A';
           userStates[chatId].step = 'AWAITING_NOTIFICATION_OPTIN';
 
-          // Clean, balanced buttons
           const notifyKeyboard = Markup.inlineKeyboard([
             [Markup.button.callback(langObj.notify_yes, 'notify_optin_yes')],
             [Markup.button.callback(langObj.notify_no, 'notify_optin_no')]
           ]);
 
-          return sendCleanMessage(ctx, langObj.notify_prompt, {
-            parse_mode: 'HTML',
-            ...notifyKeyboard
-          });
+          return transitionToNewStep(ctx, langObj.notify_prompt, notifyKeyboard);
         };
 
         bot.on('contact', async (ctx) => {
@@ -1178,7 +1281,7 @@ export default {
           }
         });
 
-        // --- Step 6 Action: Notification Opt-in Response -> Save to D1 & Finish ---
+        // --- Step 7 Action: Notification Opt-in Response -> Save to D1 & Finish ---
         bot.action(['notify_optin_yes', 'notify_optin_no'], async (ctx) => {
           await ctx.answerCbQuery().catch(() => {});
           const wantsNotify = ctx.callbackQuery.data === 'notify_optin_yes' ? 1 : 0;
@@ -1253,10 +1356,7 @@ export default {
 
           const mainDashboardKeyboard = Markup.keyboard(langObj.menu).resize();
 
-          return sendCleanMessage(ctx, langObj.reg_success(fullName), {
-            parse_mode: 'HTML',
-            ...mainDashboardKeyboard
-          });
+          return transitionToNewStep(ctx, langObj.reg_success(fullName), mainDashboardKeyboard);
         });
 
         // --- DASHBOARD BUTTON 1: 🔗 Share / Invite Friends ---
@@ -1285,10 +1385,7 @@ export default {
             [Markup.button.callback(langObj.back_to_menu_btn, 'nav_back_to_menu')]
           ]);
 
-          return sendCleanMessage(ctx, shareText, {
-            parse_mode: 'HTML',
-            ...shareKeyboard
-          });
+          return transitionToNewStep(ctx, shareText, shareKeyboard);
         };
 
         bot.hears([
@@ -1339,10 +1436,7 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, `${langObj.settings_title}\n\n${langObj.profile_card(user)}`, {
-            parse_mode: 'HTML',
-            ...settingsKeyboard
-          });
+          return transitionToNewStep(ctx, `${langObj.settings_title}\n\n${langObj.profile_card(user)}`, settingsKeyboard);
         };
 
         bot.hears([
@@ -1358,7 +1452,7 @@ export default {
           const userId = ctx.from.id;
           const lang = await getUserLang(userId, env);
           const langObj = i18n[lang] || i18n.am;
-          const supportHandle = await getDynamicConfig(env, 'support_username', '@SmartXSupport');
+          const supportHandle = await getDynamicConfig(env, 'support_username', '@smart_x_help');
           const channelHandle = await getDynamicConfig(env, 'official_channel', '@SmartXEthiopia');
 
           const helpKeyboard = Markup.inlineKeyboard([
@@ -1371,10 +1465,7 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, `${langObj.help_title}\n\n${langObj.help_body}`, {
-            parse_mode: 'HTML',
-            ...helpKeyboard
-          });
+          return transitionToNewStep(ctx, `${langObj.help_title}\n\n${langObj.help_body}`, helpKeyboard);
         };
 
         bot.hears([
@@ -1396,10 +1487,7 @@ export default {
           const userName = ctx.from?.first_name || 'ተማሪ';
           const mainDashboardKeyboard = Markup.keyboard(langObj.menu).resize();
 
-          return sendCleanMessage(ctx, langObj.welcome_back(userName), {
-            parse_mode: 'HTML',
-            ...mainDashboardKeyboard
-          });
+          return transitionToNewStep(ctx, langObj.welcome_back(userName), mainDashboardKeyboard);
         });
 
         // --- SETTINGS ACTIONS WITH BACK BUTTONS ---
@@ -1422,10 +1510,7 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, i18n.am.welcome_header, {
-            parse_mode: 'HTML',
-            ...langKeyboard
-          });
+          return transitionToNewStep(ctx, i18n.am.welcome_header, langKeyboard);
         });
 
         bot.action(['update_lang_am', 'update_lang_en', 'update_lang_om'], async (ctx) => {
@@ -1446,10 +1531,7 @@ export default {
           const langObj = i18n[newLang] || i18n.am;
           const mainDashboardKeyboard = Markup.keyboard(langObj.menu).resize();
 
-          return sendCleanMessage(ctx, `✅ <b>ቋንቋ በተሳካ ሁኔታ ተቀይሯል! / Language Updated!</b>\n\n${langObj.welcome_back(ctx.from?.first_name || 'ተማሪ')}`, {
-            parse_mode: 'HTML',
-            ...mainDashboardKeyboard
-          });
+          return transitionToNewStep(ctx, `✅ <b>ቋንቋ በተሳካ ሁኔታ ተቀይሯል! / Language Updated!</b>\n\n${langObj.welcome_back(ctx.from?.first_name || 'ተማሪ')}`, mainDashboardKeyboard);
         });
 
         bot.action('settings_change_grade', async (ctx) => {
@@ -1465,10 +1547,7 @@ export default {
             [Markup.button.callback(langObj.back_btn, 'back_to_settings')]
           ]);
 
-          return sendCleanMessage(ctx, langObj.select_grade_header, {
-            parse_mode: 'HTML',
-            ...gradeKeyboard
-          });
+          return transitionToNewStep(ctx, langObj.select_grade_header, gradeKeyboard);
         });
 
         bot.action(/update_grade_(\d+)/, async (ctx) => {
@@ -1488,18 +1567,12 @@ export default {
           }
 
           const mainDashboardKeyboard = Markup.keyboard(langObj.menu).resize();
-          return sendCleanMessage(ctx, `✅ ክፍል ተቀይሯል: <b>${gradeText}</b>`, {
-            parse_mode: 'HTML',
-            ...mainDashboardKeyboard
-          });
+          return transitionToNewStep(ctx, `✅ ክፍል ተቀይሯል: <b>${gradeText}</b>`, mainDashboardKeyboard);
         });
 
         // Toggle app notification preference
         bot.action('settings_toggle_notify', async (ctx) => {
           const userId = ctx.from.id;
-          const lang = await getUserLang(userId, env);
-          const langObj = i18n[lang] || i18n.am;
-
           let currentStatus = 1;
           if (env.DB) {
             try {
@@ -1553,7 +1626,6 @@ export default {
         // --- DYNAMIC INLINE QUERY HANDLER (CUSTOMIZABLE BUTTON TEXT + CUSTOM QUERY) ---
         bot.on('inline_query', async (ctx) => {
           const userId = ctx.from?.id || 0;
-          const botUsername = getBotUsername(ctx, env);
           const customQuery = (ctx.inlineQuery?.query || '').trim();
 
           // Fetch active templates from D1 or use fallback
@@ -1637,10 +1709,7 @@ export default {
           }
 
           const { text, keyboard } = await buildAdminDashboardData(env);
-          return sendCleanMessage(ctx, text, {
-            parse_mode: 'HTML',
-            ...keyboard
-          });
+          return transitionToNewStep(ctx, text, keyboard);
         };
 
         bot.command(['admin', 'dashboard', 'panel'], handleAdminDashboard);
@@ -1655,7 +1724,7 @@ export default {
           try {
             await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
           } catch (err) {
-            return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+            return transitionToNewStep(ctx, text, keyboard);
           }
         });
 
@@ -1686,7 +1755,7 @@ export default {
             [Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')]
           ]);
 
-          return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...keyboard });
+          return transitionToNewStep(ctx, text, keyboard);
         });
 
         // Admin Step 1: Start Adding Template
@@ -1706,7 +1775,7 @@ export default {
             [Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')]
           ]);
 
-          return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...cancelKb });
+          return transitionToNewStep(ctx, text, cancelKb);
         });
 
         bot.action('admin_cancel_draft', async (ctx) => {
@@ -1744,7 +1813,7 @@ export default {
             [Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')]
           ]);
 
-          return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...defaultBtnKb });
+          return transitionToNewStep(ctx, text, defaultBtnKb);
         });
 
         // Admin Quick Button Selection
@@ -1772,7 +1841,7 @@ export default {
             [Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')]
           ]);
 
-          return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...cancelKb });
+          return transitionToNewStep(ctx, text, cancelKb);
         });
 
         bot.action('admin_recent_users', async (ctx) => {
@@ -1806,7 +1875,7 @@ export default {
             [Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')]
           ]);
 
-          return sendCleanMessage(ctx, userListText, { parse_mode: 'HTML', ...backKb });
+          return transitionToNewStep(ctx, userListText, backKb);
         });
 
         // --- BROADCAST SYSTEM ---
@@ -1815,13 +1884,12 @@ export default {
           if (!isAdmin(userId, env)) return ctx.reply('⛔ Admin only!', { parse_mode: 'HTML' });
 
           broadcastDrafts[userId] = { step: 'AWAITING_MESSAGE' };
-          return sendCleanMessage(ctx,
+          return transitionToNewStep(ctx,
 `📢 <b>የአዲስ ብሮድካስት መልዕክት ማዘጋጃ:</b>
 
-እባክዎ ለሁሉም ተማሪዎች እንዲላክ የሚፈልጉትን መልዕክት (ጽሑፍ፣ ፎቶ፣ ቪዲዮ፣ ድምፅ ወይም ዶክመንት) አሁን ይላኩ ⬇️`, {
-            parse_mode: 'HTML',
-            ...Markup.inlineKeyboard([[Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')]])
-          });
+እባክዎ ለሁሉም ተማሪዎች እንዲላክ የሚፈልጉትን መልዕክት (ጽሑፍ፣ ፎቶ፣ ቪዲዮ፣ ድምፅ ወይም ዶክመንት) አሁን ይላኩ ⬇️`,
+            Markup.inlineKeyboard([[Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')]])
+          );
         };
 
         bot.command('broadcast', handleNewBroadcastInit);
@@ -1856,17 +1924,14 @@ export default {
                   Markup.button.callback('🎓 12ኛ ክፍል', 'admin_tpl_grade_12')
                 ],
                 [
-                  Markup.button.callback('📚 ሁሉም ክፍሎች (All)', 'admin_tpl_grade_All')
+                  Markup.button.callback('📚 ሁሉም ክፍሎች', 'admin_tpl_grade_All')
                 ],
                 [
                   Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')
                 ]
               ]);
 
-              return sendCleanMessage(ctx, `📝 <b>ደረጃ 2 ከ 4: የታለመው የክፍል ደረጃ:</b>\n\n• <b>ርዕስ:</b> ${escapeHtml(adminDraft.title)}\n\nክፍሉን ይምረጡ ⬇️`, {
-                parse_mode: 'HTML',
-                ...gradeKb
-              });
+              return transitionToNewStep(ctx, `📝 <b>ደረጃ 2 ከ 4: የታለመው የክፍል ደረጃ:</b>\n\n• <b>ርዕስ:</b> ${escapeHtml(adminDraft.title)}\n\nክፍሉን ይምረጡ ⬇️`, gradeKb);
             }
 
             if (adminDraft.step === 'AWAITING_BUTTON_TEXT') {
@@ -1886,7 +1951,7 @@ export default {
                 [Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')]
               ]);
 
-              return sendCleanMessage(ctx, text, { parse_mode: 'HTML', ...cancelKb });
+              return transitionToNewStep(ctx, text, cancelKb);
             }
 
             if (adminDraft.step === 'AWAITING_HTML_BODY') {
@@ -1904,24 +1969,23 @@ export default {
 
                   delete adminActionDrafts[userId];
 
-                  return sendCleanMessage(ctx,
+                  return transitionToNewStep(ctx,
 `✅ <b>አዲስ የመልዕክት ቴምፕሌት በተሳካ ሁኔታ ተጨምሯል!</b> 🎉
 
 • <b>ርዕስ:</b> ${escapeHtml(title)}
 • <b>ክፍል:</b> <code>${grade}</code>
 • <b>የአዝራር ስም:</b> <code>${escapeHtml(buttonText)}</code>
 
-አሁን ማንኛውም ተማሪ ወይም አድሚን በቴሌግራም ግሩፖች ውስጥ <b>@${getBotUsername(ctx, env)}</b> ብሎ ሲጽፍ ይህንን መልዕክት በቀጥታ መላክ ይችላል!`, {
-                    parse_mode: 'HTML',
-                    ...Markup.inlineKeyboard([[Markup.button.callback('📝 ወደ ቴምፕሌቶች ዝርዝር', 'admin_manage_templates')]])
-                  });
+አሁን ማንኛውም ተማሪ ወይም አድሚን በቴሌግራም ግሩፖች ውስጥ <b>@${getBotUsername(ctx, env)}</b> ብሎ ሲጽፍ ይህንን መልዕክት በቀጥታ መላክ ይችላል!`,
+                    Markup.inlineKeyboard([[Markup.button.callback('📝 ወደ ቴምፕሌቶች ዝርዝር', 'admin_manage_templates')]])
+                  );
                 } catch (err) {
-                  return sendCleanMessage(ctx, `❌ Failed to save template: ${err.message}`);
+                  return transitionToNewStep(ctx, `❌ Failed to save template: ${err.message}`);
                 }
               }
 
               delete adminActionDrafts[userId];
-              return sendCleanMessage(ctx, '✅ Template created (Local Simulator Mode).');
+              return transitionToNewStep(ctx, '✅ Template created (Local Simulator Mode).');
             }
           }
 
@@ -1935,18 +1999,18 @@ export default {
 `📢 <b>የብሮድካስት ማረጋገጫ:</b>
 
 • <b>አይነት:</b> <code>${payload.type}</code>
-• <b>ጽሑፍ/መግለጫ:</b> ${escapeHtml(payload.text || payload.caption || '(None)')}
+• <b>ጽሑፍ/መግለጫ:</b> ${escapeHtml(payload.text || payload.caption || 'None')}
 
 መልዕክቱ ለሁሉም ተጠቃሚዎች ወዲያውኑ ይላክ?`;
 
             const confirmKb = Markup.inlineKeyboard([
               [
-                Markup.button.callback('🚀 አዎ፣ አሁን ላክ (Send Now)', 'admin_confirm_send_broadcast'),
+                Markup.button.callback('🚀 አዎ፣ አሁን ላክ', 'admin_confirm_send_broadcast'),
                 Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')
               ]
             ]);
 
-            return sendCleanMessage(ctx, previewText, { parse_mode: 'HTML', ...confirmKb });
+            return transitionToNewStep(ctx, previewText, confirmKb);
           }
 
           return next();
@@ -1989,22 +2053,21 @@ export default {
               // Immediately process first batch
               await processBroadcastQueueBatch(bot, env, 30);
 
-              return sendCleanMessage(ctx,
+              return transitionToNewStep(ctx,
 `✅ <b>ብሮድካስት በተሳካ ሁኔታ ተጀምሯል!</b> 🚀
 
 • 👥 <b>ጠቅላላ ተቀባዮች:</b> <code>${totalRecipients}</code>
-• ⚙️ መልዕክቶች በሰከንዶች ውስጥ በባች ይላካሉ!`, {
-                parse_mode: 'HTML',
-                ...Markup.inlineKeyboard([[Markup.button.callback('📊 ወደ ዳሽቦርድ', 'admin_refresh_stats')]])
-              });
+• ⚙️ መልዕክቶች በሰከንዶች ውስጥ በባች ይላካሉ!`,
+                Markup.inlineKeyboard([[Markup.button.callback('📊 ወደ ዳሽቦርድ', 'admin_refresh_stats')]])
+              );
             } catch (err) {
               console.error('Broadcast Dispatch Error:', err);
-              return sendCleanMessage(ctx, `❌ Failed to dispatch broadcast: ${err.message}`);
+              return transitionToNewStep(ctx, `❌ Failed to dispatch broadcast: ${err.message}`);
             }
           }
 
           delete broadcastDrafts[userId];
-          return sendCleanMessage(ctx, '⚠️ Local simulator mode: broadcast queue mock dispatched.');
+          return transitionToNewStep(ctx, '⚠️ Local simulator mode: broadcast queue mock dispatched.');
         });
 
         // Run Telegraf on the incoming Webhook update
@@ -2023,15 +2086,17 @@ export default {
       JSON.stringify({
         status: 'Online',
         service: 'Smart X Ethiopian Telegram Bot Worker',
-        version: '5.4.0',
-        release_date: 'መስከረም 5 (September 15)',
+        version: '5.5.0',
+        release_date: 'መስከረም 5',
+        support_username: '@smart_x_help',
         features: [
-          'High-Converting Rich Prompts & Enhanced Buttons',
-          'Clean Architecture (Zero AI Remnants)',
-          'Single-Touch Phone Step (📱 Share)',
-          'Symmetric & Balanced Button Layouts',
-          'Customizable Inline Button Text per Template',
-          'Cloudflare D1 Batch Broadcasts'
+          'Interactive Consent & Motivation Pre-Check',
+          '5 Persuasive Diagnostic Demand Assessment Questions',
+          'Smart X Platform Reveal & Promotional Climax',
+          'Clean Message Stepping (New message per step + buttons cleared on previous)',
+          'Zero Parentheses across all Amharic, English, and Afaan Oromoo copies',
+          'Symmetric Afaan Oromoo and Multi-Language Button Layouts',
+          'Support username updated to @smart_x_help'
         ]
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
