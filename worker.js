@@ -155,6 +155,55 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// Helper: Validate Telegram HTML tags to prevent API parse errors
+function validateTelegramHtml(html) {
+  if (!html || typeof html !== 'string' || html.trim().length === 0) {
+    return { valid: false, error: 'መልዕክቱ ባዶ መሆን አይችልም' };
+  }
+
+  const allowedTags = ['b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del', 'code', 'pre', 'a', 'tg-spoiler', 'tg-emoji'];
+  const tagRegex = /<\/?([a-zA-Z0-9-]+)(?:\s+[^>]*)?>/g;
+  const stack = [];
+  let match;
+
+  while ((match = tagRegex.exec(html)) !== null) {
+    const fullTag = match[0];
+    const tagName = match[1].toLowerCase();
+    const isClosing = fullTag.startsWith('</');
+    const isSelfClosing = fullTag.endsWith('/>');
+
+    if (!allowedTags.includes(tagName)) {
+      return { valid: false, error: `ያልተፈቀደ ወይም የተሳሳተ HTML ታግ: <${tagName}>` };
+    }
+
+    if (isSelfClosing) continue;
+
+    if (!isClosing) {
+      if (tagName === 'a') {
+        const hrefMatch = /href\s*=\s*["']([^"']+)["']/i.exec(fullTag);
+        if (!hrefMatch) {
+          return { valid: false, error: 'የ <a> ታግ ትክክለኛ href="https://..." ሊኖረው ይገባል' };
+        }
+      }
+      stack.push(tagName);
+    } else {
+      if (stack.length === 0) {
+        return { valid: false, error: `ያልተከፈተ የመዝጊያ ታግ ተገኝቷል: </${tagName}>` };
+      }
+      const top = stack.pop();
+      if (top !== tagName) {
+        return { valid: false, error: `የታግ መዘጋጋት ስህተት: <${top}> ተከፍቶ በ </${tagName}> ተዘግቷል` };
+      }
+    }
+  }
+
+  if (stack.length > 0) {
+    return { valid: false, error: `ያልተዘጋ ታግ አለ: <${stack[stack.length - 1]}>` };
+  }
+
+  return { valid: true };
+}
+
 // Helper: Dynamically get Bot Username
 function getBotUsername(ctx, env) {
   if (ctx?.botInfo?.username) return ctx.botInfo.username;
@@ -725,7 +774,7 @@ function extractMessagePayload(msg) {
   };
 }
 
-// Broadcast Processor: Dispatches queued messages safely in strict batches of 20
+// Broadcast Processor: Dispatches queued messages safely in strict batches of 20 with rate limit delay
 async function processBroadcastQueueBatch(bot, env, batchSize = 20) {
   if (!env.DB) return { sent: 0, failed: 0, blocked: 0, remaining: 0 };
 
@@ -850,6 +899,9 @@ async function processBroadcastQueueBatch(bot, env, batchSize = 20) {
           `).bind(item.broadcast_id).run();
         }
       }
+
+      // Safe rate-limit delay (~20-30 msgs/sec max) to strictly prevent Telegram 429 errors
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     // Check remaining pending items
@@ -1010,6 +1062,7 @@ async function initDb(db) {
         admin_id INTEGER,
         message_type TEXT DEFAULT 'text',
         payload_json TEXT NOT NULL,
+        target_grade TEXT DEFAULT 'All',
         total_recipients INTEGER DEFAULT 0,
         sent_count INTEGER DEFAULT 0,
         failed_count INTEGER DEFAULT 0,
@@ -2350,6 +2403,8 @@ export default {
 
         // Helper: Render and display Broadcast Preview to Admin
         const showBroadcastPreviewToAdmin = async (ctx, userId, payload) => {
+          const draft = broadcastDrafts[userId] || {};
+          const targetGrade = draft.targetGrade || 'All';
           const extra = {
             parse_mode: 'HTML',
             disable_web_page_preview: false
@@ -2380,26 +2435,52 @@ export default {
             await ctx.reply(`⚠️ የ HTML ቅርጸት ስህተት: ${err.message}\nእባክዎ የከፈቷቸውን የ HTML ታጎች በትክክል መዝጋትዎን ያረጋግጡ።`, { parse_mode: 'HTML' });
           }
 
+          // Calculate estimated recipients
+          let estimatedRecipients = 0;
+          if (env?.DB) {
+            try {
+              if (targetGrade === 'All') {
+                const countRow = await env.DB.prepare('SELECT COUNT(*) as total FROM users WHERE is_active = 1').first();
+                estimatedRecipients = countRow?.total || 0;
+              } else {
+                const countRow = await env.DB.prepare(`
+                  SELECT COUNT(*) as total 
+                  FROM users 
+                  WHERE is_active = 1 
+                    AND (grade = ? OR grade LIKE ? OR grade LIKE ?)
+                `).bind(`${targetGrade}ኛ ክፍል`, `%${targetGrade}%`, `Grade ${targetGrade}`).first();
+                estimatedRecipients = countRow?.total || 0;
+              }
+            } catch (e) {}
+          }
+
           // 2. Send Control Box with Action Buttons
           const totalBtns = payload.buttons ? payload.buttons.flat().length : 0;
+          const gradeDisplay = targetGrade === 'All' ? '📚 ሁሉም ክፍሎች (All)' : `🎓 ${targetGrade}ኛ ክፍል`;
+
           const controlText =
 `👁️ <b>የብሮድካስት ቅድመ-እይታ ተዘጋጅቷል!</b>
 ━━━━━━━━━━━━━━━━━━━━
-ከላይ የሚታየው መልዕክት ለሁሉም ተጠቃሚዎች የሚደርሰው ትክክለኛ ቅድመ-እይታ ነው።
+ከላይ የሚታየው መልዕክት ለተጠቃሚዎች የሚደርሰው ትክክለኛ ቅድመ-እይታ ነው።
 
 • 📌 <b>የመልዕክት አይነት:</b> <code>${payload.type}</code>
+• 🎯 <b>የታለመው ክፍል:</b> <code>${gradeDisplay}</code>
+• 👥 <b>ተቀባዮች (ግምት):</b> <code>${estimatedRecipients} ተማሪዎች</code>
 • 🔘 <b>የአዝራሮች ብዛት:</b> <code>${totalBtns}</code>
-• ⚡ <b>የመላኪያ መጠን:</b> <code>20 ተጠቃሚዎች በአንድ ዙር</code>
+• ⚡ <b>የመላኪያ ፍጥነት:</b> <code>20 ተጠቃሚዎች በአንድ ዙር</code>
 
-ይህ መልዕክት ለሁሉም ተማሪዎች እንዲላክ ይፈልጋሉ?`;
+ይህ መልዕክት ለተጠቃሚዎች እንዲላክ ይፈልጋሉ?`;
 
           const controlKb = Markup.inlineKeyboard([
             [
               Markup.button.callback('🚀 Start Broadcast', 'admin_confirm_send_broadcast'),
-              Markup.button.callback('➕ Link Button ጨምር', 'admin_bcast_add_btn_prompt')
+              Markup.button.callback('🎯 ክፍል ምረጥ', 'admin_bcast_target_select')
             ],
             [
-              Markup.button.callback('✏️ እንደገና አርትዕ', 'admin_new_broadcast'),
+              Markup.button.callback('➕ Link Button ጨምር', 'admin_bcast_add_btn_prompt'),
+              Markup.button.callback('✏️ እንደገና አርትዕ', 'admin_new_broadcast')
+            ],
+            [
               Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')
             ]
           ]);
@@ -2420,6 +2501,46 @@ export default {
           return handleAdminDashboard(ctx);
         });
 
+        // Broadcast Target Grade Selection
+        bot.action('admin_bcast_target_select', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const gradeKb = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('📗 9ኛ ክፍል', 'admin_bcast_target_9'),
+              Markup.button.callback('📘 10ኛ ክፍል', 'admin_bcast_target_10')
+            ],
+            [
+              Markup.button.callback('📙 11ኛ ክፍል', 'admin_bcast_target_11'),
+              Markup.button.callback('🎓 12ኛ ክፍል', 'admin_bcast_target_12')
+            ],
+            [
+              Markup.button.callback('📚 ሁሉም ክፍሎች (All)', 'admin_bcast_target_All')
+            ],
+            [
+              Markup.button.callback('🔙 ወደ ቅድመ-እይታ', 'admin_bcast_show_preview')
+            ]
+          ]);
+
+          return transitionToNewStep(ctx, '🎯 <b>ይህ ብሮድካስት ለየትኛው የክፍል ደረጃ ተማሪዎች እንዲላክ ይፈልጋሉ?</b>\n\nከታች አንዱን ይምረጡ ⬇️', gradeKb);
+        });
+
+        bot.action(/admin_bcast_target_(.+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const selectedTarget = ctx.match[1];
+          if (broadcastDrafts[userId]) {
+            broadcastDrafts[userId].targetGrade = selectedTarget;
+            broadcastDrafts[userId].step = 'PREVIEW_AND_CONFIRM';
+            return showBroadcastPreviewToAdmin(ctx, userId, broadcastDrafts[userId].payload);
+          }
+          return handleAdminDashboard(ctx);
+        });
+
         // Combined Admin Message Listener (Broadcasts & Template Addition)
         bot.on(['message'], async (ctx, next) => {
           const userId = ctx.from.id;
@@ -2429,7 +2550,11 @@ export default {
           // Flow 1: Admin Adding New Promo Template
           if (adminDraft && adminDraft.action === 'ADD_TEMPLATE' && isAdmin(userId, env)) {
             if (adminDraft.step === 'AWAITING_TITLE') {
-              adminDraft.title = ctx.message.text || 'New Template';
+              const titleText = (ctx.message.text || '').trim();
+              if (titleText.length === 0) {
+                return ctx.reply('⚠️ እባክዎ ትክክለኛ የቴምፕሌት ርዕስ ይጻፉ:');
+              }
+              adminDraft.title = titleText;
               adminDraft.step = 'AWAITING_GRADE_SELECT';
 
               const gradeKb = Markup.inlineKeyboard([
@@ -2453,7 +2578,8 @@ export default {
             }
 
             if (adminDraft.step === 'AWAITING_BUTTON_TEXT') {
-              adminDraft.buttonText = ctx.message.text || '✨ አዎ! እንፈልጋለን';
+              const bText = (ctx.message.text || '').trim() || '✨ አዎ! እንፈልጋለን';
+              adminDraft.buttonText = bText;
               adminDraft.step = 'AWAITING_HTML_BODY';
 
               const text =
@@ -2473,7 +2599,25 @@ export default {
             }
 
             if (adminDraft.step === 'AWAITING_HTML_BODY') {
-              const htmlContent = ctx.message.text || '';
+              const htmlContent = (ctx.message.text || '').trim();
+              const valRes = validateTelegramHtml(htmlContent);
+
+              if (!valRes.valid) {
+                return ctx.reply(
+`⚠️ <b>የ HTML ፎርማት ስህተት ተገኝቷል:</b>
+━━━━━━━━━━━━━━━━━━━━
+• ❌ <b>ስህተት:</b> ${escapeHtml(valRes.error)}
+
+እባክዎ የከፈቷቸውን ታጎች (ለምሳሌ <code>&lt;b&gt;...&lt;/b&gt;</code>) በትክክል አስተካክለው እንደገና ይላኩ ⬇️`,
+                  {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                      inline_keyboard: [[Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')]]
+                    }
+                  }
+                );
+              }
+
               adminDraft.htmlContent = htmlContent;
               adminDraft.step = 'CONFIRM_TEMPLATE';
 
@@ -2489,7 +2633,7 @@ export default {
                   }
                 });
               } catch (err) {
-                await ctx.reply(`⚠️ የ HTML ቅርጸት ስህተት: ${err.message}`);
+                await ctx.reply(`⚠️ የቴሌግራም መልዕክት ማሳየት አልተቻለም: ${err.message}`);
               }
 
               const confirmText =
@@ -2539,7 +2683,29 @@ export default {
           // Flow 3: Admin New Broadcast Input (Text/Media + HTML + Buttons)
           if (draft && draft.step === 'AWAITING_MESSAGE' && isAdmin(userId, env)) {
             const payload = extractMessagePayload(ctx.message);
+            
+            // Validate HTML text if text exists
+            if (payload.text || payload.caption) {
+              const htmlCheck = validateTelegramHtml(payload.text || payload.caption);
+              if (!htmlCheck.valid) {
+                return ctx.reply(
+`⚠️ <b>የ HTML ፎርማት ስህተት:</b>
+━━━━━━━━━━━━━━━━━━━━
+• ❌ <b>ስህተት:</b> ${escapeHtml(htmlCheck.error)}
+
+እባክዎ የተሳሳቱትን ታጎች አስተካክለው እንደገና ይላኩ ⬇️`,
+                  {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                      inline_keyboard: [[Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')]]
+                    }
+                  }
+                );
+              }
+            }
+
             draft.payload = payload;
+            draft.targetGrade = draft.targetGrade || 'All';
             draft.step = 'PREVIEW_AND_CONFIRM';
 
             return showBroadcastPreviewToAdmin(ctx, userId, payload);
@@ -2562,17 +2728,19 @@ export default {
           }
 
           const isCompleted = bcast.pending_count === 0 || bcast.status === 'completed';
+          const targetDisplay = bcast.target_grade === 'All' ? '📚 ሁሉም ክፍሎች' : `🎓 ${bcast.target_grade}ኛ ክፍል`;
 
           const reportText =
 `📊 <b>የብሮድካስት ሂደትና ውጤት ሪፖርት</b> 🇪🇹
 ━━━━━━━━━━━━━━━━━━━━
 • 🆔 <b>የብሮድካስት መለያ:</b> <code>#${bcast.id}</code>
+• 🎯 <b>የታለመው ክፍል:</b> <code>${targetDisplay}</code>
 • 👥 <b>ጠቅላላ ተቀባዮች:</b> <code>${bcast.total_recipients}</code>
 • ✅ <b>በተሳካ ሁኔታ የተላከ:</b> <code>${bcast.sent_count}</code>
 • ⏳ <b>በመጠባበቅ ላይ:</b> <code>${bcast.pending_count}</code>
 • 🚫 <b>ቦቱን ያገዱ:</b> <code>${bcast.blocked_count}</code>
 • ❌ <b>ያልተሳካ:</b> <code>${bcast.failed_count}</code>
-• ⚡ <b>የባች መጠን:</b> <code>20 በአንድ ዙር</code>
+• ⚡ <b>የባች መጠን:</b> <code>20 በአንድ ዙር (Rate-limited safe)</code>
 ━━━━━━━━━━━━━━━━━━━━
 ${isCompleted 
   ? '🎉 <b>ብሮድካስቱ ለሁሉም ተጠቃሚዎች በተሳካ ሁኔታ ተጠናቋል!</b>' 
@@ -2603,26 +2771,48 @@ ${isCompleted
 
           await ctx.answerCbQuery('ብሮድካስት እየተጀመረ ነው...').catch(() => {});
           const payloadJson = JSON.stringify(draft.payload);
+          const targetGrade = draft.targetGrade || 'All';
 
           let totalRecipients = 0;
           if (env.DB) {
             try {
-              const countRow = await env.DB.prepare('SELECT COUNT(*) as total FROM users WHERE is_active = 1').first();
+              let countRow = null;
+              if (targetGrade === 'All') {
+                countRow = await env.DB.prepare('SELECT COUNT(*) as total FROM users WHERE is_active = 1').first();
+              } else {
+                countRow = await env.DB.prepare(`
+                  SELECT COUNT(*) as total 
+                  FROM users 
+                  WHERE is_active = 1 
+                    AND (grade = ? OR grade LIKE ? OR grade LIKE ?)
+                `).bind(`${targetGrade}ኛ ክፍል`, `%${targetGrade}%`, `Grade ${targetGrade}`).first();
+              }
+
               totalRecipients = countRow?.total || 0;
 
               const insRes = await env.DB.prepare(`
-                INSERT INTO broadcasts (admin_id, message_type, payload_json, total_recipients, pending_count, status)
-                VALUES (?, ?, ?, ?, ?, 'processing')
-              `).bind(userId, draft.payload.type, payloadJson, totalRecipients, totalRecipients).run();
+                INSERT INTO broadcasts (admin_id, message_type, payload_json, target_grade, total_recipients, pending_count, status)
+                VALUES (?, ?, ?, ?, ?, ?, 'processing')
+              `).bind(userId, draft.payload.type, payloadJson, targetGrade, totalRecipients, totalRecipients).run();
 
               const broadcastId = insRes.meta.last_row_id;
 
-              await env.DB.prepare(`
-                INSERT INTO broadcast_queue (broadcast_id, telegram_id, status)
-                SELECT ?, telegram_id, 'pending'
-                FROM users
-                WHERE is_active = 1
-              `).bind(broadcastId).run();
+              if (targetGrade === 'All') {
+                await env.DB.prepare(`
+                  INSERT INTO broadcast_queue (broadcast_id, telegram_id, status)
+                  SELECT ?, telegram_id, 'pending'
+                  FROM users
+                  WHERE is_active = 1
+                `).bind(broadcastId).run();
+              } else {
+                await env.DB.prepare(`
+                  INSERT INTO broadcast_queue (broadcast_id, telegram_id, status)
+                  SELECT ?, telegram_id, 'pending'
+                  FROM users
+                  WHERE is_active = 1 
+                    AND (grade = ? OR grade LIKE ? OR grade LIKE ?)
+                `).bind(broadcastId, `${targetGrade}ኛ ክፍል`, `%${targetGrade}%`, `Grade ${targetGrade}`).run();
+              }
 
               delete broadcastDrafts[userId];
 
@@ -2692,10 +2882,29 @@ ${isCompleted
           'Clean Message Stepping (New message per step + buttons cleared on previous)',
           'Zero Parentheses across all Amharic, English, and Afaan Oromoo copies',
           'Symmetric Afaan Oromoo and Multi-Language Button Layouts',
-          'Support username updated to @smart_x_help'
+          'Support username updated to @smart_x_help',
+          'Targeted Grade Broadcast Filter (All, 9, 10, 11, 12)',
+          'HTML Tag Validator for Promo Templates & Broadcasts',
+          'Rate-Limited Batch Queue Worker Processor (20 msgs/batch)'
         ]
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
+  },
+
+  // Cloudflare Workers Scheduled Cron Trigger (Auto-processes queued broadcasts)
+  async scheduled(event, env, ctx) {
+    const token = env?.BOT_TOKEN || process.env.BOT_TOKEN;
+    if (!token) return;
+    try {
+      const bot = new Telegraf(token);
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(processBroadcastQueueBatch(bot, env, 20));
+      } else {
+        await processBroadcastQueueBatch(bot, env, 20);
+      }
+    } catch (err) {
+      console.error('Scheduled Cron Queue Worker Error:', err.message);
+    }
   }
 };
