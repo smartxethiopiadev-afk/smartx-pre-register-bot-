@@ -991,27 +991,48 @@ export default {
         bot.hears(['ℹ️ ስለ አፕሊኬሽኑ', 'ስለ አፕሊኬሽኑ', 'About', 'መረጃ'], handleAboutApp);
         bot.command(['about', 'info', 'faq'], handleAboutApp);
 
-        // --- OPTIMIZED INLINE QUERY HANDLER (ANTI-SPAM BOT SAFE - ZERO HTTP LINKS) ---
+        // --- ACTION HANDLER: User clicks 'እፈልጋለሁ' Callback Button in Group ---
+        bot.action(/want_notes_ref_(\d+)/, async (ctx) => {
+          const refUserId = ctx.match[1];
+          const botUsername = getBotUsername(ctx, env);
+          const deepLink = `https://t.me/${botUsername}?start=ref_${refUserId}`;
+
+          try {
+            await ctx.answerCbQuery(
+              `💡 የ 9-12ኛ ክፍል Short Notes እና Worksheets ለማግኘት @${botUsername} ን Start ይበሉ!`,
+              {
+                show_alert: true,
+                url: deepLink
+              }
+            );
+          } catch (err) {
+            await ctx.answerCbQuery(
+              `💡 የ 9-12ኛ ክፍል Short Notes እና Worksheets ለማግኘት @${botUsername} ን Start ይበሉ!`,
+              { show_alert: true }
+            ).catch(() => {});
+          }
+        });
+
+        // --- OPTIMIZED INLINE QUERY HANDLER (NORMAL CALLBACK BUTTON - NO ARROW / NO LINK) ---
         bot.on('inline_query', async (ctx) => {
           const userId = ctx.from?.id || 0;
           const botUsername = getBotUsername(ctx, env);
-          // Direct Telegram internal protocol URI (bypasses anti-link regex bots)
-          const tgDirectProtocolLink = `tg://resolve?domain=${botUsername}&start=ref_${userId}`;
 
-          // Motivational promotional text for Grade 9-12 with @username mention
-          const promoShareText =
-`✨ <b>ለ 9-12ኛ ክፍል ተማሪዎች የቀረበ ልዩ ጥሪ!</b> 🇪🇹
+          // Engaging Promotional Text for Short Notes & Worksheets (No Register Mentions)
+          const notesShareText =
+`📚 <b>ለ 9-12ኛ ክፍል ተማሪዎች!</b> 🇪🇹
 
-የትምህርት ውጤታችሁን ለማሻሻል እና ለፈተና በብቃት ለመዘጋጀት ዝግጁ ናችሁ?
+የትምህርት ውጤታችሁን ለማሻሻል አጋዥ <b>Short Note</b> እና <b>Worksheet</b> ማግኘት ትፈልጋላችሁ?
 
-የምዕራፍ ማጠቃለያዎች፣ የፈተና ጥያቄዎች እና አጋዥ የጥናት ቁሳቁሶች ተዘጋጅተውላችኋል!
+የሁሉንም ትምህርቶች ምዕራፍ ተኮር ማጠቃለያዎች፣ የፈተና ጥያቄዎች እና መልሶችን አዘጋጅተንላችኋል!
 
-👉 <b>ለመመዝገብ እዚህ ይጫኑ:</b> @${botUsername}`;
+👉 <b>ወደ ቦቱ ለመግባት:</b> @${botUsername}`;
 
-          const singleRegisterMarkup = {
+          // Normal Telegram Callback Button (No URL property = No diagonal arrow ↗)
+          const normalCallbackMarkup = {
             inline_keyboard: [
               [
-                { text: '🚀 አሁኑኑ ይመዝገቡ', url: tgDirectProtocolLink }
+                { text: '✨ እፈልጋለሁ', callback_data: `want_notes_ref_${userId}` }
               ]
             ]
           };
@@ -1019,34 +1040,22 @@ export default {
           const results = [
             {
               type: 'article',
-              id: `smartx_btn_${userId}`,
-              title: '🚀 Smart X — በምዝገባ አዝራር (With Button)',
-              description: `ለ 9-12ኛ ክፍል ተማሪዎች • @${botUsername} አዝራር ያለው`,
+              id: `smartx_notes_${userId}`,
+              title: '📚 Short Note እና Worksheet — እፈልጋለሁ',
+              description: `ለ 9-12ኛ ክፍል ተማሪዎች • መደበኛ አዝራር (Normal Button)`,
               thumb_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135755.png',
               input_message_content: {
-                message_text: promoShareText,
+                message_text: notesShareText,
                 parse_mode: 'HTML',
                 disable_web_page_preview: true
               },
-              reply_markup: singleRegisterMarkup
-            },
-            {
-              type: 'article',
-              id: `smartx_text_${userId}`,
-              title: '🛡️ Smart X — 100% Anti-Bot Safe (Text Only)',
-              description: `አዝራር የሌለው ንጹህ ጽሑፍ • በማንኛውም ግሩፕ አይጠፋም (@${botUsername})`,
-              thumb_url: 'https://cdn-icons-png.flaticon.com/512/1828/1828640.png',
-              input_message_content: {
-                message_text: promoShareText,
-                parse_mode: 'HTML',
-                disable_web_page_preview: true
-              }
+              reply_markup: normalCallbackMarkup
             }
           ];
 
           try {
             return await ctx.answerInlineQuery(results, {
-              cache_time: 5,
+              cache_time: 2,
               is_personal: true
             });
           } catch (err) {
