@@ -162,7 +162,7 @@ function getBotUsername(ctx, env) {
   if (ctx?.me?.username) return ctx.me.username;
   if (env?.BOT_USERNAME) return env.BOT_USERNAME.replace('@', '');
   if (process.env.BOT_USERNAME) return process.env.BOT_USERNAME.replace('@', '');
-  return 'SmartQA_OfficialBot';
+  return 'testing_pent_bot';
 }
 
 // Helper: Dynamically fetch channel or group handles from D1
@@ -183,6 +183,12 @@ async function getDynamicConfig(env, key, defaultVal) {
 // Multi-language Translations Dictionary (Clean HTML Parse Mode & Concise Text)
 const i18n = {
   am: {
+    diagnostic_question: (name) => `👋 <b>ሰላም ${escapeHtml(name)}!</b> 🇪🇹
+እንኳን ወደ <b>Smart X Ethiopian</b> በደህና መጡ!
+
+🎯 <b>አጭር ጥያቄ:</b>
+በትምህርትህ ወቅት የከበደህን ትምህርት ለመረዳት፣ ማጠቃለያ (Short Notes) ለማግኘት ወይም ለፈተና ለመዘጋጀት ተቸግረህ/ሽ ታውቃለህ/ሽ?`,
+
     welcome_start: (name) => `👋 <b>ሰላም ${escapeHtml(name)}!</b>
 
 እንኳን ወደ <b>Smart X Ethiopian</b> በደህና መጡ! 🇪🇹
@@ -1131,9 +1137,9 @@ export default {
             });
           }
 
-          // Case B: User is NOT YET REGISTERED -> Start 3-Step Onboarding (Grade Selection)
+          // Case B: User is NOT YET REGISTERED -> Step 0: Psychology / Study Diagnostic Question
           userStates[chatId] = {
-            step: 'AWAITING_GRADE',
+            step: 'AWAITING_DIAGNOSTIC',
             data: {
               fullName: ctx.from?.first_name ? `${ctx.from.first_name} ${ctx.from?.last_name || ''}`.trim() : 'ተማሪ',
               telegramId: userId,
@@ -1141,7 +1147,46 @@ export default {
             }
           };
 
-          const welcomeMsg = i18n.am.welcome_start(userName);
+          const diagMsg = i18n.am.diagnostic_question(userName);
+          const diagKeyboard = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('✅ አዎ፣ ይከብደኛል (Yes)', 'diag_answer_yes'),
+              Markup.button.callback('❌ አይ፣ ዝግጁ ነኝ (No)', 'diag_answer_no')
+            ]
+          ]);
+
+          return sendCleanMessage(ctx, diagMsg, {
+            parse_mode: 'HTML',
+            ...diagKeyboard
+          });
+        };
+
+        bot.start(handleStartOrRegister);
+        bot.command(['register', 'onboarding', 'signup'], handleStartOrRegister);
+
+        // --- Step 0 Action: Diagnostic Psychology Response -> Step 1: Grade Selection ---
+        bot.action(['diag_answer_yes', 'diag_answer_no'], async (ctx) => {
+          await ctx.answerCbQuery();
+          const isYes = ctx.callbackQuery.data === 'diag_answer_yes';
+          const chatId = ctx.chat.id;
+          const userId = ctx.from.id;
+
+          if (!userStates[chatId]) {
+            userStates[chatId] = {
+              step: 'AWAITING_GRADE',
+              data: {
+                fullName: ctx.from?.first_name ? `${ctx.from.first_name} ${ctx.from?.last_name || ''}`.trim() : 'ተማሪ',
+                telegramId: userId
+              }
+            };
+          }
+          userStates[chatId].step = 'AWAITING_GRADE';
+          userStates[chatId].data.diagAnswer = isYes ? 'Yes' : 'No';
+
+          const transitionMsg = isYes
+            ? '💡 <b>አይዞህ/ሽ! Smart X Ethiopian በ 24/7 AI Tutor እና በ 10,000+ የፈተና ጥያቄዎች ሁሉንም ያቀልልሃል!</b>\n\n👇 <b>እባክዎን የትምህርት ክፍልዎን ይምረጡ:</b>'
+            : '🔥 <b>በጣም ጎበዝ! Smart X Ethiopian በፈተናዎችህ ከፍተኛ ውጤት እንድታስመዘግብ ያግዝሃል!</b>\n\n👇 <b>እባክዎን የትምህርት ክፍልዎን ይምረጡ:</b>';
+
           const gradeKeyboard = Markup.inlineKeyboard([
             [
               Markup.button.callback('9ኛ ክፍል (Grade 9)', 'set_grade_9'),
@@ -1153,14 +1198,11 @@ export default {
             ]
           ]);
 
-          return sendCleanMessage(ctx, welcomeMsg, {
+          return sendCleanMessage(ctx, transitionMsg, {
             parse_mode: 'HTML',
             ...gradeKeyboard
           });
-        };
-
-        bot.start(handleStartOrRegister);
-        bot.command(['register', 'onboarding', 'signup'], handleStartOrRegister);
+        });
 
         // --- Step 1 Action: Grade Selection -> Step 2: Discussion Group Check ---
         bot.action(/set_grade_(\d+)/, async (ctx) => {
@@ -1609,58 +1651,62 @@ ${isVip ? '✨ <b>እንኳን ደስ አለዎት! 5+ ጓደኞችን በመጋ
           const query = (ctx.inlineQuery?.query || '').trim().toLowerCase();
           const userId = ctx.from?.id || 0;
           const botUsername = getBotUsername(ctx, env);
-          const officialChannel = await getDynamicConfig(env, 'official_channel', '@SmartXEthiopia');
-          const cleanChannel = officialChannel.replace('@', '');
 
-          // Dynamic deep links using bot username and user referral ID
+          // Dynamic deep link using bot username and user referral ID
           const inviteDeepLink = `https://t.me/${botUsername}?start=ref_${userId}`;
-          const aiDeepLink = `https://t.me/${botUsername}?start=ai_${userId}`;
-          const channelUrl = `https://t.me/${cleanChannel}`;
 
-          // Result 1: Universal Pre-Registration & Platform Overview
+          // Result 1: Universal Pre-Registration & Platform Overview (Short & Clean for Groups)
           const mainShareText =
 `📚 *Smart X Ethiopian (Smart X ET)* 🇪🇹
-_የ 9ኛ - 12ኛ ክፍል ተማሪዎች የዲጂታል ትምህርት መድረክ_
+_የ 9ኛ - 12ኛ ክፍል ተማሪዎች የትምህርት መድረክ_
 
 🎯 *"የዛሬ ጥረትህ፣ የነገ ስኬትህ ነው!"*
 
-🚀 *ዋና ዋና አገልግሎቶች:*
-• 📖 *Short Notes & Summaries* — ምዕራፍ ተኮር ማጠቃለያዎች
-• 📝 *10,000+ Model Exams* — ብሔራዊ እና የሞዴል ፈተናዎች
-• 🤖 *24/7 AI Academic Tutor* — የትምህርት ጥያቄዎችን የሚመልስ
-• ⚡ *Offline Mode* — ያለ ኢንተርኔት ከመስመር ውጭ የሚሰራ
+✨ *ዋና ዋና አገልግሎቶች:*
+• 📖 *Short Notes* — ምዕራፍ ተኮር ማጠቃለያዎች
+• 📝 *10,000+ Model Exams* — የሞዴል ፈተናዎች
+• 🤖 *24/7 AI Tutor* — በማንኛውም ሰዓት ፈጣን ረዳት
+• ⚡ *Offline Mode* — ያለ ኢንተርኔት የሚሰራ
 
-🎁 *የቅድመ-ምዝገባ እድል:* አሁኑኑ ይመዝገቡና የ 100% ነፃ መዳረሻ ያግኙ!`;
+🎁 *100% ነፃ የቅድመ-ምዝገባ እድል አሁኑኑ ያግኙ!*`;
 
           // Result 2: 24/7 AI Academic Tutor
           const aiTutorText =
 `🤖 *Smart X AI — 24/7 የትምህርት ረዳት* 🇪🇹
 _ለ 9-12ኛ ክፍል አዲሱ የስርዓተ-ትምህርት የተዘጋጀ_
 
-💡 *"ለማንኛውም አስቸጋሪ ጥያቄ ፈጣን እና ግልጽ ማብራሪያ ያግኙ!"*
+💡 *"ለማንኛውም አስቸጋሪ ጥያቄ ፈጣን እና ግልጽ ማብራሪያ!"*
 
-✨ *ዋና ዋና አገልግሎቶች:*
-• 📐 *Math, Physics & Chemistry* — የደረጃ በደረጃ ስሌት እና ፎርሙላዎች
-• 📖 *Short Notes* — ምዕራፍ ተኮር አጫጭር ማስታወሻዎች
-• 📝 *Model Exams* — የፈተና ጥያቄዎች አፈታት እና ማብራሪያ
-• 🤖 *24/7 AI Tutor* — በማንኛውም ሰዓት ፈጣን መልስ
+✨ *አገልግሎቶች:*
+• 📐 *Math, Physics & Chemistry* — ደረጃ በደረጃ ስሌት
+• 📖 *Short Notes* — ምዕራፍ ተኮር ማጠቃለያዎች
+• 📝 *Model Exams* — የፈተና ጥያቄዎች አፈታት
+• 🤖 *24/7 AI Tutor* — ፈጣን የትምህርት ረዳት
 
-👇 *ከታች ባለው ሊንክ አሁኑኑ የ AI ረዳቱን ይጠይቁ:*`;
+🎁 *100% ነፃ የቅድመ-ምዝገባ እድል አሁኑኑ ያግኙ!*`;
 
           // Result 3: 10,000+ Model Exams & Quizzes
           const examPackText =
 `📝 *10,000+ Model Exams & Quizzes — Smart X ET* 🇪🇹
-_ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ ውጤት ለማስመዝገብ_
+_ለ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ ውጤት ለማምጣት_
 
 🔥 *"ብልህ ተማሪ ዛሬ ይዘጋጃል!"*
 
-🌟 *የፈተና ጥቅል ይዘት:*
+🌟 *የፈተና ጥቅል:*
 • 📊 *10,000+ Quizzes* — በምዕራፍ የተከፋፈሉ ጥያቄዎች
 • 📖 *Short Notes* — አስፈላጊ የትምህርት ማጠቃለያዎች
-• ⏱️ *Model Exams* — በጊዜ የተገደቡ የሞዴል ፈተናዎች
+• ⏱️ *Model Exams* — የሞዴል ፈተናዎች
 • 🤖 *24/7 AI Tutor* — ፈጣን ማብራሪያ እና እርዳታ
 
-👇 *በነፃ ለመለማመድ አሁኑኑ ይመዝገቡ:*`;
+🎁 *100% ነፃ የቅድመ-ምዝገባ እድል አሁኑኑ ያግኙ!*`;
+
+          const singleRegisterMarkup = {
+            inline_keyboard: [
+              [
+                { text: '🚀 ይመዝገቡ (Pre-Register)', url: inviteDeepLink }
+              ]
+            ]
+          };
 
           const results = [
             {
@@ -1674,14 +1720,7 @@ _ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ 
                 parse_mode: 'Markdown',
                 disable_web_page_preview: true
               },
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '🚀 Pre-Register Now (አሁኑኑ ይመዝገቡ)', url: inviteDeepLink },
-                    { text: '🤖 AI Assistant (የ AI ጥያቄ)', url: aiDeepLink }
-                  ]
-                ]
-              }
+              reply_markup: singleRegisterMarkup
             },
             {
               type: 'article',
@@ -1694,14 +1733,7 @@ _ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ 
                 parse_mode: 'Markdown',
                 disable_web_page_preview: true
               },
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '🤖 Ask AI Assistant Now', url: aiDeepLink },
-                    { text: '🚀 Pre-Register Free', url: inviteDeepLink }
-                  ]
-                ]
-              }
+              reply_markup: singleRegisterMarkup
             },
             {
               type: 'article',
@@ -1714,14 +1746,7 @@ _ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ 
                 parse_mode: 'Markdown',
                 disable_web_page_preview: true
               },
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '🚀 Pre-Register Now', url: inviteDeepLink },
-                    { text: '🤖 AI Assistant', url: aiDeepLink }
-                  ]
-                ]
-              }
+              reply_markup: singleRegisterMarkup
             }
           ];
 
