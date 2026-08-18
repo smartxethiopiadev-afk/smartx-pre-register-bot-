@@ -888,13 +888,12 @@ export default {
 • <b>ያገኙት ነጥብ:</b> <code>${points}</code> ነጥብ
 • <b>ሁኔታ:</b> 💎 <b>ነፃ የቪአይፒ አባልነት</b>
 
-🔗 <b>የመጋበዣ ሊንክ:</b>
-<code>https://t.me/${botUsername}?start=ref_${userId}</code>`;
-
-          const shareUrl = `https://t.me/share/url?url=https://t.me/${botUsername}?start=ref_${userId}&text=${encodeURIComponent('🔥 ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ የጥናት እና የፈተና ጥያቄዎች መተግበሪያ! አሁኑኑ ይመዝገቡ!')}`;
+🔗 <b>የቦቱ መለያ:</b> @${botUsername}
+🎁 <b>የመጋበዣ ሊንክ:</b>
+<code>tg://resolve?domain=${botUsername}&start=ref_${userId}</code>`;
 
           const profileKeyboard = Markup.inlineKeyboard([
-            [Markup.button.url('📲 ሊንክ አጋራ', shareUrl)],
+            [Markup.button.switchToChat('📲 ለጓደኞች አጋራ', '')],
             [Markup.button.callback('✏️ ክፍል ቀይር', 'change_grade_action')]
           ]);
 
@@ -941,8 +940,7 @@ export default {
 
           const refCount = user?.referral_count || 0;
           const points = user?.points || 0;
-          const shareLink = `https://t.me/${botUsername}?start=ref_${userId}`;
-          const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent('🔥 ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ የጥናት እና የፈተና ጥያቄዎች መተግበሪያ! አሁኑኑ ይመዝገቡ!')}`;
+          const tgDeepLink = `tg://resolve?domain=${botUsername}&start=ref_${userId}`;
 
           const shareText =
 `🔗 <b>ጓደኞችን ጋብዝ — Smart X Ethiopian</b> 🇪🇹
@@ -951,13 +949,14 @@ export default {
 • <b>ያገኙት ነጥብ:</b> <code>${points}</code> ነጥብ
 • <b>ሁኔታ:</b> 💎 <b>ነፃ የቪአይፒ አባልነት</b>
 
+👉 <b>የቦቱ መለያ:</b> @${botUsername}
 🎁 <b>የመጋበዣ ሊንክ:</b>
-<code>${shareLink}</code>
+<code>${tgDeepLink}</code>
 
-ጓደኞችህን በመጋበዝ ተጨማሪ ነጥብ አግኝ!`;
+ከታች ያለውን <b>ለጓደኞች አጋራ</b> አዝራር በመጫን በማንኛውም ግሩፕ ወይም ቻት ያጋሩ!`;
 
           const shareKeyboard = Markup.inlineKeyboard([
-            [Markup.button.url('📲 ለጓደኞች አጋራ', shareUrl)],
+            [Markup.button.switchToChat('📲 ለጓደኞች አጋራ', '')],
             [Markup.button.callback('👤 የእኔ ፕሮፋይል', 'view_my_profile_callback')]
           ]);
 
@@ -992,13 +991,14 @@ export default {
         bot.hears(['ℹ️ ስለ አፕሊኬሽኑ', 'ስለ አፕሊኬሽኑ', 'About', 'መረጃ'], handleAboutApp);
         bot.command(['about', 'info', 'faq'], handleAboutApp);
 
-        // --- OPTIMIZED INLINE QUERY HANDLER (PROMOTIONAL & MOTIVATIONAL - NO BRACKETS) ---
+        // --- OPTIMIZED INLINE QUERY HANDLER (ANTI-SPAM BOT SAFE - ZERO HTTP LINKS) ---
         bot.on('inline_query', async (ctx) => {
           const userId = ctx.from?.id || 0;
           const botUsername = getBotUsername(ctx, env);
-          const inviteDeepLink = `https://t.me/${botUsername}?start=ref_${userId}`;
+          // Direct Telegram internal protocol URI (bypasses anti-link regex bots)
+          const tgDirectProtocolLink = `tg://resolve?domain=${botUsername}&start=ref_${userId}`;
 
-          // Motivational Promotional Call for Grades 9-12 Students (Zero Parentheses / Brackets)
+          // Motivational promotional text for Grade 9-12 with @username mention
           const promoShareText =
 `✨ <b>ለ 9-12ኛ ክፍል ተማሪዎች የቀረበ ልዩ ጥሪ!</b> 🇪🇹
 
@@ -1006,12 +1006,12 @@ export default {
 
 የምዕራፍ ማጠቃለያዎች፣ የፈተና ጥያቄዎች እና አጋዥ የጥናት ቁሳቁሶች ተዘጋጅተውላችኋል!
 
-🎁 <b>የቅድመ ምዝገባ እድሉን ተጠቅመው አሁኑኑ ይመዝገቡ!</b>`;
+👉 <b>ለመመዝገብ እዚህ ይጫኑ:</b> @${botUsername}`;
 
           const singleRegisterMarkup = {
             inline_keyboard: [
               [
-                { text: '🚀 አሁኑኑ ይመዝገቡ', url: inviteDeepLink }
+                { text: '🚀 አሁኑኑ ይመዝገቡ', url: tgDirectProtocolLink }
               ]
             ]
           };
@@ -1019,9 +1019,9 @@ export default {
           const results = [
             {
               type: 'article',
-              id: `smartx_promo_${userId}`,
-              title: '🇪🇹 Smart X Ethiopian — ለ 9-12ኛ ክፍል ተማሪዎች',
-              description: 'የቅድመ ምዝገባ ጥሪ • የምዕራፍ ማጠቃለያዎች እና የፈተና ጥያቄዎች',
+              id: `smartx_btn_${userId}`,
+              title: '🚀 Smart X — በምዝገባ አዝራር (With Button)',
+              description: `ለ 9-12ኛ ክፍል ተማሪዎች • @${botUsername} አዝራር ያለው`,
               thumb_url: 'https://cdn-icons-png.flaticon.com/512/3135/3135755.png',
               input_message_content: {
                 message_text: promoShareText,
@@ -1029,12 +1029,24 @@ export default {
                 disable_web_page_preview: true
               },
               reply_markup: singleRegisterMarkup
+            },
+            {
+              type: 'article',
+              id: `smartx_text_${userId}`,
+              title: '🛡️ Smart X — 100% Anti-Bot Safe (Text Only)',
+              description: `አዝራር የሌለው ንጹህ ጽሑፍ • በማንኛውም ግሩፕ አይጠፋም (@${botUsername})`,
+              thumb_url: 'https://cdn-icons-png.flaticon.com/512/1828/1828640.png',
+              input_message_content: {
+                message_text: promoShareText,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true
+              }
             }
           ];
 
           try {
             return await ctx.answerInlineQuery(results, {
-              cache_time: 10,
+              cache_time: 5,
               is_personal: true
             });
           } catch (err) {
