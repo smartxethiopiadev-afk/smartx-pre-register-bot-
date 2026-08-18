@@ -70,6 +70,80 @@ const defaultPromoTemplates = [
   }
 ];
 
+// Rich Sample HTML Templates for Groups & Broadcasts (High Converting / Profitable Copy)
+const sampleHtmlTemplates = [
+  {
+    id: 'sample_group_1',
+    category: 'group',
+    title: '🔥 የ 9-12ኛ ክፍል አጫጭር ማጠቃለያዎች (High-Converting Promo)',
+    grade: 'All',
+    button_text: '✨ አዎ! እንፈልጋለን',
+    html_code:
+`🔥 <b>ለ 9-12ኛ ክፍል ተማሪዎች የቀረበ ልዩ የምስራች!</b> 🇪🇹
+
+የትምህርት ውጤታችሁን በከፍተኛ ደረጃ ለማሻሻል የሚያስችሉ የ <b>Short Notes</b> ማጠቃለያዎች፣ የ <b>Model Worksheets</b> ጥያቄዎች እና የፈተና መልሶች ይፈልጋሉ?
+
+⚡ <b>100% Offline</b> — ያለ ምንም ኢንተርኔት በነፃ ይሰራል!
+
+📲 <b>አሁኑኑ በነፃ ለመመዝገብ ከስር ያለውን አዝራር ይጫኑ ⬇️</b>`
+  },
+  {
+    id: 'sample_group_2',
+    category: 'group',
+    title: '🎓 ለ 12ኛ ክፍል ተፈታኞች የዩኒቨርሲቲ መግቢያ ሞዴል ፈተናዎች',
+    grade: '12',
+    button_text: '🏆 የ 12ኛ ክፍል Model Exam አግኝ',
+    html_code:
+`🏆 <b>ለ 12ኛ ክፍል የዩኒቨርሲቲ መግቢያ ፈተና ተፈታኞች!</b> 🇪🇹
+
+ለብሔራዊ ፈተና ከፍተኛ ውጤት ለማምጣት አጋዥ <b>Short Notes</b> እና <b>Model Exams</b> ይፈልጋሉ?
+
+• 📚 ያለፉት ዓመታት የፈተና ጥያቄዎች ከነዝርዝር አሰራራቸው
+• 💡 የከበዱ ፅንሰ-ሃሳቦች ማብራሪያዎች
+• ⚡ ሙሉ በሙሉ በስልክዎ ላይ ያለ ኢንተርኔት የሚሰራ!
+
+ከታች ያለውን አዝራር በመጫን በነፃ ይቀላቀሉ ⬇️`
+  },
+  {
+    id: 'sample_bcast_1',
+    category: 'broadcast',
+    title: '📢 የይፋዊ መልቀቂያ ማስታወቂያ (Official Launch Announcement)',
+    grade: 'All',
+    button_text: '🚀 አሁኑኑ ይመዝገቡ',
+    html_code:
+`🎉 <b>ውድ የ Smart X Ethiopian ተማሪዎች!</b> 🇪🇹
+
+የ <b>Smart X Ethiopian</b> የትምህርት መተግበሪያ <b>መስከረም 5</b> በይፋ ይለቀቃል!
+
+✨ <b>ምን አዘጋጅተንላችኋል?</b>
+• 📚 የ 9-12ኛ ክፍል የሁሉንም ትምህርቶች Short Notes
+• 📝 ምዕራፍ ተኮር Worksheet ጥያቄዎች እና መልሶች
+• ⚡ 100% Offline — ያለ ዳታ እና ኢንተርኔት የሚሰራ
+
+👥 ጓደኞችዎን በመጋበዝ የ <b>VIP Early Access</b> እና ነጥቦችን ይሰብስቡ!
+
+[ 👥 የውይይት ግሩፓችንን ይቀላቀሉ | https://t.me/SmartX_Ethio ]
+[ 📢 ኦፊሴላዊ ቻናል | https://t.me/SmartX_Discussion ]
+[ 👨‍💻 የደንበኞች ድጋፍ | https://t.me/smart_x_help ]`
+  },
+  {
+    id: 'sample_bcast_media',
+    category: 'broadcast',
+    title: '🎬 Multi-Media Promo with Video/Photo Caption & Action Buttons',
+    grade: 'All',
+    button_text: '📲 ለጓደኞች አጋራ',
+    html_code:
+`📱 <b>Smart X Ethiopian Mobile App Preview!</b> 🚀
+
+የአዲሱ ካሪኩለም የ 9-12ኛ ክፍል ተማሪዎች የትምህርት አጋዥ የሆነውን የ <b>Smart X Ethiopian</b> አፕሊኬሽን አጠቃቀም በቪዲዮ ይመልከቱ!
+
+🗓️ የሚለቀቅበት ቀን: <b>መስከረም 5</b>
+
+[ 📲 ጓደኞችዎን ይጋብዙ | https://t.me/testing_pent_bot?start=invite ]
+[ 💬 የውይይት ግሩፕ | https://t.me/SmartX_Ethio ]`
+  }
+];
+
 // Helper: Escape HTML special characters for Telegram HTML parse mode
 function escapeHtml(str) {
   if (!str) return '';
@@ -162,11 +236,12 @@ const i18n = {
 
 1️⃣ የውይይት ግሩፓችንን ይቀላቀሉ
 2️⃣ ስልክ ቁጥርዎን ያረጋግጡ`,
-    channel_step: (grade, channel) => `📢 <b>የውይይት ግሩፕ ይቀላቀሉ:</b>\n\nየ <b>${escapeHtml(grade)}</b> የትምህርት መረጃዎችን እና አዳዲስ ማስታወቂያዎችን ለማግኘት <b>${escapeHtml(channel)}</b> ይቀላቀሉ:`,
-    join_channel: '💬 ግሩፑን ተቀላቀል',
+    channel_step: (grade, channel) => `📢 <b>የ Smart X ቻናል እና ግሩፕ ይቀላቀሉ:</b>\n\nየ <b>${escapeHtml(grade)}</b> የትምህርት መረጃዎችን እና አዳዲስ ማስታወቂያዎችን ለማግኘት <b>@SmartX_Discussion</b> እና <b>@SmartX_Ethio</b> ይቀላቀሉ:`,
+    join_channel: '📢 ቻናሉን ተቀላቀል',
+    join_group: '👥 ግሩፑን ተቀላቀል',
     verify_channel: '✅ አረጋግጥ',
     channel_joined_alert: '✅ አባልነትዎ ተረጋግጧል!',
-    channel_not_joined_alert: (channel) => `⚠️ እባክዎን መጀመሪያ ${channel} ይቀላቀሉ!`,
+    channel_not_joined_alert: (channel) => `⚠️ እባክዎን መጀመሪያ ቻናሉን እና ግሩፑን ይቀላቀሉ!`,
     phone_step: 
 `📱 <b>ምዝገባውን ለመጨረስ ስልክ ቁጥርዎን ያጋሩ</b>
 
@@ -230,8 +305,8 @@ const i18n = {
 🗓️ <b>የሚለቀቅበት ቀን:</b> <b>መስከረም 5</b>
 
 💬 <b>እገዛ ወይም ጥያቄ ካለዎት:</b>
-• 📢 ኦፊሴላዊ ቻናል: @SmartXEthiopia
-• 💬 የውይይት ግሩፕ: @SmartX_Discussion
+• 📢 ኦፊሴላዊ ቻናል: @SmartX_Discussion
+• 👥 የውይይት ግሩፕ: @SmartX_Ethio
 • 👨‍💻 የደንበኞች አገልግሎት: @smart_x_help`,
     contact_admin_btn: '👨‍💻 ድጋፍ አግኝ',
     join_channel_btn: '📢 ቻናሉን ተቀላቀል'
@@ -289,13 +364,14 @@ The ultimate solution for your academic success, <b>Smart X Ethiopian</b> educat
 
 When <b>Smart X Ethiopian</b> launches on <b>September 15</b>, complete these 2 quick steps to activate your VIP Early Access:
 
-1️⃣ Join our discussion community group
+1️⃣ Join our discussion channel and group
 2️⃣ Confirm your phone number`,
-    channel_step: (grade, channel) => `📢 <b>Join Discussion Group:</b>\n\nJoin <b>${escapeHtml(channel)}</b> to receive all ${escapeHtml(grade)} announcements and updates:`,
-    join_channel: '💬 Join Group',
+    channel_step: (grade, channel) => `📢 <b>Join Channel & Discussion Group:</b>\n\nJoin <b>@SmartX_Discussion</b> and <b>@SmartX_Ethio</b> to receive all ${escapeHtml(grade)} announcements and updates:`,
+    join_channel: '📢 Join Channel',
+    join_group: '👥 Join Group',
     verify_channel: '✅ Verify',
     channel_joined_alert: '✅ Membership confirmed!',
-    channel_not_joined_alert: (channel) => `⚠️ Please join ${channel} first!`,
+    channel_not_joined_alert: (channel) => `⚠️ Please join both the channel and group first!`,
     phone_step: 
 `📱 <b>Share your phone number to complete registration</b>
 
@@ -359,8 +435,8 @@ Choose a setting to modify ⬇️`,
 🗓️ <b>Launch Date:</b> <b>September 15</b>
 
 💬 <b>Need Help or Have Questions?</b>
-• 📢 Official Channel: @SmartXEthiopia
-• 💬 Community Group: @SmartX_Discussion
+• 📢 Official Channel: @SmartX_Discussion
+• 👥 Community Group: @SmartX_Ethio
 • 👨‍💻 Support Admin: @smart_x_help`,
     contact_admin_btn: '👨‍💻 Contact Support',
     join_channel_btn: '📢 Join Channel'
@@ -418,13 +494,14 @@ Fedhii fi gaaffilee keessaniif furmaata guutuu kan ta'e <b>Smart X Ethiopian</b>
 
 Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5</b> gadhiifamu tajaajila VIP bilisaan banachuuf sadarkaalee 2n kana xumuraa:
 
-1️⃣ Garee marii keenya seenaa
+1️⃣ Chaanaalii fi garee marii seenaa
 2️⃣ Lakkoofsa bilbilaa mirkaneessaa`,
-    channel_step: (grade, channel) => `📢 <b>Garee Marii Seenaa:</b>\n\nOodeeffannoo fi qophii ${escapeHtml(grade)} hunda argachuuf <b>${escapeHtml(channel)}</b> seenaa:`,
-    join_channel: '💬 Garee Seeni',
+    channel_step: (grade, channel) => `📢 <b>Chaanaalii fi Garee Seenaa:</b>\n\nOodeeffannoo fi qophii ${escapeHtml(grade)} hunda argachuuf <b>@SmartX_Discussion</b> fi <b>@SmartX_Ethio</b> seenaa:`,
+    join_channel: '📢 Chaanaalii Seeni',
+    join_group: '👥 Garee Seeni',
     verify_channel: '✅ Mirkaneessi',
     channel_joined_alert: '✅ Garee seenuun keessan mirkanaa\'eera!',
-    channel_not_joined_alert: (channel) => `⚠️ Mee dura ${channel} seenaa!`,
+    channel_not_joined_alert: (channel) => `⚠️ Mee dura chaanaalii fi garee seenaa!`,
     phone_step: 
 `📱 <b>Galmee xumuruuf lakkoofsa bilbilaa keessan ergaa</b>
 
@@ -488,8 +565,8 @@ Qindaa'ina jijjiiruu barbaaddan filadhaa ⬇️`,
 🗓️ <b>Guyyaa Gadhiifamu:</b> <b>Fulbaana 5</b>
 
 💬 <b>Gaaffii yoo qabaattan:</b>
-• 📢 Chaanaalii: @SmartXEthiopia
-• 💬 Garee Maree: @SmartX_Discussion
+• 📢 Chaanaalii: @SmartX_Discussion
+• 👥 Garee Maree: @SmartX_Ethio
 • 👨‍💻 Tajaajila Maamiltootaa: @smart_x_help`,
     contact_admin_btn: '👨‍💻 Gargaarsa Argadhu',
     join_channel_btn: '📢 Chaanaalii Seeni'
@@ -535,19 +612,39 @@ function isAdmin(userId, env) {
   return configuredAdmins.includes(uidStr) || uidStr === '12345678';
 }
 
-// Helper: Transition to next step by clearing previous buttons and sending a clean NEW message
+// Helper: Seamlessly transition to next step (edit in place or clear previous for minimal screen clutter)
 async function transitionToNewStep(ctx, nextText, extra = {}) {
-  // 1. Remove inline buttons from previous message if this action came from an inline callback
+  const isReplyKeyboard = Boolean(extra?.reply_markup && (extra.reply_markup.keyboard || extra.reply_markup.remove_keyboard));
+
+  // If this step is triggered from an inline button callback query
   if (ctx.callbackQuery?.message) {
-    try {
-      await ctx.editMessageReplyMarkup(undefined).catch(() => {});
-    } catch (e) {}
+    if (!isReplyKeyboard) {
+      // Seamlessly edit existing message in place
+      try {
+        return await ctx.editMessageText(nextText, {
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+          ...extra
+        });
+      } catch (err) {
+        // If edit fails (e.g. content identical or expired), clean up and reply
+        try {
+          await ctx.deleteMessage().catch(() => {});
+        } catch (e) {}
+      }
+    } else {
+      // Switching to Reply Keyboard -> delete old inline message so chat stays clean
+      try {
+        await ctx.deleteMessage().catch(() => {});
+      } catch (e) {}
+    }
   }
 
-  // 2. Send brand NEW message for the next step
+  // Send new message
   try {
     return await ctx.reply(nextText, {
       parse_mode: 'HTML',
+      disable_web_page_preview: true,
       ...extra
     });
   } catch (err) {
@@ -556,60 +653,81 @@ async function transitionToNewStep(ctx, nextText, extra = {}) {
   }
 }
 
-// Helper: Extract rich media payload for broadcasts
+// Helper: Extract rich media payload and inline link buttons for broadcasts with full HTML support
 function extractMessagePayload(msg) {
-  if (!msg) return { type: 'text', text: '' };
+  if (!msg) return { type: 'text', text: '', caption: '', buttons: [] };
+
+  const rawText = msg.text || msg.caption || '';
+  let cleanText = rawText;
+  const buttons = [];
+
+  // Match inline button patterns like:
+  // [Button Text | https://example.com] or [Button 1 | url1] [Button 2 | url2]
+  const buttonLineRegex = /^(\s*\[[^\]|]+\|[^\]]+\]\s*)+$/gm;
+  const singleButtonRegex = /\[\s*([^\]|]+?)\s*\|\s*([^\]]+?)\s*\]/g;
+
+  const lines = rawText.split('\n');
+  const nonButtonLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.match(buttonLineRegex)) {
+      const row = [];
+      let match;
+      // Reset regex index for this line
+      singleButtonRegex.lastIndex = 0;
+      while ((match = singleButtonRegex.exec(trimmed)) !== null) {
+        const btnText = match[1].trim();
+        let btnUrl = match[2].trim();
+        if (btnText && btnUrl) {
+          if (!btnUrl.startsWith('http://') && !btnUrl.startsWith('https://') && !btnUrl.startsWith('tg://')) {
+            btnUrl = 'https://' + btnUrl;
+          }
+          row.push({ text: btnText, url: btnUrl });
+        }
+      }
+      if (row.length > 0) {
+        buttons.push(row);
+      }
+    } else {
+      nonButtonLines.push(line);
+    }
+  }
+
+  cleanText = nonButtonLines.join('\n').trim();
+
+  let mediaType = 'text';
+  let file_id = null;
 
   if (msg.photo && msg.photo.length > 0) {
-    const bestPhoto = msg.photo[msg.photo.length - 1];
-    return {
-      type: 'photo',
-      file_id: bestPhoto.file_id,
-      caption: msg.caption || ''
-    };
-  }
-
-  if (msg.video) {
-    return {
-      type: 'video',
-      file_id: msg.video.file_id,
-      caption: msg.caption || ''
-    };
-  }
-
-  if (msg.audio) {
-    return {
-      type: 'audio',
-      file_id: msg.audio.file_id,
-      caption: msg.caption || ''
-    };
-  }
-
-  if (msg.voice) {
-    return {
-      type: 'voice',
-      file_id: msg.voice.file_id,
-      caption: msg.caption || ''
-    };
-  }
-
-  if (msg.document) {
-    return {
-      type: 'document',
-      file_id: msg.document.file_id,
-      caption: msg.caption || ''
-    };
+    mediaType = 'photo';
+    file_id = msg.photo[msg.photo.length - 1].file_id;
+  } else if (msg.video) {
+    mediaType = 'video';
+    file_id = msg.video.file_id;
+  } else if (msg.audio) {
+    mediaType = 'audio';
+    file_id = msg.audio.file_id;
+  } else if (msg.voice) {
+    mediaType = 'voice';
+    file_id = msg.voice.file_id;
+  } else if (msg.document) {
+    mediaType = 'document';
+    file_id = msg.document.file_id;
   }
 
   return {
-    type: 'text',
-    text: msg.text || ''
+    type: mediaType,
+    file_id: file_id,
+    text: cleanText,
+    caption: cleanText,
+    buttons: buttons
   };
 }
 
-// Broadcast Processor: Dispatches queued messages safely
-async function processBroadcastQueueBatch(bot, env, batchSize = 25) {
-  if (!env.DB) return { sent: 0, failed: 0, blocked: 0 };
+// Broadcast Processor: Dispatches queued messages safely in strict batches of 20
+async function processBroadcastQueueBatch(bot, env, batchSize = 20) {
+  if (!env.DB) return { sent: 0, failed: 0, blocked: 0, remaining: 0 };
 
   try {
     const queueRows = await env.DB.prepare(`
@@ -621,50 +739,60 @@ async function processBroadcastQueueBatch(bot, env, batchSize = 25) {
     `).bind(batchSize).all();
 
     if (!queueRows?.results || queueRows.results.length === 0) {
-      return { sent: 0, failed: 0, blocked: 0 };
+      return { sent: 0, failed: 0, blocked: 0, remaining: 0 };
     }
 
     let sent = 0;
     let failed = 0;
     let blocked = 0;
+    let currentBroadcastId = queueRows.results[0]?.broadcast_id;
 
     for (const item of queueRows.results) {
+      currentBroadcastId = item.broadcast_id;
       let payload = {};
       try {
         payload = JSON.parse(item.payload_json);
       } catch (e) {
-        payload = { type: 'text', text: item.payload_json };
+        payload = { type: 'text', text: item.payload_json, buttons: [] };
       }
 
-      let extra = { parse_mode: payload.parse_mode || 'HTML' };
-      if (payload.button && payload.button.text && payload.button.url) {
+      const extra = {
+        parse_mode: 'HTML',
+        disable_web_page_preview: false
+      };
+
+      if (payload.buttons && Array.isArray(payload.buttons) && payload.buttons.length > 0) {
+        extra.reply_markup = {
+          inline_keyboard: payload.buttons
+        };
+      } else if (payload.button && payload.button.text && payload.button.url) {
         extra.reply_markup = {
           inline_keyboard: [[{ text: payload.button.text, url: payload.button.url }]]
         };
       }
 
       try {
-        if (payload.type === 'photo') {
+        if (payload.type === 'photo' && payload.file_id) {
           await bot.telegram.sendPhoto(item.telegram_id, payload.file_id, {
             caption: payload.caption || '',
             ...extra
           });
-        } else if (payload.type === 'video') {
+        } else if (payload.type === 'video' && payload.file_id) {
           await bot.telegram.sendVideo(item.telegram_id, payload.file_id, {
             caption: payload.caption || '',
             ...extra
           });
-        } else if (payload.type === 'audio') {
+        } else if (payload.type === 'audio' && payload.file_id) {
           await bot.telegram.sendAudio(item.telegram_id, payload.file_id, {
             caption: payload.caption || '',
             ...extra
           });
-        } else if (payload.type === 'voice') {
+        } else if (payload.type === 'voice' && payload.file_id) {
           await bot.telegram.sendVoice(item.telegram_id, payload.file_id, {
             caption: payload.caption || '',
             ...extra
           });
-        } else if (payload.type === 'document') {
+        } else if (payload.type === 'document' && payload.file_id) {
           await bot.telegram.sendDocument(item.telegram_id, payload.file_id, {
             caption: payload.caption || '',
             ...extra
@@ -724,10 +852,20 @@ async function processBroadcastQueueBatch(bot, env, batchSize = 25) {
       }
     }
 
-    return { sent, failed, blocked };
+    // Check remaining pending items
+    let remaining = 0;
+    if (currentBroadcastId) {
+      const remRow = await env.DB.prepare('SELECT pending_count FROM broadcasts WHERE id = ?').bind(currentBroadcastId).first();
+      remaining = remRow?.pending_count || 0;
+      if (remaining === 0) {
+        await env.DB.prepare("UPDATE broadcasts SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(currentBroadcastId).run();
+      }
+    }
+
+    return { sent, failed, blocked, remaining, broadcastId: currentBroadcastId };
   } catch (err) {
     console.error('Broadcast Queue Error:', err);
-    return { sent: 0, failed: 0, blocked: 0 };
+    return { sent: 0, failed: 0, blocked: 0, remaining: 0 };
   }
 }
 
@@ -797,7 +935,10 @@ async function buildAdminDashboardData(env) {
       Markup.button.callback('📝 Promo Templates', 'admin_manage_templates')
     ],
     [
-      Markup.button.callback('👥 Recent Users', 'admin_recent_users'),
+      Markup.button.callback('📋 Sample HTML Templates', 'admin_sample_templates'),
+      Markup.button.callback('👥 Recent Users', 'admin_recent_users')
+    ],
+    [
       Markup.button.callback('🔄 Refresh Stats', 'admin_refresh_stats')
     ]
   ]);
@@ -1212,13 +1353,19 @@ export default {
           }
 
           userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
-          const channelUrl = `https://t.me/${channelHandle.replace('@', '')}`;
+          const channelUrl = 'https://t.me/SmartX_Discussion';
+          const groupUrl = 'https://t.me/SmartX_Ethio';
           const verifyKeyboard = Markup.inlineKeyboard([
-            [Markup.button.url(langObj.join_channel, channelUrl)],
-            [Markup.button.callback(langObj.verify_channel, 'verify_channel_step')]
+            [
+              Markup.button.url(langObj.join_channel, channelUrl),
+              Markup.button.url(langObj.join_group, groupUrl)
+            ],
+            [
+              Markup.button.callback(langObj.verify_channel, 'verify_channel_step')
+            ]
           ]);
 
-          const combinedMsg = `${langObj.register_first_prompt}\n\n${langObj.channel_step(grade, channelHandle)}`;
+          const combinedMsg = `${langObj.register_first_prompt}\n\n${langObj.channel_step(grade, '@SmartX_Discussion')}`;
           return transitionToNewStep(ctx, combinedMsg, verifyKeyboard);
         });
 
@@ -1452,13 +1599,14 @@ export default {
           const userId = ctx.from.id;
           const lang = await getUserLang(userId, env);
           const langObj = i18n[lang] || i18n.am;
-          const supportHandle = await getDynamicConfig(env, 'support_username', '@smart_x_help');
-          const channelHandle = await getDynamicConfig(env, 'official_channel', '@SmartXEthiopia');
 
           const helpKeyboard = Markup.inlineKeyboard([
             [
-              Markup.button.url(langObj.contact_admin_btn, `https://t.me/${supportHandle.replace('@', '')}`),
-              Markup.button.url(langObj.join_channel_btn, `https://t.me/${channelHandle.replace('@', '')}`)
+              Markup.button.url(langObj.join_channel_btn || '📢 ቻናሉን ተቀላቀል', 'https://t.me/SmartX_Discussion'),
+              Markup.button.url(langObj.join_group || '👥 ግሩፑን ተቀላቀል', 'https://t.me/SmartX_Ethio')
+            ],
+            [
+              Markup.button.url(langObj.contact_admin_btn || '👨‍💻 ድጋፍ አግኝ', 'https://t.me/smart_x_help')
             ],
             [
               Markup.button.callback(langObj.back_to_menu_btn, 'nav_back_to_menu')
@@ -1731,13 +1879,13 @@ export default {
         // --- ADMIN: MANAGE PROMO TEMPLATES & CUSTOM BUTTONS ---
         bot.action('admin_manage_templates', async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
           await ctx.answerCbQuery().catch(() => {});
 
           let templates = defaultPromoTemplates;
           if (env?.DB) {
             try {
-              const rows = await env.DB.prepare('SELECT id, title, grade, button_text FROM promo_templates WHERE is_active = 1 ORDER BY id ASC').all();
+              const rows = await env.DB.prepare('SELECT id, title, grade, button_text, content_html FROM promo_templates WHERE is_active = 1 ORDER BY id ASC').all();
               if (rows?.results && rows.results.length > 0) {
                 templates = rows.results;
               }
@@ -1745,31 +1893,92 @@ export default {
           }
 
           let text = '📝 <b>የግሩፕ መልዕክት ቴምፕሌቶች አስተዳደር:</b>\n━━━━━━━━━━━━━━━━━━━━\n';
+          const tplButtons = [];
+
           templates.forEach((t) => {
             text += `• <b>[ID: ${t.id}]</b> ${escapeHtml(t.title)}\n  └ ክፍል: <code>${t.grade}</code> | አዝራር: <code>${escapeHtml(t.button_text || '✨ አዎ! እንፈልጋለን')}</code>\n`;
+            tplButtons.push([
+              Markup.button.callback(`👁️ ቅድመ-እይታ: ID ${t.id}`, `admin_tpl_prev_${t.id}`)
+            ]);
           });
-          text += '\nአዲስ ቴምፕሌት ለመጨመር ወይም ለማስተካከል ከታች ይምረጡ ⬇️';
+          text += '\nአዲስ ቴምፕሌት ለመጨመር ወይም ያለውን ለመፈተሽ ከታች ይምረጡ ⬇️';
 
-          const keyboard = Markup.inlineKeyboard([
-            [Markup.button.callback('➕ አዲስ ቴምፕሌት ጨምር', 'admin_add_tpl_start')],
+          tplButtons.push([Markup.button.callback('➕ አዲስ ቴምፕሌት ጨምር', 'admin_add_tpl_start')]);
+          tplButtons.push([Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')]);
+
+          const keyboard = Markup.inlineKeyboard(tplButtons);
+          return transitionToNewStep(ctx, text, keyboard);
+        });
+
+        // Admin: Preview Specific Promo Template
+        bot.action(/admin_tpl_prev_(\d+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const tplId = parseInt(ctx.match[1], 10);
+          let template = defaultPromoTemplates.find(t => t.id === tplId);
+
+          if (env?.DB) {
+            try {
+              const row = await env.DB.prepare('SELECT id, title, grade, button_text, content_html FROM promo_templates WHERE id = ?').bind(tplId).first();
+              if (row) template = row;
+            } catch (e) {}
+          }
+
+          if (!template) {
+            return ctx.answerCbQuery('⚠️ ቴምፕሌቱ አልተገኘም!', { show_alert: true });
+          }
+
+          const btnLabel = template.button_text || '✨ አዎ! እንፈልጋለን';
+          const botUsername = getBotUsername(ctx, env);
+
+          // 1. Send the rendered preview message with the exact interactive inline button
+          try {
+            await ctx.reply(template.content_html, {
+              parse_mode: 'HTML',
+              disable_web_page_preview: true,
+              reply_markup: {
+                inline_keyboard: [[{ text: btnLabel, callback_data: `want_notes_ref_${userId}` }]]
+              }
+            });
+          } catch (err) {
+            await ctx.reply(`⚠️ የ HTML ይዘት ማሳየት አልተቻለም: ${err.message}\n\n<code>${escapeHtml(template.content_html)}</code>`, { parse_mode: 'HTML' });
+          }
+
+          // 2. Send control details
+          const infoText =
+`👁️ <b>የግሩፕ ቴምፕሌት ውጤትና ቅድመ-እይታ:</b>
+━━━━━━━━━━━━━━━━━━━━
+• 🆔 <b>መለያ:</b> <code>#${template.id}</code>
+• 📌 <b>ርዕስ:</b> ${escapeHtml(template.title)}
+• 🎓 <b>የክፍል ደረጃ:</b> <code>${template.grade}</code>
+• 🔘 <b>የአዝራር ጽሑፍ:</b> <code>${escapeHtml(btnLabel)}</code>
+
+ተማሪዎች በግሩፖች ውስጥ <b>@${botUsername}</b> ብለው ሲጠሩ ይህ መልዕክት ከላይ ባለው መልኩ ይላካል!`;
+
+          const infoKb = Markup.inlineKeyboard([
+            [Markup.button.callback('📝 ወደ ቴምፕሌቶች ዝርዝር', 'admin_manage_templates')],
             [Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')]
           ]);
 
-          return transitionToNewStep(ctx, text, keyboard);
+          return ctx.reply(infoText, { parse_mode: 'HTML', ...infoKb });
         });
 
         // Admin Step 1: Start Adding Template
         bot.action('admin_add_tpl_start', async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
           await ctx.answerCbQuery().catch(() => {});
 
           adminActionDrafts[userId] = { action: 'ADD_TEMPLATE', step: 'AWAITING_TITLE' };
 
           const text =
-`📝 <b>ደረጃ 1 ከ 4: የቴምፕሌት ርዕስ (Title):</b>
+`📝 <b>ደረጃ 1 ከ 4: የቴምፕሌት ርዕስ:</b>
+━━━━━━━━━━━━━━━━━━━━
+እባክዎ በ Inline ዝርዝር ውስጥ እንዲታይ የሚፈልጉትን አጭር ርዕስ ይላኩ
 
-እባክዎ በ Inline ዝርዝር ውስጥ እንዲታይ የሚፈልጉትን ርዕስ ይላኩ (ለምሳሌ: <code>📘 ለ 10ኛ ክፍል ፊዚክስ ልዩ ጥሪ</code>):`;
+ምሳሌ: <code>📘 ለ 10ኛ ክፍል ፊዚክስ ሞዴል ጥያቄዎች</code>`;
 
           const cancelKb = Markup.inlineKeyboard([
             [Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')]
@@ -1789,7 +1998,7 @@ export default {
         // Admin Step 2 Selection: Grade for Template
         bot.action(/admin_tpl_grade_(.+)/, async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
           await ctx.answerCbQuery().catch(() => {});
 
           const selectedGrade = ctx.match[1];
@@ -1800,12 +2009,12 @@ export default {
           adminActionDrafts[userId].step = 'AWAITING_BUTTON_TEXT';
 
           const text =
-`📝 <b>ደረጃ 3 ከ 4: የአዝራር ስም (Button Label):</b>
+`📝 <b>ደረጃ 3 ከ 4: የአዝራር ስም:</b>
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(adminActionDrafts[userId].title || 'N/A')}
+• 🎓 <b>ክፍል:</b> <code>${selectedGrade}</code>
 
-• <b>ርዕስ:</b> ${escapeHtml(adminActionDrafts[userId].title || 'N/A')}
-• <b>ክፍል:</b> <code>${selectedGrade}</code>
-
-በግሩፕ መልዕክቱ ስር የሚታየውን የአዝራር ስም ይጻፉ (ወይም ከታች ያለውን መደበኛ አዝራር ይምረጡ) ⬇️`;
+በግሩፕ መልዕክቱ ስር የሚታየውን የአዝራር ስም ይጻፉ ወይም ከታች ካሉት አንዱን ይምረጡ ⬇️`;
 
           const defaultBtnKb = Markup.inlineKeyboard([
             [Markup.button.callback('✨ አዎ! እንፈልጋለን', 'admin_tpl_btn_default')],
@@ -1819,7 +2028,7 @@ export default {
         // Admin Quick Button Selection
         bot.action(['admin_tpl_btn_default', 'admin_tpl_btn_notes'], async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
           await ctx.answerCbQuery().catch(() => {});
 
           const btnText = ctx.callbackQuery.data === 'admin_tpl_btn_default' ? '✨ አዎ! እንፈልጋለን' : '📚 ማጠቃለያዎችን አግኝ';
@@ -1829,11 +2038,11 @@ export default {
           }
 
           const text =
-`📝 <b>ደረጃ 4 ከ 4: የ HTML መልዕክት ይዘት (Message Body):</b>
-
-• <b>ርዕስ:</b> ${escapeHtml(adminActionDrafts[userId]?.title || 'N/A')}
-• <b>ክፍል:</b> <code>${adminActionDrafts[userId]?.grade || 'All'}</code>
-• <b>አዝራር:</b> <code>${btnText}</code>
+`📝 <b>ደረጃ 4 ከ 4: የ HTML መልዕክት ይዘት:</b>
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(adminActionDrafts[userId]?.title || 'N/A')}
+• 🎓 <b>ክፍል:</b> <code>${adminActionDrafts[userId]?.grade || 'All'}</code>
+• 🔘 <b>አዝራር:</b> <code>${btnText}</code>
 
 እባክዎ በግሩፕ ላይ የሚለቀቀውን ማራኪ መልዕክት በ <b>HTML ፎርማት</b> ይላኩ ⬇️`;
 
@@ -1844,9 +2053,56 @@ export default {
           return transitionToNewStep(ctx, text, cancelKb);
         });
 
+        // Save Template Action from Live Preview
+        bot.action('admin_tpl_save_draft', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const adminDraft = adminActionDrafts[userId];
+          if (!adminDraft || !adminDraft.htmlContent) {
+            return ctx.answerCbQuery('⚠️ ቴምፕሌት አልተገኘም!', { show_alert: true });
+          }
+
+          const title = adminDraft.title;
+          const grade = adminDraft.grade || 'All';
+          const buttonText = adminDraft.buttonText || '✨ አዎ! እንፈልጋለን';
+          const htmlContent = adminDraft.htmlContent;
+
+          if (env?.DB) {
+            try {
+              await env.DB.prepare(`
+                INSERT INTO promo_templates (title, grade, button_text, content_html, is_active)
+                VALUES (?, ?, ?, ?, 1)
+              `).bind(title, grade, buttonText, htmlContent).run();
+
+              delete adminActionDrafts[userId];
+
+              return transitionToNewStep(ctx,
+`✅ <b>አዲስ የመልዕክት ቴምፕሌት በተሳካ ሁኔታ ተቀምጧል!</b> 🎉
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(title)}
+• 🎓 <b>ክፍል:</b> <code>${grade}</code>
+• 🔘 <b>የአዝራር ስም:</b> <code>${escapeHtml(buttonText)}</code>
+
+አሁን ማንኛውም ተማሪ ወይም አድሚን በቴሌግራም ግሩፖች ውስጥ <b>@${getBotUsername(ctx, env)}</b> ብሎ ሲጠራ ይህንን መልዕክት በቀጥታ መላክ ይችላል!`,
+                Markup.inlineKeyboard([
+                  [Markup.button.callback('📝 ወደ ቴምፕሌቶች ዝርዝር', 'admin_manage_templates')],
+                  [Markup.button.callback('📊 ወደ ዳሽቦርድ', 'admin_refresh_stats')]
+                ])
+              );
+            } catch (err) {
+              return transitionToNewStep(ctx, `❌ Failed to save template: ${err.message}`);
+            }
+          }
+
+          delete adminActionDrafts[userId];
+          return transitionToNewStep(ctx, '✅ ቴምፕሌቱ በተሳካ ሁኔታ ተቀምጧል!');
+        });
+
         bot.action('admin_recent_users', async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
           await ctx.answerCbQuery().catch(() => {});
 
           let userListText = '👥 <b>የመጨረሻዎቹ 10 ተመዝጋቢ ተማሪዎች:</b>\n━━━━━━━━━━━━━━━━━━━━\n';
@@ -1861,7 +2117,7 @@ export default {
 
               if (rows?.results && rows.results.length > 0) {
                 rows.results.forEach((u, i) => {
-                  userListText += `${i + 1}. <b>${escapeHtml(u.full_name)}</b> (${escapeHtml(u.grade)}) | <code>${escapeHtml(u.phone)}</code>\n   ⭐️ ${u.points} pts | 📅 ${new Date(u.registered_at).toLocaleDateString()}\n`;
+                  userListText += `${i + 1}. <b>${escapeHtml(u.full_name)}</b> — ${escapeHtml(u.grade)} | <code>${escapeHtml(u.phone)}</code>\n   ⭐️ ${u.points} pts | 📅 ${new Date(u.registered_at).toLocaleDateString()}\n`;
                 });
               } else {
                 userListText += 'ምንም ተጠቃሚ አልተገኘም።';
@@ -1878,16 +2134,182 @@ export default {
           return transitionToNewStep(ctx, userListText, backKb);
         });
 
-        // --- BROADCAST SYSTEM ---
+        // --- ADMIN: SAMPLE HTML TEMPLATES (HIGH CONVERTING PROMO & BROADCAST SAMPLES) ---
+        bot.action('admin_sample_templates', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          let text =
+`📋 <b>የተዘጋጁ የ HTML ቴምፕሌቶች (Sample Templates):</b>
+━━━━━━━━━━━━━━━━━━━━
+እነዚህ ቴምፕሌቶች ከፍተኛ ተሳትፎ እና ምዝገባ ለማምጣት በ <b>HTML ፎርማት</b> እና በ <b>Link/Inline አዝራሮች</b> የተዘጋጁ ናቸው።
+
+አንዱን በመምረጥ ቅድመ-እይታውን መመልከት፣ ኮዱን መውሰድ ወይም በቀጥታ ወደ ብሮድካስት/ቴምፕሌት መጫን ይችላሉ ⬇️`;
+
+          const btns = sampleHtmlTemplates.map((s) => [
+            Markup.button.callback(s.title, `admin_view_sample_${s.id}`)
+          ]);
+
+          btns.push([Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')]);
+
+          return transitionToNewStep(ctx, text, Markup.inlineKeyboard(btns));
+        });
+
+        // Admin: View & Load Sample Template
+        bot.action(/admin_view_sample_(.+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const sampleId = ctx.match[1];
+          const sample = sampleHtmlTemplates.find(s => s.id === sampleId);
+
+          if (!sample) {
+            return ctx.answerCbQuery('⚠️ ናሙናው አልተገኘም!', { show_alert: true });
+          }
+
+          // 1. Send the rendered live sample message
+          try {
+            const extra = {
+              parse_mode: 'HTML',
+              disable_web_page_preview: true
+            };
+            if (sample.category === 'group') {
+              extra.reply_markup = {
+                inline_keyboard: [[{ text: sample.button_text || '✨ አዎ! እንፈልጋለን', callback_data: `want_notes_ref_${userId}` }]]
+              };
+            } else {
+              extra.reply_markup = {
+                inline_keyboard: [
+                  [{ text: '👥 የውይይት ግሩፕ', url: 'https://t.me/SmartX_Ethio' }, { text: '📢 ኦፊሴላዊ ቻናል', url: 'https://t.me/SmartX_Discussion' }],
+                  [{ text: '👨‍💻 የደንበኞች ድጋፍ', url: 'https://t.me/smart_x_help' }]
+                ]
+              };
+            }
+            await ctx.reply(sample.html_code, extra);
+          } catch (e) {
+            console.warn('Sample render error:', e.message);
+          }
+
+          // 2. Send Control Box with Raw HTML Code & 1-Click Load Buttons
+          const detailText =
+`👁️ <b>የናሙናው ዝርዝርና የ HTML ኮድ:</b>
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(sample.title)}
+• 🎯 <b>አይነት:</b> <code>${sample.category === 'group' ? 'የግሩፕ መልዕክት (Group Promo)' : 'የብሮድካስት ማስታወቂያ (Broadcast)'}</code>
+• 🔘 <b>የአዝራር ስም:</b> <code>${escapeHtml(sample.button_text || 'Link Buttons')}</code>
+
+📄 <b>የሚገለበጥ የ HTML ኮድ (Copyable HTML):</b>
+<pre><code>${escapeHtml(sample.html_code)}</code></pre>
+
+ይህንን ናሙና በቀጥታ ወደ ስራ ማስገባት ይፈልጋሉ?`;
+
+          const actionKb = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('🚀 ወደ ብሮድካስት ጫን (Load to Broadcast)', `admin_load_bcast_${sample.id}`),
+              Markup.button.callback('📝 ወደ ግሩፕ ቴምፕሌት አስቀምጥ', `admin_load_tpl_${sample.id}`)
+            ],
+            [
+              Markup.button.callback('📋 ወደ ናሙናዎች ዝርዝር', 'admin_sample_templates'),
+              Markup.button.callback('📊 ወደ ዳሽቦርድ', 'admin_refresh_stats')
+            ]
+          ]);
+
+          return ctx.reply(detailText, { parse_mode: 'HTML', ...actionKb });
+        });
+
+        // Admin: 1-Click Load Sample into Broadcast Draft
+        bot.action(/admin_load_bcast_(.+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+          await ctx.answerCbQuery('ብሮድካስት ተዘጋጅቷል!').catch(() => {});
+
+          const sampleId = ctx.match[1];
+          const sample = sampleHtmlTemplates.find(s => s.id === sampleId);
+          if (!sample) return;
+
+          const fakeMsg = { text: sample.html_code };
+          const payload = extractMessagePayload(fakeMsg);
+          if (!payload.buttons || payload.buttons.length === 0) {
+            payload.buttons = [
+              [{ text: '👥 የውይይት ግሩፕ', url: 'https://t.me/SmartX_Ethio' }, { text: '📢 ኦፊሴላዊ ቻናል', url: 'https://t.me/SmartX_Discussion' }],
+              [{ text: '👨‍💻 የደንበኞች ድጋፍ', url: 'https://t.me/smart_x_help' }]
+            ];
+          }
+
+          broadcastDrafts[userId] = {
+            step: 'PREVIEW_AND_CONFIRM',
+            payload
+          };
+
+          return showBroadcastPreviewToAdmin(ctx, userId, payload);
+        });
+
+        // Admin: 1-Click Save Sample into Group Promo Templates
+        bot.action(/admin_load_tpl_(.+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const sampleId = ctx.match[1];
+          const sample = sampleHtmlTemplates.find(s => s.id === sampleId);
+          if (!sample) return;
+
+          if (env?.DB) {
+            try {
+              await env.DB.prepare(`
+                INSERT INTO promo_templates (title, grade, button_text, content_html, is_active)
+                VALUES (?, ?, ?, ?, 1)
+              `).bind(sample.title, sample.grade || 'All', sample.button_text || '✨ አዎ! እንፈልጋለን', sample.html_code).run();
+
+              return transitionToNewStep(ctx,
+`✅ <b>የናሙና ቴምፕሌት በተሳካ ሁኔታ ወደ ዳታቤዝ ተቀምጧል!</b> 🎉
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(sample.title)}
+• 🎓 <b>ክፍል:</b> <code>${sample.grade || 'All'}</code>
+• 🔘 <b>የአዝራር ስም:</b> <code>${escapeHtml(sample.button_text || '✨ አዎ! እንፈልጋለን')}</code>
+
+አሁን በቴሌግራም ግሩፖች ውስጥ <b>@${getBotUsername(ctx, env)}</b> ብለው ሲጠሩ ይህንን መልዕክት በቀጥታ መላክ ይችላሉ!`,
+                Markup.inlineKeyboard([
+                  [Markup.button.callback('📝 ወደ ቴምፕሌቶች ዝርዝር', 'admin_manage_templates')],
+                  [Markup.button.callback('📊 ወደ ዳሽቦርድ', 'admin_refresh_stats')]
+                ])
+              );
+            } catch (err) {
+              return transitionToNewStep(ctx, `❌ Failed to save template: ${err.message}`);
+            }
+          }
+
+          return transitionToNewStep(ctx, '✅ ናሙናው በተሳካ ሁኔታ ተቀምጧል!');
+        });
+
+        // --- BROADCAST SYSTEM WITH RICH HTML, LINK BUTTONS & LIVE PREVIEW ---
         const handleNewBroadcastInit = async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.reply('⛔ Admin only!', { parse_mode: 'HTML' });
+          if (!isAdmin(userId, env)) {
+            return ctx.reply(`⛔ <b>ይቅርታ፣ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!</b>\n\nየእርስዎ ID: <code>${userId}</code>`, { parse_mode: 'HTML' });
+          }
 
           broadcastDrafts[userId] = { step: 'AWAITING_MESSAGE' };
           return transitionToNewStep(ctx,
 `📢 <b>የአዲስ ብሮድካስት መልዕክት ማዘጋጃ:</b>
+━━━━━━━━━━━━━━━━━━━━
+እባክዎ ለሁሉም ተማሪዎች የሚላከውን መልዕክት ይላኩ።
 
-እባክዎ ለሁሉም ተማሪዎች እንዲላክ የሚፈልጉትን መልዕክት (ጽሑፍ፣ ፎቶ፣ ቪዲዮ፣ ድምፅ ወይም ዶክመንት) አሁን ይላኩ ⬇️`,
+✨ <b>የሚደገፉ የ HTML ፎርማቶች:</b>
+• <code>&lt;b&gt;ደማቅ ጽሑፍ&lt;/b&gt;</code>
+• <code>&lt;i&gt;ሰያፍ ጽሑፍ&lt;/i&gt;</code>
+• <code>&lt;u&gt;ከስር የተሰመረበት&lt;/u&gt;</code>
+• <code>&lt;s&gt;የተሰረዘ ጽሑፍ&lt;/s&gt;</code>
+• <code>&lt;code&gt;ኮድ ወይም ቁጥር&lt;/code&gt;</code>
+• <code>&lt;a href="https://t.me/SmartXEthiopia"&gt;የሊንክ ጽሑፍ&lt;/a&gt;</code>
+
+🔘 <b>Inline አዝራር / Link Button ለመጨመር:</b>
+ከመልዕክትዎ ስር በሚከተለው መልኩ ይጻፉ:
+<code>[የአዝራሩ ስም | https://t.me/smart_x_help]</code>
+
+ፎቶ፣ ቪዲዮ፣ ድምፅ፣ ዶክመንት ወይም ጽሑፍ መላክ ይችላሉ ⬇️`,
             Markup.inlineKeyboard([[Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')]])
           );
         };
@@ -1899,6 +2321,102 @@ export default {
           const userId = ctx.from.id;
           delete broadcastDrafts[userId];
           await ctx.answerCbQuery('ብሮድካስት ተሰርዟል!').catch(() => {});
+          return handleAdminDashboard(ctx);
+        });
+
+        // Prompt Admin to Add Custom Link Button
+        bot.action('admin_bcast_add_btn_prompt', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          if (broadcastDrafts[userId]) {
+            broadcastDrafts[userId].step = 'AWAITING_EXTRA_BUTTON';
+          }
+
+          const text =
+`🔘 <b>የ Link Button ማከያ:</b>
+━━━━━━━━━━━━━━━━━━━━
+እባክዎ የአዝራሩን ስም እና ድረ-ገጽ/ቴሌግራም ሊንክ በሚከተለው መልኩ ይላኩ:
+
+<code>የአዝራሩ ስም | https://t.me/smart_x_help</code>`;
+
+          const cancelKb = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ ሰርዝ', 'admin_bcast_show_preview')]
+          ]);
+
+          return transitionToNewStep(ctx, text, cancelKb);
+        });
+
+        // Helper: Render and display Broadcast Preview to Admin
+        const showBroadcastPreviewToAdmin = async (ctx, userId, payload) => {
+          const extra = {
+            parse_mode: 'HTML',
+            disable_web_page_preview: false
+          };
+
+          if (payload.buttons && Array.isArray(payload.buttons) && payload.buttons.length > 0) {
+            extra.reply_markup = {
+              inline_keyboard: payload.buttons
+            };
+          }
+
+          // 1. Send the exact rendered message preview
+          try {
+            if (payload.type === 'photo' && payload.file_id) {
+              await ctx.replyWithPhoto(payload.file_id, { caption: payload.caption || '', ...extra });
+            } else if (payload.type === 'video' && payload.file_id) {
+              await ctx.replyWithVideo(payload.file_id, { caption: payload.caption || '', ...extra });
+            } else if (payload.type === 'audio' && payload.file_id) {
+              await ctx.replyWithAudio(payload.file_id, { caption: payload.caption || '', ...extra });
+            } else if (payload.type === 'voice' && payload.file_id) {
+              await ctx.replyWithVoice(payload.file_id, { caption: payload.caption || '', ...extra });
+            } else if (payload.type === 'document' && payload.file_id) {
+              await ctx.replyWithDocument(payload.file_id, { caption: payload.caption || '', ...extra });
+            } else {
+              await ctx.reply(payload.text || 'Notification Preview', extra);
+            }
+          } catch (err) {
+            await ctx.reply(`⚠️ የ HTML ቅርጸት ስህተት: ${err.message}\nእባክዎ የከፈቷቸውን የ HTML ታጎች በትክክል መዝጋትዎን ያረጋግጡ።`, { parse_mode: 'HTML' });
+          }
+
+          // 2. Send Control Box with Action Buttons
+          const totalBtns = payload.buttons ? payload.buttons.flat().length : 0;
+          const controlText =
+`👁️ <b>የብሮድካስት ቅድመ-እይታ ተዘጋጅቷል!</b>
+━━━━━━━━━━━━━━━━━━━━
+ከላይ የሚታየው መልዕክት ለሁሉም ተጠቃሚዎች የሚደርሰው ትክክለኛ ቅድመ-እይታ ነው።
+
+• 📌 <b>የመልዕክት አይነት:</b> <code>${payload.type}</code>
+• 🔘 <b>የአዝራሮች ብዛት:</b> <code>${totalBtns}</code>
+• ⚡ <b>የመላኪያ መጠን:</b> <code>20 ተጠቃሚዎች በአንድ ዙር</code>
+
+ይህ መልዕክት ለሁሉም ተማሪዎች እንዲላክ ይፈልጋሉ?`;
+
+          const controlKb = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('🚀 Start Broadcast', 'admin_confirm_send_broadcast'),
+              Markup.button.callback('➕ Link Button ጨምር', 'admin_bcast_add_btn_prompt')
+            ],
+            [
+              Markup.button.callback('✏️ እንደገና አርትዕ', 'admin_new_broadcast'),
+              Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')
+            ]
+          ]);
+
+          return ctx.reply(controlText, { parse_mode: 'HTML', ...controlKb });
+        };
+
+        bot.action('admin_bcast_show_preview', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const draft = broadcastDrafts[userId];
+          if (draft?.payload) {
+            draft.step = 'PREVIEW_AND_CONFIRM';
+            return showBroadcastPreviewToAdmin(ctx, userId, draft.payload);
+          }
           return handleAdminDashboard(ctx);
         });
 
@@ -1931,7 +2449,7 @@ export default {
                 ]
               ]);
 
-              return transitionToNewStep(ctx, `📝 <b>ደረጃ 2 ከ 4: የታለመው የክፍል ደረጃ:</b>\n\n• <b>ርዕስ:</b> ${escapeHtml(adminDraft.title)}\n\nክፍሉን ይምረጡ ⬇️`, gradeKb);
+              return transitionToNewStep(ctx, `📝 <b>ደረጃ 2 ከ 4: የታለመው የክፍል ደረጃ:</b>\n\n• 📌 <b>ርዕስ:</b> ${escapeHtml(adminDraft.title)}\n\nክፍሉን ይምረጡ ⬇️`, gradeKb);
             }
 
             if (adminDraft.step === 'AWAITING_BUTTON_TEXT') {
@@ -1939,11 +2457,11 @@ export default {
               adminDraft.step = 'AWAITING_HTML_BODY';
 
               const text =
-`📝 <b>ደረጃ 4 ከ 4: የ HTML መልዕክት ይዘት (Message Body):</b>
-
-• <b>ርዕስ:</b> ${escapeHtml(adminDraft.title)}
-• <b>ክፍል:</b> <code>${adminDraft.grade || 'All'}</code>
-• <b>አዝራር:</b> <code>${escapeHtml(adminDraft.buttonText)}</code>
+`📝 <b>ደረጃ 4 ከ 4: የ HTML መልዕክት ይዘት:</b>
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(adminDraft.title)}
+• 🎓 <b>ክፍል:</b> <code>${adminDraft.grade || 'All'}</code>
+• 🔘 <b>አዝራር:</b> <code>${escapeHtml(adminDraft.buttonText)}</code>
 
 እባክዎ በግሩፕ ላይ የሚለቀቀውን ማራኪ መልዕክት በ <b>HTML ፎርማት</b> ይላኩ ⬇️`;
 
@@ -1956,76 +2474,134 @@ export default {
 
             if (adminDraft.step === 'AWAITING_HTML_BODY') {
               const htmlContent = ctx.message.text || '';
-              const title = adminDraft.title;
-              const grade = adminDraft.grade || 'All';
-              const buttonText = adminDraft.buttonText || '✨ አዎ! እንፈልጋለን';
+              adminDraft.htmlContent = htmlContent;
+              adminDraft.step = 'CONFIRM_TEMPLATE';
 
-              if (env?.DB) {
-                try {
-                  await env.DB.prepare(`
-                    INSERT INTO promo_templates (title, grade, button_text, content_html, is_active)
-                    VALUES (?, ?, ?, ?, 1)
-                  `).bind(title, grade, buttonText, htmlContent).run();
+              const btnLabel = adminDraft.buttonText || '✨ አዎ! እንፈልጋለን';
 
-                  delete adminActionDrafts[userId];
-
-                  return transitionToNewStep(ctx,
-`✅ <b>አዲስ የመልዕክት ቴምፕሌት በተሳካ ሁኔታ ተጨምሯል!</b> 🎉
-
-• <b>ርዕስ:</b> ${escapeHtml(title)}
-• <b>ክፍል:</b> <code>${grade}</code>
-• <b>የአዝራር ስም:</b> <code>${escapeHtml(buttonText)}</code>
-
-አሁን ማንኛውም ተማሪ ወይም አድሚን በቴሌግራም ግሩፖች ውስጥ <b>@${getBotUsername(ctx, env)}</b> ብሎ ሲጽፍ ይህንን መልዕክት በቀጥታ መላክ ይችላል!`,
-                    Markup.inlineKeyboard([[Markup.button.callback('📝 ወደ ቴምፕሌቶች ዝርዝር', 'admin_manage_templates')]])
-                  );
-                } catch (err) {
-                  return transitionToNewStep(ctx, `❌ Failed to save template: ${err.message}`);
-                }
+              // Show live preview of the promo template
+              try {
+                await ctx.reply(htmlContent, {
+                  parse_mode: 'HTML',
+                  disable_web_page_preview: true,
+                  reply_markup: {
+                    inline_keyboard: [[{ text: btnLabel, callback_data: `want_notes_ref_${userId}` }]]
+                  }
+                });
+              } catch (err) {
+                await ctx.reply(`⚠️ የ HTML ቅርጸት ስህተት: ${err.message}`);
               }
 
-              delete adminActionDrafts[userId];
-              return transitionToNewStep(ctx, '✅ Template created (Local Simulator Mode).');
+              const confirmText =
+`👁️ <b>የቴምፕሌት ቅድመ-እይታ ተዘጋጅቷል:</b>
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(adminDraft.title)}
+• 🎓 <b>ክፍል:</b> <code>${adminDraft.grade || 'All'}</code>
+• 🔘 <b>የአዝራር ስም:</b> <code>${escapeHtml(btnLabel)}</code>
+
+ይህ ቴምፕሌት በዳታቤዝ እንዲቀመጥ ይፈልጋሉ?`;
+
+              const confirmKb = Markup.inlineKeyboard([
+                [
+                  Markup.button.callback('✅ አዎ፣ አስቀምጥ', 'admin_tpl_save_draft'),
+                  Markup.button.callback('✏️ እንደገና ጻፍ', 'admin_add_tpl_start')
+                ],
+                [
+                  Markup.button.callback('❌ ሰርዝ', 'admin_cancel_draft')
+                ]
+              ]);
+
+              return ctx.reply(confirmText, { parse_mode: 'HTML', ...confirmKb });
             }
           }
 
-          // Flow 2: Admin Broadcast
+          // Flow 2: Admin Adding Extra Link Button to Broadcast
+          if (draft && draft.step === 'AWAITING_EXTRA_BUTTON' && isAdmin(userId, env)) {
+            const rawBtnText = ctx.message.text || '';
+            const parts = rawBtnText.split('|');
+            if (parts.length >= 2) {
+              const bText = parts[0].replace('[', '').trim();
+              let bUrl = parts[1].replace(']', '').trim();
+              if (!bUrl.startsWith('http://') && !bUrl.startsWith('https://') && !bUrl.startsWith('tg://')) {
+                bUrl = 'https://' + bUrl;
+              }
+              if (!draft.payload.buttons) draft.payload.buttons = [];
+              draft.payload.buttons.push([{ text: bText, url: bUrl }]);
+              await ctx.reply(`✅ አዝራር ተጨምሯል: <b>${escapeHtml(bText)}</b>`, { parse_mode: 'HTML' });
+            } else {
+              await ctx.reply('⚠️ እባክዎ በአግባቡ ይላኩ: <code>የአዝራሩ ስም | https://link</code>', { parse_mode: 'HTML' });
+            }
+
+            draft.step = 'PREVIEW_AND_CONFIRM';
+            return showBroadcastPreviewToAdmin(ctx, userId, draft.payload);
+          }
+
+          // Flow 3: Admin New Broadcast Input (Text/Media + HTML + Buttons)
           if (draft && draft.step === 'AWAITING_MESSAGE' && isAdmin(userId, env)) {
             const payload = extractMessagePayload(ctx.message);
             draft.payload = payload;
-            draft.step = 'CONFIRMATION';
+            draft.step = 'PREVIEW_AND_CONFIRM';
 
-            const previewText =
-`📢 <b>የብሮድካስት ማረጋገጫ:</b>
-
-• <b>አይነት:</b> <code>${payload.type}</code>
-• <b>ጽሑፍ/መግለጫ:</b> ${escapeHtml(payload.text || payload.caption || 'None')}
-
-መልዕክቱ ለሁሉም ተጠቃሚዎች ወዲያውኑ ይላክ?`;
-
-            const confirmKb = Markup.inlineKeyboard([
-              [
-                Markup.button.callback('🚀 አዎ፣ አሁን ላክ', 'admin_confirm_send_broadcast'),
-                Markup.button.callback('❌ ሰርዝ', 'admin_cancel_broadcast')
-              ]
-            ]);
-
-            return transitionToNewStep(ctx, previewText, confirmKb);
+            return showBroadcastPreviewToAdmin(ctx, userId, payload);
           }
 
           return next();
         });
 
+        // Helper: Render Broadcast Results Dashboard
+        const renderBroadcastResultsReport = async (ctx, broadcastId) => {
+          let bcast = null;
+          if (env?.DB) {
+            try {
+              bcast = await env.DB.prepare('SELECT * FROM broadcasts WHERE id = ?').bind(broadcastId).first();
+            } catch (e) {}
+          }
+
+          if (!bcast) {
+            return transitionToNewStep(ctx, `⚠️ የብሮድካስት መረጃ አልተገኘም: #${broadcastId}`);
+          }
+
+          const isCompleted = bcast.pending_count === 0 || bcast.status === 'completed';
+
+          const reportText =
+`📊 <b>የብሮድካስት ሂደትና ውጤት ሪፖርት</b> 🇪🇹
+━━━━━━━━━━━━━━━━━━━━
+• 🆔 <b>የብሮድካስት መለያ:</b> <code>#${bcast.id}</code>
+• 👥 <b>ጠቅላላ ተቀባዮች:</b> <code>${bcast.total_recipients}</code>
+• ✅ <b>በተሳካ ሁኔታ የተላከ:</b> <code>${bcast.sent_count}</code>
+• ⏳ <b>በመጠባበቅ ላይ:</b> <code>${bcast.pending_count}</code>
+• 🚫 <b>ቦቱን ያገዱ:</b> <code>${bcast.blocked_count}</code>
+• ❌ <b>ያልተሳካ:</b> <code>${bcast.failed_count}</code>
+• ⚡ <b>የባች መጠን:</b> <code>20 በአንድ ዙር</code>
+━━━━━━━━━━━━━━━━━━━━
+${isCompleted 
+  ? '🎉 <b>ብሮድካስቱ ለሁሉም ተጠቃሚዎች በተሳካ ሁኔታ ተጠናቋል!</b>' 
+  : '⏳ <b>የ 20 ተጠቃሚዎች ዙር ተልኳል!</b> ቀጣዩን 20 ለመላክ ወይም ሁኔታውን ለማደስ ከታች ይጫኑ ⬇️'}`;
+
+          const reportButtons = [];
+          if (!isCompleted) {
+            reportButtons.push([
+              Markup.button.callback('⏩ ቀጣይ 20 ላክ', `admin_bcast_next_${bcast.id}`),
+              Markup.button.callback('🔄 ሁኔታውን አድስ', `admin_bcast_stat_${bcast.id}`)
+            ]);
+          }
+          reportButtons.push([Markup.button.callback('📊 ወደ ዳሽቦርድ', 'admin_refresh_stats')]);
+
+          const reportKb = Markup.inlineKeyboard(reportButtons);
+          return transitionToNewStep(ctx, reportText, reportKb);
+        };
+
+        // Admin Start Broadcast Confirmation
         bot.action('admin_confirm_send_broadcast', async (ctx) => {
           const userId = ctx.from.id;
-          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
 
           const draft = broadcastDrafts[userId];
           if (!draft || !draft.payload) {
-            return ctx.answerCbQuery('⚠️ No active broadcast found!', { show_alert: true });
+            return ctx.answerCbQuery('⚠️ ምንም ንቁ ብሮድካስት አልተገኘም!', { show_alert: true });
           }
 
-          await ctx.answerCbQuery('ብሮድካስት እየተዘጋጀ ነው...').catch(() => {});
+          await ctx.answerCbQuery('ብሮድካስት እየተጀመረ ነው...').catch(() => {});
           const payloadJson = JSON.stringify(draft.payload);
 
           let totalRecipients = 0;
@@ -2050,24 +2626,44 @@ export default {
 
               delete broadcastDrafts[userId];
 
-              // Immediately process first batch
-              await processBroadcastQueueBatch(bot, env, 30);
+              // Immediately process the first batch of 20 users
+              await processBroadcastQueueBatch(bot, env, 20);
 
-              return transitionToNewStep(ctx,
-`✅ <b>ብሮድካስት በተሳካ ሁኔታ ተጀምሯል!</b> 🚀
-
-• 👥 <b>ጠቅላላ ተቀባዮች:</b> <code>${totalRecipients}</code>
-• ⚙️ መልዕክቶች በሰከንዶች ውስጥ በባች ይላካሉ!`,
-                Markup.inlineKeyboard([[Markup.button.callback('📊 ወደ ዳሽቦርድ', 'admin_refresh_stats')]])
-              );
+              return renderBroadcastResultsReport(ctx, broadcastId);
             } catch (err) {
               console.error('Broadcast Dispatch Error:', err);
-              return transitionToNewStep(ctx, `❌ Failed to dispatch broadcast: ${err.message}`);
+              return transitionToNewStep(ctx, `❌ ብሮድካስቱን ማስጀመር አልተቻለም: ${err.message}`);
             }
           }
 
           delete broadcastDrafts[userId];
-          return transitionToNewStep(ctx, '⚠️ Local simulator mode: broadcast queue mock dispatched.');
+          return transitionToNewStep(ctx, '⚠️ Local simulator mode: broadcast dispatched.');
+        });
+
+        // Admin Action: Send Next 20 batch
+        bot.action(/admin_bcast_next_(\d+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+
+          const broadcastId = parseInt(ctx.match[1], 10);
+          await ctx.answerCbQuery('ቀጣይ 20 እየተላከ ነው...').catch(() => {});
+
+          if (env.DB) {
+            await processBroadcastQueueBatch(bot, env, 20);
+          }
+
+          return renderBroadcastResultsReport(ctx, broadcastId);
+        });
+
+        // Admin Action: Refresh Broadcast Status
+        bot.action(/admin_bcast_stat_(\d+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ ይህ ትዕዛዝ ለአድሚን ብቻ የተፈቀደ ነው!', { show_alert: true });
+
+          const broadcastId = parseInt(ctx.match[1], 10);
+          await ctx.answerCbQuery('ሪፖርቱ ታድሷል!').catch(() => {});
+
+          return renderBroadcastResultsReport(ctx, broadcastId);
         });
 
         // Run Telegraf on the incoming Webhook update
