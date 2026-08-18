@@ -162,7 +162,7 @@ function getBotUsername(ctx, env) {
   if (ctx?.me?.username) return ctx.me.username;
   if (env?.BOT_USERNAME) return env.BOT_USERNAME.replace('@', '');
   if (process.env.BOT_USERNAME) return process.env.BOT_USERNAME.replace('@', '');
-  return 'SmartXEthiopiaBot';
+  return 'SmartQA_OfficialBot';
 }
 
 // Helper: Dynamically fetch channel or group handles from D1
@@ -183,57 +183,38 @@ async function getDynamicConfig(env, key, defaultVal) {
 // Multi-language Translations Dictionary (Clean HTML Parse Mode & Concise Text)
 const i18n = {
   am: {
-    welcome_start: (name) => `👋 <b>ሰላም ${escapeHtml(name)}! እንኳን ወደ Smart X Ethiopian (Smart X ET) በደህና መጡ!</b> 🇪🇹
+    welcome_start: (name) => `👋 <b>ሰላም ${escapeHtml(name)}!</b>
 
-✨ ለአዲሱ የኢትዮጵያ የስርዓተ-ትምህርት (Grades 9-12) የተዘጋጀ የ AI የትምህርት ረዳት እና የፈተና መለማመጃ መድረክ።
+እንኳን ወደ <b>Smart X Ethiopian</b> በደህና መጡ! 🇪🇹
+<i>የ 9ኛ - 12ኛ ክፍል የ AI የትምህርት ረዳት እና የፈተና መድረክ።</i>
 
-━━━━━━━━━━━━━━━━━━━━
-🔹 <b>ደረጃ 1: እባክዎን የትምህርት ክፍልዎን ይምረጡ</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━`,
+👇 <b>እባክዎን የትምህርት ክፍልዎን ይምረጡ:</b>`,
 
     welcome_back: (name, phone, grade, refCount = 0, points = 0, group = '@SmartX_Discussion') => `👋 <b>እንኳን በደህና ተመለሱ ${escapeHtml(name)}!</b> 🇪🇹
 
-✨ <b>Smart X Ethiopian (Smart X ET)</b> — የ 9-12ኛ ክፍል የ AI የትምህርት ረዳት እና የፈተና ማዕከል
+• <b>ክፍል:</b> <b>${escapeHtml(grade)}</b> | <b>ስልክ:</b> <code>${escapeHtml(phone)}</code>
+• <b>ሁኔታ:</b> 💎 <b>VIP Early Access (100% Free)</b>
+• <b>የተጋበዙ:</b> <code>${refCount}</code> ተማሪዎች (${points} pts)
 
-📋 <b>የእርስዎ የተመዘገበ መረጃ:</b>
-• 👤 <b>ስም:</b> ${escapeHtml(name)}
-• 📱 <b>ስልክ:</b> ${escapeHtml(phone)}
-• 🎓 <b>ክፍል:</b> ${escapeHtml(grade)}
-• 👥 <b>የተጋበዙ ጓደኞች:</b> <code>${refCount}</code> (${points} pts)
-• 💬 <b>ግሩፕ:</b> ${escapeHtml(group)}
-• 💎 <b>ሁኔታ:</b> ${points >= 50 || refCount >= 5 ? '💎 VIP Master Pass (100% Free)' : '🌟 VIP Early Access (100% Free)'}
+ከታች ካሉት አገልግሎቶች አንዱን ይምረጡ ⬇️`,
 
-━━━━━━━━━━━━━━━━━━━━
-🔹 ከታች ካሉት ዋና አገልግሎቶች ይምረጡ ⬇️`,
+    channel_verify_step: (grade, group = '@SmartX_Discussion') => `✅ ክፍል: <b>${escapeHtml(grade)}</b>
 
-    channel_verify_step: (grade, group = '@SmartX_Discussion') => `━━━━━━━━━━━━━━━━━━━━
-📢 <b>ደረጃ 2: የውይይት ግሩፕ አባልነት ማረጋገጫ</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━
-✅ የተመረጠው ክፍል: <b>${escapeHtml(grade)}</b>
+📢 <b>የውይይት ግሩፕ ማረጋገጫ:</b>
+አፑን 100% በነፃ ለመጠቀም እባክዎን <b>${escapeHtml(group)}</b> ይቀላቀሉ፣ ከዚያ <b>«✅ አረጋግጥ»</b> የሚለውን ይጫኑ።`,
 
-➔ ወደ ቀጣዩ ደረጃ ለመሻገር እና አፑን 100% በነፃ ለመጠቀም እባክዎን የ Smart X Ethiopian የውይይት ግሩፕ (${escapeHtml(group)}) ይቀላቀሉ!
+    phone_request_step: `✅ የውይይት ግሩፕ ተረጋግጧል!
 
-🔹 ግሩፑን ከተቀላቀሉ በኋላ <b>«✅ አረጋግጥ (Verify Membership)»</b> የሚለውን በተን ይጫኑ።`,
+📱 <b>የስልክ ቁጥር ማረጋገጫ:</b>
+ምዝገባዎን ለማጠናቀቅ ከታች ያለውን በተን ተጭነው ስልክ ቁጥርዎን ያጋሩ ወይም ይፃፉልን:`,
 
-    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
-📱 <b>ደረጃ 3: የስልክ ቁጥር ማረጋገጫ</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━
-🎉 የውይይት ግሩፕ አባልነትዎ በተሳካ ሁኔታ ተረጋግጧል!
+    reg_success: (name, phone, grade, group = '@SmartX_Discussion') => `🎉 <b>ምዝገባዎ በስኬት ተጠናቋል!</b> 🚀
 
-ምዝገባዎን ለማጠናቀቅ እና ልዩ የቅድመ-ምዝገባ እድሎችን (VIP Access & Early APK Release) ለማግኘት እባክዎን ከታች ያለውን በተን በመጫን ስልክ ቁጥርዎን ያጋሩን ወይም በጽሁፍ ይላኩልን፡`,
+• <b>ስም:</b> ${escapeHtml(name)}
+• <b>ክፍል:</b> <b>${escapeHtml(grade)}</b>
+• <b>ሁኔታ:</b> 💎 <b>100% Free VIP Access</b>
 
-    reg_success: (name, phone, grade, group = '@SmartX_Discussion') => `🎉 <b>እንኳን ደስ አለዎት! ምዝገባዎ በስኬት ተጠናቋል!</b> 🚀
-
-📋 <b>የተመዘገቡት መረጃዎች:</b>
-• 👤 <b>ስም:</b> ${escapeHtml(name)}
-• 📱 <b>ስልክ:</b> ${escapeHtml(phone)}
-• 🎓 <b>ክፍል:</b> ${escapeHtml(grade)}
-• 💬 <b>ግሩፕ:</b> ✅ የተረጋገጠ (${escapeHtml(group)})
-• 💎 <b>ሁኔታ:</b> 100% ነፃ ቅድመ-ተመዝጋቢ (VIP Early Access)
-
-━━━━━━━━━━━━━━━━━━━━
-🔹 <b>ከታች ካሉት ዋና አገልግሎቶች ይምረጡ</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━`,
+ከታች ካሉት አገልግሎቶች አንዱን ይምረጡ ⬇️`,
 
     menu: [
       ['🤖 Smart X AI Assistant', '📲 Download App'],
@@ -244,55 +225,42 @@ const i18n = {
 
 👉 አፑ በቅርብ ቀን (መስከረም 5) ሲለቀቅ የቀጥታ ማውረጃ ሊንኩና የ .apk ፋይሉ በዚህ ቦት ይላክልዎታል። እባክዎን በትዕግስት ይጠብቁን! 🚀`,
 
-    ai_intro: `🤖 <b>ሰላም! እኔ Smart X AI ነኝ።</b> ስለ Smart X Ethiopian አፕሊኬሽን ወይም ስለ 9ኛ - 12ኛ ክፍል ትምህርቶች የፈለጉትን ጥያቄ መጠየቅ ይችላሉ! 💡\n\n<i>ጥያቄዎን ከታች ይፃፉ ወይም ወደ ዋናው ማውጫ ለመመለስ «🔙 ወደ ዋናው ማውጫ (Main Menu)» የሚለውን ይጫኑ።</i>`
+    ai_intro: `🤖 <b>Smart X AI Assistant</b> 💡\n\nስለ 9ኛ - 12ኛ ክፍል ትምህርቶች ማንኛውንም ጥያቄ መጠየቅ ይችላሉ!\n\n<i>ጥያቄዎን ከታች ይፃፉ ወይም ወደ ዋናው ማውጫ ለመመለስ «🔙 ወደ ዋናው ማውጫ (Main Menu)» የሚለውን ይጫኑ።</i>`
   },
 
   om: {
-    welcome_start: (name) => `👋 <b>Akkam ${escapeHtml(name)}! Baga gara Smart X Ethiopian (Smart X ET) nagaan dhuftan!</b> 🇪🇹
+    welcome_start: (name) => `👋 <b>Akkam ${escapeHtml(name)}!</b>
 
-✨ Gargaaraa AI fi Sirna Barnoota Haaraa Kutaalee 9-12 Itoophiyaa.
+Baga gara <b>Smart X Ethiopian</b> nagaan dhuftan! 🇪🇹
+<i>Gargaaraa AI fi Kutaalee 9-12 Itoophiyaa.</i>
 
-━━━━━━━━━━━━━━━━━━━━
-🔹 <b>Sadarkaa 1: Maaloo Kutaa Barnootaa Filadhaa</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━`,
+👇 <b>Kutaa Barnootaa Filadhaa:</b>`,
 
     welcome_back: (name, phone, grade, refCount = 0, points = 0, group = '@SmartX_Discussion') => `👋 <b>Baga nagaan deebitan ${escapeHtml(name)}!</b> 🇪🇹
 
-✨ <b>Smart X Ethiopian (Smart X ET)</b> — Kutaalee 9-12
+• <b>Kutaa:</b> <b>${escapeHtml(grade)}</b> | <b>Bilbila:</b> <code>${escapeHtml(phone)}</code>
+• <b>Sadarkaa:</b> 💎 <b>VIP Access (100% Bilisa)</b>
+• <b>Affeeraman:</b> <code>${refCount}</code> (${points} pts)
 
-📋 <b>Odeeffannoo Keessan:</b>
-• 👤 <b>Maqaa:</b> ${escapeHtml(name)}
-• 📱 <b>Bilbila:</b> ${escapeHtml(phone)}
-• 🎓 <b>Kutaa:</b> ${escapeHtml(grade)}
-• 👥 <b>Hiriyoota Affeeraman:</b> <code>${refCount}</code> (${points} pts)
-• 💬 <b>Garee Marii:</b> ${escapeHtml(group)}
-• 💎 <b>Sadarkaa:</b> VIP Early Access (100% Bilisa)
+Tajaajila barbaaddan filadhaa ⬇️`,
 
-━━━━━━━━━━━━━━━━━━━━
-🔹 Tajaajila barbaaddan filadhaa ⬇️`,
+    channel_verify_step: (grade, group = '@SmartX_Discussion') => `✅ Kutaa: <b>${escapeHtml(grade)}</b>
 
-    channel_verify_step: (grade, group = '@SmartX_Discussion') => `━━━━━━━━━━━━━━━━━━━━
-📢 <b>Sadarkaa 2: Garee Marii Mirkaneessuu</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━
-✅ Kutaa Filatame: <b>${escapeHtml(grade)}</b>
+📢 <b>Garee Marii:</b>
+Appii kana 100% bilisaan argachuuf <b>${escapeHtml(group)}</b> makamaa, sana booda <b>«✅ Mirkaneessi»</b> cuqqasaa.`,
 
-➔ Sadarkaa itti aanutti darbuuf fi appii kana 100% bilisaan argachuuf garee marii keenya (${escapeHtml(group)}) makamaa!`,
+    phone_request_step: `✅ Gareen marii mirkanaa'eera!
 
-    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
-📱 <b>Sadarkaa 3: Lakk. Bilbilaa Mirkaneessuu</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━
-🎉 Gareen marii keessan mirkanaa'eera!
+📱 <b>Lakk. Bilbilaa:</b>
+Galmee xumuruuf lakk. bilbilaa keessan nuuf ergaa:`,
 
-Galmee xumuruuf maaloo lakk. bilbilaa keessan nuuf ergaa:`,
+    reg_success: (name, phone, grade, group = '@SmartX_Discussion') => `🎉 <b>Galmeen keessan xumurameera!</b> 🚀
 
-    reg_success: (name, phone, grade, group = '@SmartX_Discussion') => `🎉 <b>Baga gammaddan! Galmeen keessan xumurameera!</b> 🚀
+• <b>Maqaa:</b> ${escapeHtml(name)}
+• <b>Kutaa:</b> <b>${escapeHtml(grade)}</b>
+• <b>Sadarkaa:</b> 💎 <b>100% Bilisa (VIP Access)</b>
 
-📋 <b>Odeeffannoo:</b>
-• 👤 <b>Maqaa:</b> ${escapeHtml(name)}
-• 📱 <b>Bilbila:</b> ${escapeHtml(phone)}
-• 🎓 <b>Kutaa:</b> ${escapeHtml(grade)}
-• 💬 <b>Garee Marii:</b> ✅ Mirkanaa'e (${escapeHtml(group)})
-• 💎 <b>Sadarkaa:</b> 100% Bilisa (VIP Access)`,
+Tajaajila filadhaa ⬇️`,
 
     menu: [
       ['🤖 Smart X AI Assistant', '📲 Download App'],
@@ -303,55 +271,42 @@ Galmee xumuruuf maaloo lakk. bilbilaa keessan nuuf ergaa:`,
 
 👉 Appiin kun dhihootti (Fulbaana 5) yeroo gadhiifamu liankiin buufataa kallattii fi faayiliin .apk botii kanaan isiniif ergama. Maaloo obsaan nu eegaa! 🚀`,
 
-    ai_intro: `🤖 <b>Smart X AI Assistant (HAB IT Solutions)</b>\n\nAkkam! Gaaffii barnootaa kutaalee 9-12 kamiyyuu na gaafachuu dandeessu! ⬇️`
+    ai_intro: `🤖 <b>Smart X AI Assistant</b> 💡\n\nGaaffii barnootaa kutaalee 9-12 kamiyyuu na gaafachuu dandeessu! ⬇️`
   },
 
   en: {
-    welcome_start: (name) => `👋 <b>Hello ${escapeHtml(name)}! Welcome to Smart X Ethiopian (Smart X ET)!</b> 🇪🇹
+    welcome_start: (name) => `👋 <b>Hello ${escapeHtml(name)}!</b>
 
-✨ AI Study Assistant & Practice Exam Platform for Ethiopian Grade 9-12 New Curriculum.
+Welcome to <b>Smart X Ethiopian</b>! 🇪🇹
+<i>AI Study Assistant & Practice Platform for Grades 9-12.</i>
 
-━━━━━━━━━━━━━━━━━━━━
-🔹 <b>Step 1: Please select your Grade level</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━`,
+👇 <b>Select your Grade level:</b>`,
 
     welcome_back: (name, phone, grade, refCount = 0, points = 0, group = '@SmartX_Discussion') => `👋 <b>Welcome Back, ${escapeHtml(name)}!</b> 🇪🇹
 
-✨ <b>Smart X Ethiopian (Smart X ET)</b> — High School Educational Hub
+• <b>Grade:</b> <b>${escapeHtml(grade)}</b> | <b>Phone:</b> <code>${escapeHtml(phone)}</code>
+• <b>Status:</b> 💎 <b>100% Free VIP Access</b>
+• <b>Referrals:</b> <code>${refCount}</code> (${points} pts)
 
-📋 <b>Your Registration:</b>
-• 👤 <b>Name:</b> ${escapeHtml(name)}
-• 📱 <b>Phone:</b> ${escapeHtml(phone)}
-• 🎓 <b>Grade:</b> ${escapeHtml(grade)}
-• 👥 <b>Referred Friends:</b> <code>${refCount}</code> (${points} pts)
-• 💬 <b>Discussion:</b> ${escapeHtml(group)}
-• 💎 <b>Status:</b> VIP Early Access (100% Free)
+Choose an option below ⬇️`,
 
-━━━━━━━━━━━━━━━━━━━━
-🔹 Choose a feature below ⬇️`,
+    channel_verify_step: (grade, group = '@SmartX_Discussion') => `✅ Grade: <b>${escapeHtml(grade)}</b>
 
-    channel_verify_step: (grade, group = '@SmartX_Discussion') => `━━━━━━━━━━━━━━━━━━━━
-📢 <b>Step 2: Mandatory Discussion Group Verification</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━
-✅ Selected Grade: <b>${escapeHtml(grade)}</b>
+📢 <b>Discussion Group:</b>
+Join <b>${escapeHtml(group)}</b> for 100% FREE access, then click <b>«✅ Verify»</b>.`,
 
-➔ To proceed and unlock 100% FREE VIP early access, please join our official discussion group (${escapeHtml(group)})!`,
+    phone_request_step: `✅ Discussion group verified!
 
-    phone_request_step: `━━━━━━━━━━━━━━━━━━━━
-📱 <b>Step 3: Phone Number Verification</b> ⬇️
-━━━━━━━━━━━━━━━━━━━━
-🎉 Discussion group membership verified!
+📱 <b>Phone Verification:</b>
+Please share or enter your phone number to complete registration:`,
 
-Please share or enter your phone number to complete pre-registration:`,
+    reg_success: (name, phone, grade, group = '@SmartX_Discussion') => `🎉 <b>Registration Completed!</b> 🚀
 
-    reg_success: (name, phone, grade, group = '@SmartX_Discussion') => `🎉 <b>Congratulations! Pre-Registration Completed!</b> 🚀
+• <b>Name:</b> ${escapeHtml(name)}
+• <b>Grade:</b> <b>${escapeHtml(grade)}</b>
+• <b>Status:</b> 💎 <b>100% Free VIP Pre-Registered</b>
 
-📋 <b>Registration Summary:</b>
-• 👤 <b>Name:</b> ${escapeHtml(name)}
-• 📱 <b>Phone:</b> ${escapeHtml(phone)}
-• 🎓 <b>Grade:</b> ${escapeHtml(grade)}
-• 💬 <b>Group:</b> ✅ Verified (${escapeHtml(group)})
-• 💎 <b>Status:</b> 100% Free VIP Pre-Registered`,
+Select a service below ⬇️`,
 
     menu: [
       ['🤖 Smart X AI Assistant', '📲 Download App'],
@@ -362,7 +317,7 @@ Please share or enter your phone number to complete pre-registration:`,
 
 👉 When the app is launched soon (September / Meskerem 5), the direct download link and .apk file will be sent directly in this bot. Please stay tuned! 🚀`,
 
-    ai_intro: `🤖 <b>Smart X AI Assistant (HAB IT Solutions)</b>\n\nHello! I am your AI Study Assistant. Ask me any Grade 9-12 curriculum question! ⬇️`
+    ai_intro: `🤖 <b>Smart X AI Assistant</b> 💡\n\nAsk me any Grade 9-12 curriculum question! ⬇️`
   }
 };
 
@@ -1407,35 +1362,26 @@ ${isVip ? '✨ <b>እንኳን ደስ አለዎት! 5+ ጓደኞችን በመጋ
           const refCount = user?.referral_count || 0;
           const points = user?.points || 0;
           const isVip = user?.is_vip === 1 || refCount >= 5;
-          const regDate = user?.registered_at ? new Date(user.registered_at).toLocaleDateString() : 'Just now';
-
-          const officialChannel = await getDynamicConfig(env, 'official_channel', '@SmartXEthiopia');
-          const discussionGroup = await getDynamicConfig(env, 'required_channel', '@SmartX_Discussion');
 
           const profileText =
-`👤 <b>የተጠቃሚ መረጃ (My Profile)</b> 🇪🇹
+`👤 <b>የእርስዎ መረጃ (My Profile)</b> 🇪🇹
 
-━━━━━━━━━━━━━━━━━━━━
-• 👤 <b>ስም:</b> ${escapeHtml(name)}
-• 📱 <b>ስልክ:</b> ${escapeHtml(phone)}
-• 🎓 <b>የትምህርት ክፍል:</b> ${escapeHtml(grade)}
-• 👥 <b>የተጋበዙ ጓደኞች:</b> <code>${refCount}</code> ተማሪዎች
-• 🎁 <b>የተጠራቀሙ ነጥቦች:</b> <code>${points} Points</code>
-• 💎 <b>የአባልነት ደረጃ:</b> ${isVip ? '💎 <b>VIP Master Pass (Active)</b>' : `🥉 Standard (${refCount}/5 ወደ VIP Pass)`}
-• 📢 <b>ኦፊሴላዊ ቻናል:</b> ✅ ${escapeHtml(officialChannel)}
-• 💬 <b>የውይይት ግሩፕ:</b> ✅ ${escapeHtml(discussionGroup)}
-• 📅 <b>የተመዘገቡበት ቀን:</b> ${escapeHtml(regDate)}
-━━━━━━━━━━━━━━━━━━━━
-🔗 <b>የእርስዎ መጋበዣ ሊንክ:</b>
+• <b>ስም:</b> ${escapeHtml(name)}
+• <b>ስልክ:</b> <code>${escapeHtml(phone)}</code>
+• <b>ክፍል:</b> <b>${escapeHtml(grade)}</b>
+• <b>የተጋበዙ:</b> <code>${refCount}</code> ተማሪዎች (${points} pts)
+• <b>ደረጃ:</b> ${isVip ? '💎 <b>VIP Master Pass (100% Free)</b>' : '🌟 <b>VIP Early Access (100% Free)</b>'}
+
+🔗 <b>የመጋበዣ ሊንክ:</b>
 <code>https://t.me/${botUsername}?start=ref_${userId}</code>`;
 
           const shareUrl = `https://t.me/share/url?url=https://t.me/${botUsername}?start=ref_${userId}&text=${encodeURIComponent('🔥 ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ 100% ነፃ የ AI ትምህርት እና የ 10,000+ ጥያቄዎች መተግበሪያ! አሁኑኑ ይመዝገቡ!')}`;
 
           const profileKeyboard = Markup.inlineKeyboard([
-            [Markup.button.url('📲 ጓደኞችን ጋብዝ (Share Link)', shareUrl)],
+            [Markup.button.url('📲 ሊንክ አጋራ (Share Link)', shareUrl)],
             [
-              Markup.button.callback('✏️ ክፍል ቀይር / Change Grade', 'change_grade_action'),
-              Markup.button.callback('🔄 መረጃ አዘምን / Update', 'start_reregister')
+              Markup.button.callback('✏️ ክፍል ቀይር', 'change_grade_action'),
+              Markup.button.callback('🔄 አዘምን', 'start_reregister')
             ]
           ]);
 
@@ -1518,27 +1464,18 @@ ${isVip ? '✨ <b>እንኳን ደስ አለዎት! 5+ ጓደኞችን በመጋ
           const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent('🔥 ለ 9-12ኛ ክፍል ተማሪዎች የተዘጋጀ 100% ነፃ የ AI ትምህርት እና የ 10,000+ ጥያቄዎች መተግበሪያ! አሁኑኑ ይመዝገቡ!')}`;
 
           const shareText =
-`🔗 <b>ጓደኞችዎን ይጋብዙ — Smart X Ethiopian</b> 🇪🇹
+`🔗 <b>ጓደኞችን ጋብዝ — Smart X Ethiopian</b> 🇪🇹
 
-━━━━━━━━━━━━━━━━━━━━
-የእርስዎን ልዩ የግብዣ ሊንክ ለክፍል ጓደኞችዎ ወይም በቴሌግራም ግሩፖች በማጋራት አብረው ይማሩ እና ነጥብ ይሰብስቡ!
+• <b>የተጋበዙ:</b> <code>${refCount}</code> ተማሪዎች
+• <b>ነጥቦች:</b> <code>${points} pts</code> (+10 / ሰው)
+• <b>ደረጃ:</b> ${isVip ? '💎 <b>VIP Pass Activated</b>' : `🥉 ${refCount}/5 ወደ VIP Pass`}
 
-🎁 <b>የእርስዎ የመጋበዣ ሊንክ:</b>
-<code>${shareLink}</code>
-
-📊 <b>የእርስዎ የጥቆማ ስታቲስቲክስ:</b>
-• 👥 <b>የተጋበዙ ጓደኞች:</b> <code>${refCount}</code> ተማሪዎች
-• 🎁 <b>የተገኙ ነጥቦች:</b> <code>${points} Points</code> (+10 pts / ሰው)
-• 💎 <b>የሽልማት ደረጃ:</b> ${isVip ? '💎 <b>VIP Pass Activated (100% Free)</b>' : `🥉 ${refCount}/5 ጓደኞች (5 ሲደርስ VIP Pass ይከፈታል)`}
-
-🏆 <b>የጥቆማ ሽልማቶች:</b>
-1. <b>1 ሰው ሲጋብዙ:</b> +10 Points
-2. <b>5 ሰዎች ሲጋብዙ:</b> የ 100% ነፃ የ VIP Pass ሙሉ የፈተና እና ማጠቃለያ መዳረሻ!
-━━━━━━━━━━━━━━━━━━━━`;
+🎁 <b>የመጋበዣ ሊንክ:</b>
+<code>${shareLink}</code>`;
 
           const shareKeyboard = Markup.inlineKeyboard([
-            [Markup.button.url('📲 አሁኑኑ ለጓደኞች አጋራ (Share Now)', shareUrl)],
-            [Markup.button.callback('👤 የእኔን ፕሮፋይል እይ', 'view_my_profile_callback')]
+            [Markup.button.url('📲 ለጓደኞች አጋራ (Share Now)', shareUrl)],
+            [Markup.button.callback('👤 የእኔን መረጃ እይ', 'view_my_profile_callback')]
           ]);
 
           return sendCleanMessage(ctx, shareText, {
@@ -1742,9 +1679,6 @@ _ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ 
                   [
                     { text: '🚀 Pre-Register Now (አሁኑኑ ይመዝገቡ)', url: inviteDeepLink },
                     { text: '🤖 AI Assistant (የ AI ጥያቄ)', url: aiDeepLink }
-                  ],
-                  [
-                    { text: '📢 Official Channel', url: channelUrl }
                   ]
                 ]
               }
@@ -1765,9 +1699,6 @@ _ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ 
                   [
                     { text: '🤖 Ask AI Assistant Now', url: aiDeepLink },
                     { text: '🚀 Pre-Register Free', url: inviteDeepLink }
-                  ],
-                  [
-                    { text: '📢 Official Channel', url: channelUrl }
                   ]
                 ]
               }
@@ -1788,9 +1719,6 @@ _ለኢትዮጵያ 9-12ኛ ክፍል ብሔራዊ ፈተናዎች ከፍተኛ 
                   [
                     { text: '🚀 Pre-Register Now', url: inviteDeepLink },
                     { text: '🤖 AI Assistant', url: aiDeepLink }
-                  ],
-                  [
-                    { text: '📢 Official Channel', url: channelUrl }
                   ]
                 ]
               }
