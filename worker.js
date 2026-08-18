@@ -1030,7 +1030,14 @@ async function seedKnowledgeBase(db) {
 // Clean message sender using HTML parse mode by default and deleting prior message
 async function sendCleanMessage(ctx, text, extra = {}) {
   const chatId = ctx.chat?.id;
-  if (!chatId) return ctx.reply(text, { parse_mode: 'HTML', ...extra });
+  if (!chatId) {
+    try {
+      return await ctx.reply(text, { parse_mode: 'HTML', ...extra });
+    } catch (err) {
+      console.warn('[sendCleanMessage fallback error]:', err.message);
+      return null;
+    }
+  }
 
   if (lastBotMessages[chatId]) {
     try {
@@ -1040,11 +1047,16 @@ async function sendCleanMessage(ctx, text, extra = {}) {
     }
   }
 
-  const sentMsg = await ctx.reply(text, { parse_mode: 'HTML', ...extra });
-  if (sentMsg?.message_id) {
-    lastBotMessages[chatId] = sentMsg.message_id;
+  try {
+    const sentMsg = await ctx.reply(text, { parse_mode: 'HTML', ...extra });
+    if (sentMsg?.message_id) {
+      lastBotMessages[chatId] = sentMsg.message_id;
+    }
+    return sentMsg;
+  } catch (err) {
+    console.warn('[sendCleanMessage error]:', err.message);
+    return null;
   }
-  return sentMsg;
 }
 
 export default {
@@ -1053,6 +1065,9 @@ export default {
     if (!apiKey || !env.DB) return;
 
     const bot = new Telegraf(apiKey);
+    bot.catch((err) => {
+      console.warn('[Telegraf Scheduled Global Catch]:', err?.message || err);
+    });
     ctx.waitUntil(processBroadcastQueueBatch(bot, env, 25));
   },
 
@@ -1063,6 +1078,9 @@ export default {
     }
 
     const bot = new Telegraf(apiKey);
+    bot.catch((err) => {
+      console.warn('[Telegraf Worker Global Catch]:', err?.message || err);
+    });
     const url = new URL(request.url);
 
     if (env.DB) {
@@ -1072,10 +1090,14 @@ export default {
     if (url.pathname === '/register') {
       try {
         const webhookUrl = `${url.origin}/webhook`;
+        if (apiKey.startsWith('SIMULATOR_') || apiKey.startsWith('YOUR_')) {
+          return new Response(`Notice: Bot token is in simulator/demo mode. Live webhook registration at Telegram skipped.`, { status: 200 });
+        }
         await bot.telegram.setWebhook(webhookUrl);
         return new Response(`Webhook successfully registered at: ${webhookUrl}`, { status: 200 });
       } catch (err) {
-        return new Response(`Registration Failed: ${err.message}`, { status: 500 });
+        console.warn('Webhook Registration Warning:', err.message);
+        return new Response(`Registration Notice: ${err.message}`, { status: 200 });
       }
     }
 
@@ -1166,7 +1188,7 @@ export default {
 
         // --- Step 0 Action: Diagnostic Psychology Response -> Step 1: Grade Selection ---
         bot.action(['diag_answer_yes', 'diag_answer_no'], async (ctx) => {
-          await ctx.answerCbQuery();
+          await ctx.answerCbQuery().catch(() => {});
           const isYes = ctx.callbackQuery.data === 'diag_answer_yes';
           const chatId = ctx.chat.id;
           const userId = ctx.from.id;
@@ -1218,7 +1240,7 @@ export default {
           userStates[chatId].data.grade = grade;
           userStates[chatId].data.fullName = ctx.from?.first_name ? `${ctx.from.first_name} ${ctx.from?.last_name || ''}`.trim() : 'ተማሪ';
 
-          await ctx.answerCbQuery(`ክፍል ${gradeNum} ተመርጧል! ✅`);
+          await ctx.answerCbQuery(`ክፍል ${gradeNum} ተመርጧል! ✅`).catch(() => {});
 
           // Verify if already a member of the required group
           const isMember = await checkDiscussionGroupMember(ctx, userId, env);
