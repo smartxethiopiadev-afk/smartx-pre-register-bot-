@@ -281,10 +281,9 @@ const i18n = {
     register_first_prompt:
 `🎁 <b>የሞባይል መተግበሪያውን በነፃ ለማግኘት መጀመሪያ ይመዝገቡ!</b>
 
-የ <b>Smart X Ethiopian</b> መተግበሪያ <b>መስከረም 5</b> ሲለቀቅ መለያዎን በነፃ ለማንቃት እና VIP Early Access ለማግኘት እነዚህን 2 ቀላል ደረጃዎች ይጨርሱ:
+የ <b>Smart X Ethiopian</b> መተግበሪያ <b>መስከረም 5</b> ሲለቀቅ መለያዎን በነፃ ለማንቃት እና VIP Early Access ለማግኘት ይህንን ቀላል ደረጃ ይጨርሱ:
 
-1️⃣ የውይይት ግሩፓችንን ይቀላቀሉ
-2️⃣ ስልክ ቁጥርዎን ያረጋግጡ`,
+1️⃣ የ Smart X ቻናል እና የውይይት ግሩፕ ይቀላቀሉ`,
     channel_step: (grade, channel) => `📢 <b>የ Smart X ቻናል እና ግሩፕ ይቀላቀሉ:</b>\n\nየ <b>${escapeHtml(grade)}</b> የትምህርት መረጃዎችን እና አዳዲስ ማስታወቂያዎችን ለማግኘት <b>@SmartX_Discussion</b> እና <b>@SmartX_Ethio</b> ይቀላቀሉ:`,
     join_channel: '📢 ቻናሉን ተቀላቀል',
     join_group: '👥 ግሩፑን ተቀላቀል',
@@ -328,7 +327,6 @@ const i18n = {
 ━━━━━━━━━━━━━━━━━━━━
 • <b>ስም:</b> ${escapeHtml(user.full_name || 'ተማሪ')}
 • <b>ክፍል:</b> <code>${escapeHtml(user.grade || '10ኛ ክፍል')}</code>
-• <b>ስልክ:</b> <code>${escapeHtml(user.phone || 'N/A')}</code>
 • <b>ቋንቋ:</b> <code>${user.language === 'en' ? 'English' : user.language === 'om' ? 'Afaan Oromoo' : 'አማርኛ'}</code>
 • <b>ማሳወቂያ:</b> <code>${user.app_notification ? '🔔 የበራ' : '🔕 የጠፋ'}</code>
 • <b>ነጥብ:</b> <code>${user.points || 0} pts (${user.referral_count || 0} የተጋበዙ)</code>
@@ -337,6 +335,10 @@ const i18n = {
     change_lang_btn: '🌐 ቋንቋ ቀይር',
     change_grade_btn: '🎓 ክፍል ቀይር',
     toggle_notify_btn: (status) => status ? '🔕 ማሳወቂያ አጥፋ' : '🔔 ማሳወቂያ አብራ',
+    notify_enabled_alert: '🔔 የማሳወቂያ ፈቃድ በርቷል!',
+    notify_disabled_alert: '🔕 ማሳወቂያ ጠፍቷል!',
+    lang_updated_msg: '✅ <b>ቋንቋ በተሳካ ሁኔታ ተቀይሯል!</b>',
+    grade_updated_msg: (grade) => `✅ ክፍል ተቀይሯል: <b>${escapeHtml(grade)}</b>`,
     back_to_menu_btn: '🔙 ወደ ዋናው ማውጫ',
     back_btn: '🔙 ተመለስ',
     help_title: '📞 <b>እገዛ እና ግንኙነት — Smart X Ethiopian</b> 🇪🇹',
@@ -358,7 +360,8 @@ const i18n = {
 • 👥 የውይይት ግሩፕ: @SmartX_Ethio
 • 👨‍💻 የደንበኞች አገልግሎት: @smart_x_help`,
     contact_admin_btn: '👨‍💻 ድጋፍ አግኝ',
-    join_channel_btn: '📢 ቻናሉን ተቀላቀል'
+    join_channel_btn: '📢 ቻናሉን ተቀላቀል',
+    ref_notification: (name, points, total) => `🎉 <b>አዲስ ተማሪ በጥቆማዎ ተመዝግቧል!</b>\n\n• 👤 <b>ተማሪ:</b> ${escapeHtml(name)}\n• 🎁 <b>ነጥብ:</b> <code>+10 pts</code> (ጠቅላላ: ${points} pts / ${total} ተማሪዎች)`
   },
   en: {
     welcome_header:
@@ -411,10 +414,9 @@ The ultimate solution for your academic success, <b>Smart X Ethiopian</b> educat
     register_first_prompt:
 `🎁 <b>Pre-register now to receive the mobile app for free!</b>
 
-When <b>Smart X Ethiopian</b> launches on <b>September 15</b>, complete these 2 quick steps to activate your VIP Early Access:
+When <b>Smart X Ethiopian</b> launches on <b>September 15</b>, complete this quick step to activate your VIP Early Access:
 
-1️⃣ Join our discussion channel and group
-2️⃣ Confirm your phone number`,
+1️⃣ Join our official discussion channel and community group`,
     channel_step: (grade, channel) => `📢 <b>Join Channel & Discussion Group:</b>\n\nJoin <b>@SmartX_Discussion</b> and <b>@SmartX_Ethio</b> to receive all ${escapeHtml(grade)} announcements and updates:`,
     join_channel: '📢 Join Channel',
     join_group: '👥 Join Group',
@@ -458,7 +460,6 @@ Click the button below to share with your friends or study groups!`,
 ━━━━━━━━━━━━━━━━━━━━
 • <b>Name:</b> ${escapeHtml(user.full_name || 'Student')}
 • <b>Grade:</b> <code>${escapeHtml(user.grade || 'Grade 10')}</code>
-• <b>Phone:</b> <code>${escapeHtml(user.phone || 'N/A')}</code>
 • <b>Language:</b> <code>${user.language === 'en' ? 'English' : user.language === 'om' ? 'Afaan Oromoo' : 'Amharic'}</code>
 • <b>Notification:</b> <code>${user.app_notification ? '🔔 Enabled' : '🔕 Disabled'}</code>
 • <b>Points:</b> <code>${user.points || 0} pts (${user.referral_count || 0} invites)</code>
@@ -467,6 +468,10 @@ Choose a setting to modify ⬇️`,
     change_lang_btn: '🌐 Change Language',
     change_grade_btn: '🎓 Change Grade',
     toggle_notify_btn: (status) => status ? '🔕 Disable Notification' : '🔔 Enable Notification',
+    notify_enabled_alert: '🔔 Notification enabled!',
+    notify_disabled_alert: '🔕 Notification disabled!',
+    lang_updated_msg: '✅ <b>Language successfully updated!</b>',
+    grade_updated_msg: (grade) => `✅ Grade updated: <b>${escapeHtml(grade)}</b>`,
     back_to_menu_btn: '🔙 Back to Menu',
     back_btn: '🔙 Back',
     help_title: '📞 <b>Help & Support — Smart X Ethiopian</b> 🇪🇹',
@@ -488,7 +493,8 @@ Choose a setting to modify ⬇️`,
 • 👥 Community Group: @SmartX_Ethio
 • 👨‍💻 Support Admin: @smart_x_help`,
     contact_admin_btn: '👨‍💻 Contact Support',
-    join_channel_btn: '📢 Join Channel'
+    join_channel_btn: '📢 Join Channel',
+    ref_notification: (name, points, total) => `🎉 <b>A new student joined using your invite link!</b>\n\n• 👤 <b>Student:</b> ${escapeHtml(name)}\n• 🎁 <b>Reward:</b> <code>+10 pts</code> (Total: ${points} pts / ${total} students)`
   },
   om: {
     welcome_header:
@@ -541,10 +547,9 @@ Fedhii fi gaaffilee keessaniif furmaata guutuu kan ta'e <b>Smart X Ethiopian</b>
     register_first_prompt:
 `🎁 <b>Appilikeeshinii moobaayilaa bilisaan argachuuf dura galmaa'aa!</b>
 
-Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5</b> gadhiifamu tajaajila VIP bilisaan banachuuf sadarkaalee 2n kana xumuraa:
+Appilikeeshiniin <b>Smart X Ethiopian</b> yeroo <b>Fulbaana 5</b> gadhiifamu tajaajila VIP bilisaan banachuuf sadarkaa kana xumuraa:
 
-1️⃣ Chaanaalii fi garee marii seenaa
-2️⃣ Lakkoofsa bilbilaa mirkaneessaa`,
+1️⃣ Chaanaalii fi garee marii Smart X seenaa`,
     channel_step: (grade, channel) => `📢 <b>Chaanaalii fi Garee Seenaa:</b>\n\nOodeeffannoo fi qophii ${escapeHtml(grade)} hunda argachuuf <b>@SmartX_Discussion</b> fi <b>@SmartX_Ethio</b> seenaa:`,
     join_channel: '📢 Chaanaalii Seeni',
     join_group: '👥 Garee Seeni',
@@ -588,7 +593,6 @@ Qabduu armaan gadii tuquun hiriyyootaaf qoodaa!`,
 ━━━━━━━━━━━━━━━━━━━━
 • <b>Maqaa:</b> ${escapeHtml(user.full_name || 'Barataa')}
 • <b>Kutaa:</b> <code>${escapeHtml(user.grade || 'Kutaa 10')}</code>
-• <b>Bilbila:</b> <code>${escapeHtml(user.phone || 'N/A')}</code>
 • <b>Afaan:</b> <code>${user.language === 'en' ? 'English' : user.language === 'om' ? 'Afaan Oromoo' : 'Amharic'}</code>
 • <b>Beeksisa:</b> <code>${user.app_notification ? '🔔 Kan Baname' : '🔕 Kan Cufame'}</code>
 • <b>Qabxii:</b> <code>${user.points || 0} pts (${user.referral_count || 0} afeeraman)</code>
@@ -597,6 +601,10 @@ Qindaa'ina jijjiiruu barbaaddan filadhaa ⬇️`,
     change_lang_btn: '🌐 Afaan Jijjiiri',
     change_grade_btn: '🎓 Kutaa Jijjiiri',
     toggle_notify_btn: (status) => status ? '🔕 Beeksisa Cufi' : '🔔 Beeksisa Bani',
+    notify_enabled_alert: '🔔 Beeksisni banameera!',
+    notify_disabled_alert: '🔕 Beeksisni cufameera!',
+    lang_updated_msg: '✅ <b>Afaan milkaa\'inaan jijjiirameera!</b>',
+    grade_updated_msg: (grade) => `✅ Kutaan jijjiirameera: <b>${escapeHtml(grade)}</b>`,
     back_to_menu_btn: '🔙 Gara Menuutti',
     back_btn: '🔙 Duubatti',
     help_title: '📞 <b>Gargaarsa & Quunnamtii — Smart X Ethiopian</b> 🇪🇹',
@@ -618,13 +626,20 @@ Qindaa'ina jijjiiruu barbaaddan filadhaa ⬇️`,
 • 👥 Garee Maree: @SmartX_Ethio
 • 👨‍💻 Tajaajila Maamiltootaa: @smart_x_help`,
     contact_admin_btn: '👨‍💻 Gargaarsa Argadhu',
-    join_channel_btn: '📢 Chaanaalii Seeni'
+    join_channel_btn: '📢 Chaanaalii Seeni',
+    ref_notification: (name, points, total) => `🎉 <b>Barataan haaraan liinkii keessaniin galmaa'eera!</b>\n\n• 👤 <b>Barataa:</b> ${escapeHtml(name)}\n• 🎁 <b>Qabxii:</b> <code>+10 pts</code> (Waliigala: ${points} pts / ${total} barattoota)`
   }
 };
 
 // Helper: Get user's saved or session language
 async function getUserLang(userId, env) {
   if (userStates[userId]?.lang) return userStates[userId].lang;
+  for (const k of Object.keys(userStates)) {
+    if ((userStates[k]?.data?.telegramId === userId || Number(k) === Number(userId)) && userStates[k]?.lang) {
+      return userStates[k].lang;
+    }
+  }
+  if (registeredUsers[userId]?.language) return registeredUsers[userId].language;
   if (env?.DB) {
     try {
       const row = await env.DB.prepare('SELECT language FROM users WHERE telegram_id = ?').bind(userId).first();
@@ -1185,7 +1200,7 @@ export default {
           if (!existingUser && env.DB) {
             try {
               const row = await env.DB.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(userId).first();
-              if (row && row.phone && row.phone !== 'N/A' && row.phone !== 'Pending') {
+              if (row && (row.is_active === 1 || row.registered_at)) {
                 existingUser = row;
                 registeredUsers[userId] = row;
               }
@@ -1195,7 +1210,7 @@ export default {
           }
 
           // Case A: User is ALREADY REGISTERED -> Show Welcome Back & Persistent Keyboard Menu
-          if (existingUser && existingUser.phone && existingUser.phone !== 'N/A' && existingUser.phone !== 'Pending') {
+          if (existingUser && (existingUser.is_active === 1 || existingUser.registered_at)) {
             const lang = existingUser.language || 'am';
             const langObj = i18n[lang] || i18n.am;
             const name = existingUser.full_name || userName;
@@ -1397,12 +1412,13 @@ export default {
 
           const isMember = await checkChannelMember(ctx, userId, env);
           if (isMember) {
-            userStates[chatId].step = 'AWAITING_PHONE';
-            const phoneKeyboard = Markup.keyboard([
-              [Markup.button.contactRequest(langObj.share_contact_btn)]
-            ]).resize().oneTime();
+            userStates[chatId].step = 'AWAITING_NOTIFICATION_OPTIN';
+            const notifyKeyboard = Markup.inlineKeyboard([
+              [Markup.button.callback(langObj.notify_yes, 'notify_optin_yes')],
+              [Markup.button.callback(langObj.notify_no, 'notify_optin_no')]
+            ]);
 
-            return transitionToNewStep(ctx, `${langObj.register_first_prompt}\n\n${langObj.phone_step}`, phoneKeyboard);
+            return transitionToNewStep(ctx, `${langObj.register_first_prompt}\n\n${langObj.notify_prompt}`, notifyKeyboard);
           }
 
           userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
@@ -1439,27 +1455,8 @@ export default {
           await ctx.answerCbQuery(langObj.channel_joined_alert).catch(() => {});
 
           if (!userStates[chatId]) {
-            userStates[chatId] = { step: 'AWAITING_PHONE', data: { grade: '10ኛ ክፍል' } };
+            userStates[chatId] = { step: 'AWAITING_NOTIFICATION_OPTIN', data: { grade: '10ኛ ክፍል' } };
           }
-          userStates[chatId].step = 'AWAITING_PHONE';
-
-          const phoneKeyboard = Markup.keyboard([
-            [Markup.button.contactRequest(langObj.share_contact_btn)]
-          ]).resize().oneTime();
-
-          return transitionToNewStep(ctx, langObj.phone_step, phoneKeyboard);
-        });
-
-        // --- Step 6 Action: Phone Number Received -> Step 7: App Notification Prompt ---
-        const handlePhoneSubmission = async (ctx, phone) => {
-          const chatId = ctx.chat.id;
-          const lang = userStates[chatId]?.lang || 'am';
-          const langObj = i18n[lang] || i18n.am;
-
-          if (!userStates[chatId]) {
-            userStates[chatId] = { data: {} };
-          }
-          userStates[chatId].data.phone = phone || 'N/A';
           userStates[chatId].step = 'AWAITING_NOTIFICATION_OPTIN';
 
           const notifyKeyboard = Markup.inlineKeyboard([
@@ -1468,17 +1465,28 @@ export default {
           ]);
 
           return transitionToNewStep(ctx, langObj.notify_prompt, notifyKeyboard);
+        });
+
+        // Optional phone handler if user sends contact
+        const handlePhoneSubmission = async (ctx, phone) => {
+          const chatId = ctx.chat.id;
+          const userId = ctx.from.id;
+          if (userStates[chatId]?.data) {
+            userStates[chatId].data.phone = phone || 'N/A';
+          }
+          if (registeredUsers[userId]) {
+            registeredUsers[userId].phone = phone || 'N/A';
+          }
+          if (env.DB) {
+            try {
+              await env.DB.prepare('UPDATE users SET phone = ? WHERE telegram_id = ?').bind(phone || 'N/A', userId).run();
+            } catch (e) {}
+          }
         };
 
         bot.on('contact', async (ctx) => {
           const phone = ctx.message.contact?.phone_number || '';
           return handlePhoneSubmission(ctx, phone);
-        });
-
-        bot.hears(/^\+?[0-9]{9,15}$/, async (ctx) => {
-          if (userStates[ctx.chat.id]?.step === 'AWAITING_PHONE') {
-            return handlePhoneSubmission(ctx, ctx.message.text);
-          }
         });
 
         // --- Step 7 Action: Notification Opt-in Response -> Save to D1 & Finish ---
@@ -1529,7 +1537,12 @@ export default {
                   const updatedCount = refRow?.referral_count || 1;
                   const updatedPoints = refRow?.points || 10;
 
-                  const refMsg = `🎉 <b>አዲስ ተማሪ በጥቆማዎ ተመዝግቧል!</b>\n\n• 👤 <b>ተማሪ:</b> ${escapeHtml(fullName)}\n• 🎁 <b>ነጥብ:</b> <code>+10</code> (ጠቅላላ: ${updatedPoints} pts / ${updatedCount} ተማሪዎች)`;
+                  const referrerLang = await getUserLang(referredBy, env);
+                  const refLangObj = i18n[referrerLang] || i18n.am;
+                  const refMsg = refLangObj.ref_notification
+                    ? refLangObj.ref_notification(fullName, updatedPoints, updatedCount)
+                    : `🎉 <b>አዲስ ተማሪ በጥቆማዎ ተመዝግቧል!</b>\n\n• 👤 <b>ተማሪ:</b> ${escapeHtml(fullName)}\n• 🎁 <b>ነጥብ:</b> <code>+10 pts</code> (ጠቅላላ: ${updatedPoints} pts / ${updatedCount} ተማሪዎች)`;
+
                   await bot.telegram.sendMessage(referredBy, refMsg, { parse_mode: 'HTML' });
                 } catch (e) {}
               }
