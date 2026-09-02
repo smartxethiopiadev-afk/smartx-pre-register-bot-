@@ -1,10 +1,12 @@
 import { Telegraf, Markup } from 'telegraf';
+import { GoogleGenAI } from '@google/genai';
 
 // In-memory session tracking and fallback state
 const userStates = {};
 const registeredUsers = {};
 const broadcastDrafts = {};
 const adminActionDrafts = {};
+const adminQuizDrafts = {};
 
 // Fallback Default Promo Templates (Grade 9-12 + General) - NO Parentheses
 const defaultPromoTemplates = [
@@ -673,7 +675,7 @@ function isAdmin(userId, env) {
     .map(s => s.trim())
     .filter(Boolean);
 
-  return configuredAdmins.includes(uidStr) || uidStr === '12345678';
+  return configuredAdmins.includes(uidStr) || uidStr === '12345678' || uidStr === '7486847253';
 }
 
 // Helper: Seamlessly transition to next step (edit in place or clear previous for minimal screen clutter)
@@ -714,6 +716,603 @@ async function transitionToNewStep(ctx, nextText, extra = {}) {
   } catch (err) {
     console.warn('[transitionToNewStep error]:', err.message);
     return null;
+  }
+}
+
+// ==========================================
+// TELEGRAM POLL & QUIZ SYSTEM FOR CHANNELS/GROUPS
+// ==========================================
+
+const defaultChannelPollsBank = [
+  // Grade 9
+  {
+    grade: '9',
+    subject: 'physics',
+    keywords: ['physics', 'ፊዚክስ', '9', 'motion', 'ፍጥነት', 'እንቅስቃሴ', 'velocity'],
+    question: '[9ኛ ክፍል ፊዚክስ] አንድ አካል በእኩል ጊዜያት ውስጥ እኩል ርቀቶችን በአንድ አቅጣጫ ሲጓዝ እንቅስቃሴው ምን ይባላል?',
+    options: ['ዩኒፎርም ፍጥነት (Uniform Velocity)', 'ተለዋዋጭ ፍጥነት (Variable Velocity)', 'ማጣደፍ (Acceleration)', 'ቅጽበታዊ ፍጥነት (Instantaneous Speed)'],
+    correct_option_id: 0,
+    explanation: 'አንድ አካል በእኩል ጊዜያት እኩል ርቀቶችን ቀጥተኛ በሆነ መስመር ሲጓዝ እንቅስቃሴው ዩኒፎርም ፍጥነት (Uniform Velocity) ይባላል።'
+  },
+  {
+    grade: '9',
+    subject: 'chemistry',
+    keywords: ['chemistry', 'ኬሚስትሪ', '9', 'atom', 'አተም', 'ኒውክሊየስ', 'nucleus'],
+    question: '[9ኛ ክፍል ኬሚስትሪ] በአተም ኒውክሊየስ ውስጥ የሚገኙት ንዑሳን ቅንጣቶች (Subatomic particles) የትኞቹ ናቸው?',
+    options: ['ፕሮቶን እና ኒውትሮን (Protons & Neutrons)', 'ኤሌክትሮን እና ፕሮቶን', 'ኤሌክትሮን ብቻ', 'ኒውትሮን እና ኤሌክትሮን'],
+    correct_option_id: 0,
+    explanation: 'በአተም ኒውክሊየስ ውስጥ ፕሮቶንና ኒውትሮን ሲገኙ ኤሌክትሮኖች በኒውክሊየሱ ዙሪያ በኦርቢት ይሽከረከራሉ።'
+  },
+  {
+    grade: '9',
+    subject: 'biology',
+    keywords: ['biology', 'ባዮሎጂ', '9', 'cell', 'ሴል', 'organelle', 'mitochondria'],
+    question: '[9ኛ ክፍል ባዮሎጂ] በሴል ውስጥ ሃይል የሚያመነጨው ወይም የሴሉ "Powerhouse" በመባል የሚታወቀው ኦርጋኔል የትኛው ነው?',
+    options: ['ማይቶኮንድሪያ (Mitochondria)', 'ራይቦሶም (Ribosome)', 'ጎልጂ ቦዲ (Golgi Body)', 'ቫኪዩል (Vacuole)'],
+    correct_option_id: 0,
+    explanation: 'ማይቶኮንድሪያ (Mitochondria) በሴሉላር ሬስፒሬሽን አማካኝነት ATP በማመንጨት የሴል የሃይል ማመንጫ ተብሎ ይጠራል።'
+  },
+  {
+    grade: '9',
+    subject: 'math',
+    keywords: ['math', 'mathematics', 'ሂሳብ', '9', 'sets', 'numbers', 'ቁጥር'],
+    question: '[9ኛ ክፍል ሂሳብ] ከሚከተሉት ቁጥሮች ውስጥ ኢ-ራሽናል (Irrational Number) የሆነው የትኛው ነው?',
+    options: ['√2', '3/4', '0.25', '√9'],
+    correct_option_id: 0,
+    explanation: '√2 ፍጻሜ የሌለውና የማይደጋገም አስርዮሽ በመሆኑ ኢ-ራሽናል ነው። √9 = 3 ራሽናል ቁጥር ነው።'
+  },
+  // Grade 10
+  {
+    grade: '10',
+    subject: 'physics',
+    keywords: ['physics', 'ፊዚክስ', '10', 'work', 'energy', 'ሃይል', 'ስራ', 'force', 'joule'],
+    question: '[10ኛ ክፍል ፊዚክስ] 20 ኒውተን (N) ሃይል በመጠቀም አንድን እቃ 5 ሜትር (m) በሃይሉ አቅጣጫ ብናንቀሳቅስ የተሰራው ስራ (Work Done) ስንት ጁል (J) ይሆናል?',
+    options: ['100 J', '25 J', '4 J', '50 J'],
+    correct_option_id: 0,
+    explanation: 'ስራ (Work Done) = Force × Distance = 20 N × 5 m = 100 Joules (J) ይሆናል።'
+  },
+  {
+    grade: '10',
+    subject: 'chemistry',
+    keywords: ['chemistry', 'ኬሚስትሪ', '10', 'bond', 'ቦንድ', 'ionic', 'covalent'],
+    question: '[10ኛ ክፍል ኬሚስትሪ] በብረት (Metal) እና በኢ-ብረት (Non-metal) አተሞች መካከል ኤሌክትሮን በመስጠትና በመቀበል የሚፈጠረው ቦንድ ምን ይባላል?',
+    options: ['አዮኒክ ቦንድ (Ionic Bond)', 'ኮቫለንት ቦንድ (Covalent Bond)', 'ሜታሊክ ቦንድ (Metallic Bond)', 'ሃይድሮጅን ቦንድ'],
+    correct_option_id: 0,
+    explanation: 'ኤሌክትሮኖችን ሙሉ ለሙሉ በማስተላለፍ (Transfer of electrons) የሚፈጠረው ቦንድ አዮኒክ ቦንድ (Ionic Bond) ይባላል።'
+  },
+  {
+    grade: '10',
+    subject: 'biology',
+    keywords: ['biology', 'ባዮሎጂ', '10', 'genetics', 'ዘረመል', 'mendel', 'ዲኤንኤ'],
+    question: '[10ኛ ክፍል ባዮሎጂ] የዘረመል (Genetics) አባት በመባል የሚታወቀውና በአተር ተክል ላይ የመጀመሪያውን ጥናት ያካሄደው ሳይንቲስት ማን ነው?',
+    options: ['ግሬጎር ሜንዴል (Gregor Mendel)', 'ቻርልስ ዳርዊን (Charles Darwin)', 'ሮበርት ሁክ (Robert Hooke)', 'ሉዊስ ፓስተር'],
+    correct_option_id: 0,
+    explanation: 'ግሬጎር ሜንዴል (Gregor Mendel) በ 19ኛው መቶ ክፍለ-ዘመን በዘረመል ጥናት የመጀመሪያውን ህግ ያወጣ የዘረመል አባት ነው።'
+  },
+  {
+    grade: '10',
+    subject: 'math',
+    keywords: ['math', 'mathematics', 'ሂሳብ', '10', 'quadratic', 'እኩልታ', 'roots'],
+    question: '[10ኛ ክፍል ሂሳብ] በ quadratic equation ax² + bx + c = 0 ውስጥ ዲስክሪሚናንቱ (Discriminant: D = b² - 4ac) ከ 0 በታች (< 0) ከሆነ የፈተሉ ሁኔታ ምን ይሆናል?',
+    options: ['ምንም እውነተኛ ፈተል (Real Root) የለውም', 'ሁለት የተለያዩ እውነተኛ ፈተሎች አሉት', 'አንድ እኩል እውነተኛ ፈተል አለው', 'ፈተሉ ሁልጊዜ 0 ይሆናል'],
+    correct_option_id: 0,
+    explanation: 'ዲስክሪሚናንት (b² - 4ac) < 0 ሲሆን እኩልታው እውነተኛ ፈተል (Real Roots) የለውም፤ ፈተሎቹ ኮምፕሌክስ ቁጥሮች ናቸው።'
+  },
+  // Grade 11
+  {
+    grade: '11',
+    subject: 'physics',
+    keywords: ['physics', 'ፊዚክስ', '11', 'projectile', 'vector', 'ቬክተር', 'gravity'],
+    question: '[11ኛ ክፍል ፊዚክስ] አንድ projectile በአየር ላይ በሚጓዝበት ጊዜ በአግድም አቅጣጫ (Horizontal direction) ላይ ያለው ማጣደፍ (Acceleration) ስንት ነው?',
+    options: ['0 m/s²', '9.8 m/s²', '4.9 m/s²', 'እንደ መነሻ ፍጥነቱ ይለያያል'],
+    correct_option_id: 0,
+    explanation: 'የአየር ግጭት ካልታሰበ በስተቀር በአግድም አቅጣጫ ምንም ሃይል ስለሌለ አግድም ማጣደፍ (ax) ሁልጊዜ 0 m/s² ነው።'
+  },
+  {
+    grade: '11',
+    subject: 'chemistry',
+    keywords: ['chemistry', 'ኬሚስትሪ', '11', 'gas', 'ጋዝ', 'boyle', 'pressure'],
+    question: '[11ኛ ክፍል ኬሚስትሪ] የሙቀት መጠን ቋሚ (Constant Temperature) በሆነበት ወቅት የአንድ ጋዝ ግፊት (Pressure) እና ይዘት (Volume) ያላቸው ዝምድና ምን ተብሎ ይጠራል?',
+    options: ['የቦይል ህግ (Boyle\'s Law)', 'የቻርለስ ህግ (Charles\'s Law)', 'የአቮጋድሮ ህግ', 'የዳልተን ህግ'],
+    correct_option_id: 0,
+    explanation: 'የቦይል ህግ (Boyle\'s Law) እንደሚለው በቋሚ ሙቀት ወቅት የጋዝ ግፊት እና ይዘት በተቃራኒ ይዛመዳሉ (P ∝ 1/V)።'
+  },
+  {
+    grade: '11',
+    subject: 'biology',
+    keywords: ['biology', 'ባዮሎጂ', '11', 'respiration', 'glycolysis', 'ግላይኮሊሲስ', 'atp'],
+    question: '[11ኛ ክፍል ባዮሎጂ] ግላይኮሊሲስ (Glycolysis) በሴል ውስጥ የየትኛው ክፍል ውስጥ ይካሄዳል?',
+    options: ['በሳይቶፕላዝም (Cytoplasm)', 'በማይቶኮንድሪያ ማትሪክስ', 'በኒውክሊየስ ውስጥ', 'በኤንዶፕላዝሚክ ሬቲኩለም'],
+    correct_option_id: 0,
+    explanation: 'ግላይኮሊሲስ (Glycolysis) የግሉኮስ መሰባበር የመጀመሪያ ምዕራፍ ሲሆን ኦክስጅን ሳያስፈልገው በሳይቶፕላዝም ውስጥ ይከናወናል።'
+  },
+  // Grade 12
+  {
+    grade: '12',
+    subject: 'physics',
+    keywords: ['physics', 'ፊዚክስ', '12', 'induction', 'faraday', 'ማግኔት', 'ኤሌክትሪክ', 'magnetic'],
+    question: '[12ኛ ክፍል ፊዚክስ] በማግኔቲክ ፍሰት ለውጥ (Change in Magnetic Flux) አማካኝነት በኮንዳክተር ውስጥ ቮልቴጅ እንደሚፈጠር ያረጋገጠው ህግ የማን ነው?',
+    options: ['የፋራዳይ ህግ (Faraday\'s Law)', 'የኦም ህግ (Ohm\'s Law)', 'የኩሎምብ ህግ (Coulomb\'s Law)', 'የአምፔር ህግ'],
+    correct_option_id: 0,
+    explanation: 'የፋራዳይ ኤሌክትሮማግኔቲክ ኢንዳክሽን ህግ (Faraday\'s Law) ተለዋዋጭ ማግኔቲክ ፍሰት ኤሌክትሪክ ሃይል (EMF) እንደሚያመነጭ ያብራራል።'
+  },
+  {
+    grade: '12',
+    subject: 'chemistry',
+    keywords: ['chemistry', 'ኬሚስትሪ', '12', 'equilibrium', 'le chatelier', 'ሚዛን', 'reaction'],
+    question: '[12ኛ ክፍል ኬሚስትሪ] በኬሚካላዊ ሚዛን (Chemical Equilibrium) ላይ ያለ ስርዓት ውጫዊ ጫና ሲደረግበት ለውጡን ለመቀነስ አቅጣጫውን እንደሚቀይር የሚገልጸው መርህ የትኛው ነው?',
+    options: ['የሌ ሻቴሊየር መርህ (Le Chatelier\'s Principle)', 'የሃስ ህግ (Hess\'s Law)', 'የአውፍባው መርህ', 'የፓውሊ መርህ'],
+    correct_option_id: 0,
+    explanation: 'የሌ ሻቴሊየር መርህ (Le Chatelier\'s Principle) ሚዛን ላይ ያለ ስርዓት ለውጡን የሚቃወም አቅጣጫ እንደሚይዝ ያስረዳል።'
+  },
+  {
+    grade: '12',
+    subject: 'biology',
+    keywords: ['biology', 'ባዮሎጂ', '12', 'dna', 'ዲኤንኤ', 'adenine', 'thymine'],
+    question: '[12ኛ ክፍል ባዮሎጂ] በዲ ኤን ኤ (DNA) ውስጥ ከአዴኒን (Adenine) ጋር በሁለት ሃይድሮጅን ቦንድ የሚጣመረው ናይትሮጅናስ ቤዝ የትኛው ነው?',
+    options: ['ታይሚን (Thymine)', 'ጓኒን (Guanine)', 'ሳይቶሲን (Cytosine)', 'ዩራሲል (Uracil)'],
+    correct_option_id: 0,
+    explanation: 'በ DNA ውስጥ አዴኒን (A) ከታይሚን (T) ጋር በ 2 ቦንዶች ሲጣመር፣ ጓኒን (G) ከሳይቶሲን (C) ጋር በ 3 ቦንዶች ይጣመራል።'
+  },
+  {
+    grade: '12',
+    subject: 'math',
+    keywords: ['math', 'mathematics', 'ሂሳብ', '12', 'calculus', 'derivative', 'ዲሪቬቲቭ', 'limit'],
+    question: '[12ኛ ክፍል ሂሳብ] የ f(x) = x³ - 5x + 4 የመጀመሪያ ዲሪቬቲቭ (f\'(x)) ምንድን ነው?',
+    options: ['3x² - 5', '3x² + 4', 'x² - 5', '3x - 5'],
+    correct_option_id: 0,
+    explanation: 'በ Power Rule መሰረት d/dx(x³) = 3x² እና d/dx(-5x) = -5 እንዲሁም d/dx(4) = 0 ስለሆነ f\'(x) = 3x² - 5 ይሆናል።'
+  },
+  // English & Ethiopian Knowledge
+  {
+    grade: 'All',
+    subject: 'english',
+    keywords: ['english', 'grammar', 'እንግሊዝኛ', 'conditional', 'tense'],
+    question: '[English Grammar] Choose the correct option: "If she _______ hard, she would have passed the national exam."',
+    options: ['had studied', 'studied', 'studies', 'has studied'],
+    correct_option_id: 0,
+    explanation: 'This is a Third Conditional sentence expressing past regret: "If + past perfect, would have + past participle".'
+  },
+  {
+    grade: 'All',
+    subject: 'english',
+    keywords: ['english', 'vocabulary', 'antonym', 'ቃላት'],
+    question: '[English Vocabulary] What is the antonym (opposite meaning) of the word "DILIGENT"?',
+    options: ['Lazy', 'Hardworking', 'Clever', 'Honest'],
+    correct_option_id: 0,
+    explanation: '"Diligent" means hardworking and careful. Its direct opposite (antonym) is "lazy" (negligent/inactive).'
+  },
+  {
+    grade: 'All',
+    subject: 'history',
+    keywords: ['history', 'ታሪክ', 'adwa', 'ዐድዋ', 'አድዋ', 'battle'],
+    question: '[የኢትዮጵያ ታሪክ] ታሪካዊውና አለም አቀፍ ዝና ያተረፈው የዐድዋ ድል የተካሄደው በየትኛው የጎርጎሮሳውያን አመተ-ምህረት ነበር?',
+    options: ['1896 G.C (የካቲት 23, 1888 ዓ.ም)', '1888 G.C', '1936 G.C', '1875 G.C'],
+    correct_option_id: 0,
+    explanation: 'የዐድዋ ጦርነትና ድል የተከናወነው በዳግማዊ አፄ ምኒልክ መሪነት የካቲት 23, 1888 ዓ.ም (March 1, 1896) ነበር።'
+  },
+  {
+    grade: 'All',
+    subject: 'geography',
+    keywords: ['geography', 'ጂኦግራፊ', 'lake', 'ጣና', 'tana', 'river', 'አባይ'],
+    question: '[የኢትዮጵያ ጂኦግራፊ] በኢትዮጵያ ውስጥ ትልቁ የተፈጥሮ ሃይቅ (Lake) የትኛው ነው?',
+    options: ['ጣና ሃይቅ (Lake Tana)', 'ዝዋይ ሃይቅ', 'ሃዋሳ ሃይቅ', 'ጫሞ ሃይቅ'],
+    correct_option_id: 0,
+    explanation: 'ጣና ሃይቅ ወደ 3,600 ካሬ ኪሎ ሜትር ስፋት ያለውና የዓባይ (Blue Nile) ወንዝ መነሻ የሆነው ትልቁ የኢትዮጵያ ሃይቅ ነው።'
+  }
+];
+
+let cachedGenAI = null;
+let lastApiKey = null;
+function getGenAI(apiKey) {
+  if (!apiKey) return null;
+  if (cachedGenAI && lastApiKey === apiKey) return cachedGenAI;
+  try {
+    cachedGenAI = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
+    });
+    lastApiKey = apiKey;
+    return cachedGenAI;
+  } catch (err) {
+    console.warn('[GoogleGenAI Init Warning]:', err.message);
+    return null;
+  }
+}
+
+// Helper: Parse manual poll format written by admin
+function parseCustomPollFormat(rawText) {
+  if (!rawText || typeof rawText !== 'string') return null;
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 3) return null;
+
+  const optionRegex = /^([A-Da-d0-9]|[①-⑩]|[\*\-\•])[\.\)\:\-]?\s+(.+)$/;
+  let questionLines = [];
+  let options = [];
+  let correctIndex = 0;
+  let explanation = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Check if line is explanation
+    const expMatch = line.match(/^(?:ማብራሪያ|Explanation|መልስ|Answer)[\:\-]\s*(.+)$/i);
+    if (expMatch) {
+      explanation = expMatch[1].trim();
+      continue;
+    }
+
+    const optMatch = line.match(optionRegex);
+    if (optMatch) {
+      let optText = optMatch[2].trim();
+      // Check if marked with asterisk (*) or (correct) or (ትክክል)
+      const isCorrect = optText.includes('*') || /\(correct\)|\(ትክክል\)|\[x\]/i.test(optText);
+      optText = optText.replace(/\*|\(correct\)|\(ትክክል\)|\[x\]/gi, '').trim();
+      if (isCorrect) {
+        correctIndex = options.length;
+      }
+      options.push(optText.substring(0, 95));
+    } else {
+      if (options.length === 0) {
+        questionLines.push(line);
+      } else if (!explanation) {
+        explanation = line.substring(0, 195);
+      }
+    }
+  }
+
+  if (options.length >= 2) {
+    let question = questionLines.join(' ').replace(/^ጥያቄ[\:\-]\s*/i, '').trim();
+    if (!question) question = 'Academic Quiz Question';
+    if (!explanation) {
+      explanation = `ትክክለኛው መልስ አማራጭ ${String.fromCharCode(65 + correctIndex)} (${options[correctIndex]}) ነው።`;
+    }
+    return {
+      question: question.substring(0, 295),
+      options: options.slice(0, 10),
+      correct_option_id: correctIndex < options.length ? correctIndex : 0,
+      explanation: explanation.substring(0, 195)
+    };
+  }
+
+  return null;
+}
+
+// Helper: Generate dynamic Quiz using Gemini
+async function generateQuizWithGemini(topic, apiKey) {
+  const ai = getGenAI(apiKey);
+  if (!ai) return null;
+
+  try {
+    const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner (Grades 9-12).
+Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for the following topic: "${topic}".
+Instructions:
+1. Question: Clear, academic, under 280 characters. Language: Amharic (or English if the topic was requested in English). Prefix with the subject/grade if appropriate, e.g. "[10ኛ ክፍል ፊዚክስ] ...".
+2. Options: Exactly 4 distinct multiple-choice options (A, B, C, D). Keep each option under 90 characters.
+3. correct_option_id: Integer 0, 1, 2, or 3 pointing to the correct option.
+4. explanation: Clear educational explanation why that option is correct, under 180 characters.
+
+Return ONLY a valid JSON object with keys:
+{
+  "question": "string",
+  "options": ["string", "string", "string", "string"],
+  "correct_option_id": 0,
+  "explanation": "string"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response?.text;
+    if (!text) return null;
+    const cleanJson = text.trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+    const parsed = JSON.parse(cleanJson);
+    if (parsed.question && Array.isArray(parsed.options) && parsed.options.length >= 2) {
+      return {
+        question: String(parsed.question).substring(0, 295),
+        options: parsed.options.slice(0, 4).map(o => String(o).substring(0, 95)),
+        correct_option_id: (typeof parsed.correct_option_id === 'number' && parsed.correct_option_id >= 0 && parsed.correct_option_id < parsed.options.length) ? parsed.correct_option_id : 0,
+        explanation: String(parsed.explanation || '').substring(0, 195)
+      };
+    }
+  } catch (err) {
+    console.warn('[Gemini Quiz Generation Error]:', err.message);
+  }
+  return null;
+}
+
+// Helper: Curriculum Question Bank Selector
+function generateCurriculumQuizFromBank(topic) {
+  const normTopic = (topic || '').toLowerCase();
+  
+  const matches = defaultChannelPollsBank.filter(q => {
+    if (q.keywords && q.keywords.some(kw => normTopic.includes(kw.toLowerCase()))) return true;
+    if (normTopic.includes(q.grade) && (normTopic.includes(q.subject) || normTopic.includes('ክፍል'))) return true;
+    return false;
+  });
+
+  if (matches.length > 0) {
+    const selected = matches[Math.floor(Math.random() * matches.length)];
+    return {
+      question: selected.question,
+      options: [...selected.options],
+      correct_option_id: selected.correct_option_id,
+      explanation: selected.explanation
+    };
+  }
+
+  const fallbackItem = defaultChannelPollsBank[Math.floor(Math.random() * defaultChannelPollsBank.length)];
+  return {
+    question: `[${topic.substring(0, 30)}] ${fallbackItem.question.replace(/^\[[^\]]+\]\s*/, '')}`,
+    options: [...fallbackItem.options],
+    correct_option_id: fallbackItem.correct_option_id,
+    explanation: fallbackItem.explanation
+  };
+}
+
+// Helper: Unified Quiz Generator (Gemini + Local Curriculum Bank)
+async function getOrGenerateQuiz(topic, env) {
+  const apiKey = env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    const aiQuiz = await generateQuizWithGemini(topic, apiKey);
+    if (aiQuiz) return aiQuiz;
+  }
+  return generateCurriculumQuizFromBank(topic);
+}
+
+// Helper: Render Main Poll & Quiz Management Hub
+async function renderPollManagerDashboard(ctx, env) {
+  const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
+  const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+
+  let totalPollsDispatched = 0;
+  if (env?.DB) {
+    try {
+      const pRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
+      totalPollsDispatched = pRes?.cnt || 0;
+    } catch (e) {}
+  }
+
+  const text =
+`🎯 <b>የቴሌግራም ፖል ኩዊዝ ማዘጋጃ (Quiz Poll Dispatcher)</b> 🇪🇹
+━━━━━━━━━━━━━━━━━━━━
+በዚህ ክፍል ለ <b>${escapeHtml(channelHandle)}</b> ቻናል እና ለ <b>${escapeHtml(groupHandle)}</b> ግሩፕ በቀጥታ የቴሌግራም Quiz ጥያቄዎችን በፖል ማዘጋጀት እና መልቀቅ ይችላሉ።
+
+• 📊 <b>እስካሁን የተለቀቁ ፖሎች:</b> <code>${totalPollsDispatched}</code>
+• 📢 <b>ዒላማ ቻናል:</b> <code>${escapeHtml(channelHandle)}</code>
+• 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
+
+📌 <b>ቀጥታ ትዕዛዝ:</b>
+• <code>/quiz &lt;ርዕስ&gt;</code> — ምሳሌ: <code>/quiz 10ኛ ክፍል ፊዚክስ motion</code>
+• ወይም ከታች ካሉት የትምህርት ክፍሎች አንዱን ፈጥነው ይጫኑ ⬇️`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('📗 9ኛ ክፍል', 'quiz_quick_grade_9'),
+      Markup.button.callback('📘 10ኛ ክፍል', 'quiz_quick_grade_10')
+    ],
+    [
+      Markup.button.callback('📙 11ኛ ክፍል', 'quiz_quick_grade_11'),
+      Markup.button.callback('🎓 12ኛ ክፍል', 'quiz_quick_grade_12')
+    ],
+    [
+      Markup.button.callback('⚛️ ፊዚክስ', 'quiz_quick_subj_physics'),
+      Markup.button.callback('🧪 ኬሚስትሪ', 'quiz_quick_subj_chem')
+    ],
+    [
+      Markup.button.callback('🧬 ባዮሎጂ', 'quiz_quick_subj_bio'),
+      Markup.button.callback('📐 ማቲማቲክስ', 'quiz_quick_subj_math')
+    ],
+    [
+      Markup.button.callback('🌍 እንግሊዝኛ', 'quiz_quick_subj_english'),
+      Markup.button.callback('🇪🇹 አጠቃላይ እውቀት', 'quiz_quick_subj_general')
+    ],
+    [
+      Markup.button.callback('✏️ የራስህን ርዕስ ጻፍ (Custom Topic)', 'quiz_prompt_custom_topic')
+    ],
+    [
+      Markup.button.callback('📝 ሙሉ ጥያቄ እራስህ ጻፍ', 'quiz_prompt_manual_write'),
+      Markup.button.callback('⚙️ ዒላማ ቻናል/ግሩፕ', 'quiz_config_dest')
+    ],
+    [
+      Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')
+    ]
+  ]);
+
+  return transitionToNewStep(ctx, text, keyboard);
+}
+
+// Helper: Show Live Quiz Poll Preview & Dispatch Controls
+async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
+  const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
+  const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+
+  // 1. Send live interactive Poll into chat for the Admin to test!
+  try {
+    await ctx.telegram.sendPoll(
+      ctx.chat.id,
+      quizDraft.question,
+      quizDraft.options,
+      {
+        type: 'quiz',
+        correct_option_id: quizDraft.correct_option_id,
+        explanation: quizDraft.explanation || '',
+        is_anonymous: false
+      }
+    );
+  } catch (err) {
+    console.warn('[sendPoll Preview Warning]:', err.message);
+  }
+
+  // 2. Send Control Action Bar
+  const correctLetter = String.fromCharCode(65 + quizDraft.correct_option_id);
+  const correctText = quizDraft.options[quizDraft.correct_option_id] || '';
+
+  const text =
+`🎯 <b>የኩዊዝ ፖል ቅድመ-እይታ ተዘጋጅቷል!</b>
+━━━━━━━━━━━━━━━━━━━━
+• 📌 <b>ርዕስ:</b> ${escapeHtml(quizDraft.title || 'Academic Quiz')}
+• 📢 <b>ዒላማ ቻናል:</b> <code>${escapeHtml(channelHandle)}</code>
+• 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
+• ✅ <b>ትክክለኛ መልስ:</b> <code>${correctLetter}) ${escapeHtml(correctText)}</code>
+• 💡 <b>ማብራሪያ:</b> ${escapeHtml(quizDraft.explanation)}
+
+ከላይ የቀረበው የቴሌግራም ፖል ኩዊዝ ወደ የት እንዲለቀቅ ይፈልጋሉ? ከታች ይምረጡ ⬇️`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('📢 ወደ ቻናል ልቀቅ', 'quiz_post_channel'),
+      Markup.button.callback('👥 ወደ ግሩፕ ልቀቅ', 'quiz_post_group')
+    ],
+    [
+      Markup.button.callback('🚀 ወደ ሁለቱም ልቀቅ (ቻናል + ግሩፕ)', 'quiz_post_both')
+    ],
+    [
+      Markup.button.callback('🔄 ሌላ ጥያቄ ፍጠር', 'quiz_regen'),
+      Markup.button.callback('✏️ አዲስ ርዕስ ጻፍ', 'quiz_prompt_custom_topic')
+    ],
+    [
+      Markup.button.callback('⚙️ ዒላማ ቀይር', 'quiz_config_dest'),
+      Markup.button.callback('❌ ሰርዝ', 'quiz_cancel')
+    ]
+  ]);
+
+  return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+}
+
+// Helper: Dispatch Telegram Poll to Target Channel / Group
+async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
+  const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
+  const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+
+  const targets = [];
+  if (destination === 'channel' || destination === 'both') {
+    targets.push({ type: 'channel', handle: channelHandle, label: '📢 ቻናል' });
+  }
+  if (destination === 'group' || destination === 'both') {
+    targets.push({ type: 'group', handle: groupHandle, label: '👥 ግሩፕ' });
+  }
+
+  const results = [];
+  for (const target of targets) {
+    try {
+      const pollRes = await ctx.telegram.sendPoll(
+        target.handle,
+        quizDraft.question,
+        quizDraft.options,
+        {
+          type: 'quiz',
+          correct_option_id: quizDraft.correct_option_id,
+          explanation: quizDraft.explanation || '',
+          is_anonymous: true
+        }
+      );
+      results.push({ ok: true, target, pollId: pollRes?.poll?.id || 'poll_' + Date.now() });
+    } catch (err) {
+      console.error(`[Poll Dispatch Error to ${target.handle}]:`, err.message);
+      results.push({ ok: false, target, error: err.message });
+    }
+  }
+
+  // Record dispatch in database
+  if (env?.DB) {
+    try {
+      const successfulPollId = results.find(r => r.ok)?.pollId || null;
+      await env.DB.prepare(`
+        INSERT INTO channel_polls (admin_id, title, question, options_json, correct_option_id, explanation, target_destination, channel_handle, group_handle, telegram_poll_id, sent_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        ctx.from.id,
+        quizDraft.title || 'Academic Quiz',
+        quizDraft.question,
+        JSON.stringify(quizDraft.options),
+        quizDraft.correct_option_id,
+        quizDraft.explanation || '',
+        destination,
+        channelHandle,
+        groupHandle,
+        successfulPollId,
+        results.some(r => r.ok) ? 'sent' : 'failed'
+      ).run();
+    } catch (e) {
+      console.warn('Error recording poll to DB:', e.message);
+    }
+  }
+
+  const allSuccess = results.every(r => r.ok);
+  const anySuccess = results.some(r => r.ok);
+
+  let statusText = '';
+  results.forEach(r => {
+    if (r.ok) {
+      statusText += `• ${r.target.label} (<code>${escapeHtml(r.target.handle)}</code>): ✅ ተልኳል!\n`;
+    } else {
+      statusText += `• ${r.target.label} (<code>${escapeHtml(r.target.handle)}</code>): ❌ አልተላከም (${escapeHtml(r.error)})\n`;
+    }
+  });
+
+  const correctLetter = String.fromCharCode(65 + quizDraft.correct_option_id);
+  const correctText = quizDraft.options[quizDraft.correct_option_id] || '';
+
+  if (allSuccess) {
+    const text =
+`🎉 <b>ኩዊዝ ፖል በተሳካ ሁኔታ ተለቋል!</b>
+━━━━━━━━━━━━━━━━━━━━
+${statusText}
+• 📌 <b>ርዕስ:</b> ${escapeHtml(quizDraft.title || 'Academic Quiz')}
+• ❓ <b>ጥያቄ:</b> ${escapeHtml(quizDraft.question)}
+• ✅ <b>ትክክለኛ መልስ:</b> <code>${correctLetter}) ${escapeHtml(correctText)}</code>
+
+ተማሪዎች በቻናሉ እና በግሩፑ ላይ በቀጥታ ድምጽ መስጠት እና እውቀታቸውን መፈተሽ ይችላሉ! 🚀`;
+
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('🎯 ሌላ ፖል/ኩዊዝ ልቀቅ', 'admin_poll_quiz_menu')],
+      [Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')]
+    ]);
+
+    return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+  } else if (anySuccess) {
+    const text =
+`⚠️ <b>ኩዊዝ ፖል በከፊል ተልኳል:</b>
+━━━━━━━━━━━━━━━━━━━━
+${statusText}
+
+💡 <b>ማስታወሻ:</b>
+ያልተላከበት ቻናል ወይም ግሩፕ ላይ ቦቱ <b>Admin</b> መሆኑን እና <b>'Manage Polls' / 'Post Messages'</b> ፈቃድ መሰጠቱን ያረጋግጡ።`;
+
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('🎯 ወደ ፖል ማዕከል', 'admin_poll_quiz_menu')],
+      [Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')]
+    ]);
+
+    return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+  } else {
+    const text =
+`❌ <b>ወደ ቻናል/ግሩፕ መላክ አልተቻለም!</b>
+━━━━━━━━━━━━━━━━━━━━
+${statusText}
+
+💡 <b>የመፍትሄ እርምጃዎች:</b>
+1. ቦቱ በ <b>${escapeHtml(channelHandle)}</b> እና <b>${escapeHtml(groupHandle)}</b> ውስጥ እንደ <b>Admin</b> መመደቡን ያረጋግጡ።
+2. ለአድሚን ቦቱ <b>"Post Messages"</b> እና <b>"Manage Polls"</b> ፈቃድ ይስጡት።
+3. የቻናል ወይም የግሩፕ handle ትክክል መሆኑን በ ⚙️ ቅንብር ውስጥ ያረጋግጡ።`;
+
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('🔄 ደግመህ ሞክር', destination === 'both' ? 'quiz_post_both' : (destination === 'channel' ? 'quiz_post_channel' : 'quiz_post_group'))],
+      [Markup.button.callback('⚙️ ዒላማ ቀይር', 'quiz_config_dest')],
+      [Markup.button.callback('🎯 ወደ ፖል ማዕከል', 'admin_poll_quiz_menu')]
+    ]);
+
+    return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
   }
 }
 
@@ -965,6 +1564,12 @@ async function buildAdminDashboardData(env) {
       const tRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM promo_templates WHERE is_active = 1').first();
       templateCount = tRes?.cnt || 0;
 
+      let pollCount = 0;
+      try {
+        const pRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
+        pollCount = pRes?.cnt || 0;
+      } catch (e) {}
+
       const gRes = await env.DB.prepare(`SELECT grade, COUNT(*) as cnt FROM users GROUP BY grade`).all();
       if (gRes?.results) {
         gRes.results.forEach(r => { gradeBreakdown[r.grade] = r.cnt; });
@@ -986,6 +1591,7 @@ async function buildAdminDashboardData(env) {
 • 🟢 <b>ንቁ ተጠቃሚዎች:</b> <code>${activeUserCount}</code>
 • 🔔 <b>አፕ ማሳወቂያ የጠየቁ:</b> <code>${notifyOptinCount}</code>
 • 📝 <b>የግሩፕ መልዕክት ቴምፕሌቶች:</b> <code>${templateCount}</code>
+• 🎯 <b>የተለቀቁ ፖል ኩዊዞች:</b> <code>${pollCount || 0}</code>
 • 🔴 <b>ቦት ያቆሙ:</b> <code>${blockedCount}</code>
 • 🔗 <b>ጠቅላላ የጥቆማ ግብዣዎች:</b> <code>${totalReferrals}</code>
 
@@ -997,6 +1603,9 @@ async function buildAdminDashboardData(env) {
 ━━━━━━━━━━━━━━━━━━━━`;
 
   const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('🎯 ፖል/ኩዊዝ ልቀቅ (Channel Poll)', 'admin_poll_quiz_menu')
+    ],
     [
       Markup.button.callback('📢 New Broadcast', 'admin_new_broadcast'),
       Markup.button.callback('📝 Promo Templates', 'admin_manage_templates')
@@ -1060,6 +1669,25 @@ async function initDb(db) {
 
       CREATE INDEX IF NOT EXISTS idx_promo_templates_active ON promo_templates(is_active);
 
+      CREATE TABLE IF NOT EXISTS channel_polls (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id INTEGER,
+        title TEXT NOT NULL,
+        question TEXT NOT NULL,
+        options_json TEXT NOT NULL,
+        correct_option_id INTEGER DEFAULT 0,
+        explanation TEXT,
+        target_destination TEXT DEFAULT 'both',
+        channel_handle TEXT,
+        group_handle TEXT,
+        telegram_poll_id TEXT,
+        sent_status TEXT DEFAULT 'sent',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_channel_polls_admin ON channel_polls(admin_id);
+      CREATE INDEX IF NOT EXISTS idx_channel_polls_created ON channel_polls(created_at DESC);
+
       CREATE TABLE IF NOT EXISTS app_info (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
@@ -1108,6 +1736,9 @@ async function initDb(db) {
       ['bot_version', 'v5.5-clean'],
       ['required_channel', '@SmartX_Discussion'],
       ['official_channel', '@SmartXEthiopia'],
+      ['discussion_group', '@SmartX_Ethio'],
+      ['poll_channel', '@SmartX_Discussion'],
+      ['poll_group', '@SmartX_Ethio'],
       ['support_username', '@smart_x_help'],
       ['release_date', 'መስከረም 5']
     ];
@@ -1154,6 +1785,12 @@ export default {
     }
 
     const bot = new Telegraf(apiKey);
+    bot.botInfo = {
+      id: 777888999,
+      is_bot: true,
+      first_name: 'Smart X Ethiopian Bot',
+      username: env.BOT_USERNAME ? env.BOT_USERNAME.replace('@', '') : 'SmartX_PreRegister_bot'
+    };
     bot.catch((err) => {
       console.warn('[Telegraf Worker Global Catch]:', err?.message || err);
     });
@@ -1927,6 +2564,275 @@ export default {
         };
 
         bot.command(['admin', 'dashboard', 'panel'], handleAdminDashboard);
+
+        // --- ADMIN POLL & QUIZ COMMANDS & ACTIONS ---
+        const handleQuizCommand = async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) {
+            return ctx.reply('⛔ <b>Access Denied!</b> Admin authorization required.', { parse_mode: 'HTML' });
+          }
+
+          const rawText = ctx.message.text || '';
+          const topic = rawText.replace(/^\/(quiz|poll|postquiz|postpoll)(@\w+)?/i, '').trim();
+
+          if (topic) {
+            // Check if topic is a full question with manual options format
+            const manualParsed = parseCustomPollFormat(topic);
+            if (manualParsed && manualParsed.options.length >= 2) {
+              adminQuizDrafts[userId] = {
+                title: manualParsed.question.substring(0, 40),
+                ...manualParsed
+              };
+              return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+            }
+
+            // Otherwise, topic is a subject or chapter name
+            await ctx.reply(`⏳ <b>ለ "${escapeHtml(topic)}" የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
+            const quizData = await getOrGenerateQuiz(topic, env);
+            adminQuizDrafts[userId] = {
+              title: topic,
+              ...quizData
+            };
+            return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+          }
+
+          return renderPollManagerDashboard(ctx, env);
+        };
+
+        bot.command(['quiz', 'poll', 'postquiz', 'postpoll'], handleQuizCommand);
+
+        bot.command('setquizchannel', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.reply('⛔ Admin authorization required.');
+          const arg = (ctx.message.text || '').replace(/^\/setquizchannel(@\w+)?/i, '').trim();
+          if (!arg) return ctx.reply('⚠️ እባክዎ የቻናል Handle ይጥቀሱ: <code>/setquizchannel @SmartX_Discussion</code>', { parse_mode: 'HTML' });
+          let handle = arg.startsWith('@') ? arg : '@' + arg;
+          if (env?.DB) {
+            await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_channel', handle).run();
+          }
+          return ctx.reply(`✅ <b>የፖል መላኪያ ቻናል ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
+        });
+
+        bot.command('setquizgroup', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.reply('⛔ Admin authorization required.');
+          const arg = (ctx.message.text || '').replace(/^\/setquizgroup(@\w+)?/i, '').trim();
+          if (!arg) return ctx.reply('⚠️ እባክዎ የግሩፕ Handle ይጥቀሱ: <code>/setquizgroup @SmartX_Ethio</code>', { parse_mode: 'HTML' });
+          let handle = arg.startsWith('@') ? arg : '@' + arg;
+          if (env?.DB) {
+            await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_group', handle).run();
+          }
+          return ctx.reply(`✅ <b>የፖል መላኪያ ግሩፕ ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
+        });
+
+        bot.action('admin_poll_quiz_menu', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+          return renderPollManagerDashboard(ctx, env);
+        });
+
+        bot.action(/quiz_quick_grade_(.+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const gradeNum = ctx.match[1];
+          await ctx.answerCbQuery(`የ ${gradeNum}ኛ ክፍል ጥያቄ እየተዘጋጀ ነው...`).catch(() => {});
+
+          const topic = `${gradeNum}ኛ ክፍል አጠቃላይ ፈተና`;
+          const quizData = await getOrGenerateQuiz(topic, env);
+          adminQuizDrafts[userId] = {
+            title: topic,
+            ...quizData
+          };
+          return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+        });
+
+        bot.action(/quiz_quick_subj_(.+)/, async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const subjKey = ctx.match[1];
+          const subjMap = {
+            physics: 'ፊዚክስ',
+            chem: 'ኬሚስትሪ',
+            bio: 'ባዮሎጂ',
+            math: 'ማቲማቲክስ',
+            english: 'English Grammar',
+            general: 'የኢትዮጵያ ታሪክ እና ጂኦግራፊ'
+          };
+          const subjName = subjMap[subjKey] || subjKey;
+          await ctx.answerCbQuery(`የ ${subjName} ጥያቄ እየተዘጋጀ ነው...`).catch(() => {});
+
+          const quizData = await getOrGenerateQuiz(subjName, env);
+          adminQuizDrafts[userId] = {
+            title: subjName,
+            ...quizData
+          };
+          return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+        });
+
+        bot.action('quiz_prompt_custom_topic', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          adminQuizDrafts[userId] = { step: 'AWAITING_TOPIC' };
+
+          const text =
+`✏️ <b>የኩዊዙን ርዕስ ወይም ክፍል ይጻፉ:</b>
+━━━━━━━━━━━━━━━━━━━━
+ማንኛውንም የትምህርት ርዕስ፣ ምዕራፍ፣ ወይም ክፍል ከታች ባለው የሜሴጅ መጻፊያ ሳጥን ውስጥ ጽፈው ይላኩ:
+
+<i>ምሳሌ:</i>
+• <code>10ኛ ክፍል ፊዚክስ Work and Energy</code>
+• <code>12ኛ ክፍል ኬሚስትሪ Chemical Equilibrium</code>
+• <code>11ኛ ክፍል ባዮሎጂ Cellular Respiration</code>
+• <code>12ኛ ክፍል ማትስ Calculus</code>`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ ሰርዝ', 'quiz_cancel')]
+          ]);
+
+          return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+        });
+
+        bot.action('quiz_prompt_manual_write', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          adminQuizDrafts[userId] = { step: 'AWAITING_MANUAL_INPUT' };
+
+          const text =
+`📝 <b>የራስዎን ጥያቄ እና አማራጮች ይጻፉ:</b>
+━━━━━━━━━━━━━━━━━━━━
+ጥያቄውን፣ አማራጮቹን እና ማብራሪያውን በሚከተለው ቅርጽ ጽፈው ይላኩ:
+
+ጥያቄ: የብርሃን ፍጥነት በቫኪዩም ውስጥ ስንት ነው?
+A) 3 x 10^8 m/s*
+B) 3 x 10^6 m/s
+C) 1.5 x 10^8 m/s
+D) 3 x 10^5 m/s
+ማብራሪያ: የብርሃን ፍጥነት 3 x 10^8 m/s ነው።
+
+💡 <b>ጠቃሚ ማስታወሻ:</b>
+• ትክክለኛው መልስ ላይ <b>ኮከብ (*)</b> ምልክት ያድርጉበት።
+• አማራጮች ከ 2 እስከ 10 መሆን ይችላሉ።`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ ሰርዝ', 'quiz_cancel')]
+          ]);
+
+          return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+        });
+
+        bot.action('quiz_regen', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const current = adminQuizDrafts[userId];
+          const topic = current?.title || 'Academic Quiz';
+
+          await ctx.answerCbQuery('አዲስ ጥያቄ እየተዘጋጀ ነው...').catch(() => {});
+          const quizData = await getOrGenerateQuiz(topic, env);
+          adminQuizDrafts[userId] = {
+            title: topic,
+            ...quizData
+          };
+          return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+        });
+
+        bot.action('quiz_post_channel', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const draft = adminQuizDrafts[userId];
+          if (!draft || !draft.question) {
+            return ctx.answerCbQuery('⚠️ ጥያቄ አልተገኘም፣ እባክዎ እንደገና ይጀምሩ!', { show_alert: true });
+          }
+          await ctx.answerCbQuery('ወደ ቻናል እየተላከ ነው...').catch(() => {});
+          delete adminQuizDrafts[userId];
+          return dispatchPollToDestination(ctx, draft, 'channel', env);
+        });
+
+        bot.action('quiz_post_group', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const draft = adminQuizDrafts[userId];
+          if (!draft || !draft.question) {
+            return ctx.answerCbQuery('⚠️ ጥያቄ አልተገኘም፣ እባክዎ እንደገና ይጀምሩ!', { show_alert: true });
+          }
+          await ctx.answerCbQuery('ወደ ግሩፕ እየተላከ ነው...').catch(() => {});
+          delete adminQuizDrafts[userId];
+          return dispatchPollToDestination(ctx, draft, 'group', env);
+        });
+
+        bot.action('quiz_post_both', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const draft = adminQuizDrafts[userId];
+          if (!draft || !draft.question) {
+            return ctx.answerCbQuery('⚠️ ጥያቄ አልተገኘም፣ እባክዎ እንደገና ይጀምሩ!', { show_alert: true });
+          }
+          await ctx.answerCbQuery('ወደ ቻናል እና ግሩፕ እየተላከ ነው...').catch(() => {});
+          delete adminQuizDrafts[userId];
+          return dispatchPollToDestination(ctx, draft, 'both', env);
+        });
+
+        bot.action('quiz_config_dest', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
+          const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+
+          const text =
+`⚙️ <b>የፖል እና ኩዊዝ ዒላማ ማስተካከያ (Destination Config)</b>
+━━━━━━━━━━━━━━━━━━━━
+ፖሎች በራስ-ሰር የሚለጠፉባቸው ቻናሎች እና ግሩፖች:
+
+• 📢 <b>አሁን ያለው ቻናል:</b> <code>${escapeHtml(channelHandle)}</code>
+• 👥 <b>አሁን ያለው ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
+
+ለመቀየር ከታች ካሉት አዝራሮች አንዱን ይጫኑ ⬇️`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [
+              Markup.button.callback('📢 ቻናል ቀይር', 'quiz_set_dest_channel'),
+              Markup.button.callback('👥 ግሩፕ ቀይር', 'quiz_set_dest_group')
+            ],
+            [
+              Markup.button.callback('🔙 ወደ ፖል ማዕከል', 'admin_poll_quiz_menu')
+            ]
+          ]);
+
+          return transitionToNewStep(ctx, text, keyboard);
+        });
+
+        bot.action('quiz_set_dest_channel', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          adminQuizDrafts[userId] = { step: 'AWAITING_CHANNEL_HANDLE' };
+          return ctx.reply('📢 <b>አዲሱን የቴሌግራም ቻናል username ይላኩ (ምሳሌ: @SmartX_Discussion):</b>', { parse_mode: 'HTML' });
+        });
+
+        bot.action('quiz_set_dest_group', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          adminQuizDrafts[userId] = { step: 'AWAITING_GROUP_HANDLE' };
+          return ctx.reply('👥 <b>አዲሱን የቴሌግራም ግሩፕ username ይላኩ (ምሳሌ: @SmartX_Ethio):</b>', { parse_mode: 'HTML' });
+        });
+
+        bot.action('quiz_cancel', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery('ተሰርዟል!').catch(() => {});
+          delete adminQuizDrafts[userId];
+          await ctx.reply('❌ <b>የኩዊዝ ዝግጅቱ ተሰርዟል።</b>', { parse_mode: 'HTML' });
+          return renderPollManagerDashboard(ctx, env);
+        });
 
         bot.action('admin_refresh_stats', async (ctx) => {
           const userId = ctx.from.id;
@@ -2722,6 +3628,71 @@ export default {
             draft.step = 'PREVIEW_AND_CONFIRM';
 
             return showBroadcastPreviewToAdmin(ctx, userId, payload);
+          }
+
+          // Flow 4: Admin Poll / Quiz Generation & Configuration
+          const adminQuizDraft = adminQuizDrafts[userId];
+          if (adminQuizDraft && isAdmin(userId, env)) {
+            if (adminQuizDraft.step === 'AWAITING_TOPIC') {
+              const topicText = (ctx.message.text || '').trim();
+              if (!topicText) return ctx.reply('⚠️ እባክዎ ትክክለኛ የኩዊዝ ርዕስ ወይም ክፍል ይጻፉ:');
+              
+              await ctx.reply(`⏳ <b>ለ "${escapeHtml(topicText)}" የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
+              const quizData = await getOrGenerateQuiz(topicText, env);
+              adminQuizDrafts[userId] = {
+                title: topicText,
+                ...quizData
+              };
+              return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+            }
+
+            if (adminQuizDraft.step === 'AWAITING_MANUAL_INPUT') {
+              const rawText = (ctx.message.text || '').trim();
+              const parsed = parseCustomPollFormat(rawText);
+              if (!parsed || parsed.options.length < 2) {
+                return ctx.reply(
+`⚠️ <b>የጥያቄው ፎርማት አልተለየም!</b>
+━━━━━━━━━━━━━━━━━━━━
+እባክዎ ጥያቄውን እና አማራጮቹን በሚከተለው መልኩ ይጻፉ:
+
+ጥያቄ: የብርሃን ፍጥነት ስንት ነው?
+A) 3 x 10^8 m/s*
+B) 3 x 10^6 m/s
+C) 1.5 x 10^8 m/s
+D) 3 x 10^5 m/s
+ማብራሪያ: የብርሃን ፍጥነት 3x10^8 m/s ነው።
+
+💡 <i>ትክክለኛው መልስ ላይ ኮከብ (*) ምልክት ያድርጉበት።</i>`, { parse_mode: 'HTML' });
+              }
+
+              adminQuizDrafts[userId] = {
+                title: parsed.question.substring(0, 40),
+                ...parsed
+              };
+              return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+            }
+
+            if (adminQuizDraft.step === 'AWAITING_CHANNEL_HANDLE') {
+              let handle = (ctx.message.text || '').trim();
+              if (!handle.startsWith('@')) handle = '@' + handle;
+              if (env?.DB) {
+                await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_channel', handle).run();
+              }
+              delete adminQuizDrafts[userId];
+              await ctx.reply(`✅ <b>የዒላማ ቻናል ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
+              return renderPollManagerDashboard(ctx, env);
+            }
+
+            if (adminQuizDraft.step === 'AWAITING_GROUP_HANDLE') {
+              let handle = (ctx.message.text || '').trim();
+              if (!handle.startsWith('@')) handle = '@' + handle;
+              if (env?.DB) {
+                await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_group', handle).run();
+              }
+              delete adminQuizDrafts[userId];
+              await ctx.reply(`✅ <b>የዒላማ ግሩፕ ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
+              return renderPollManagerDashboard(ctx, env);
+            }
           }
 
           return next();
