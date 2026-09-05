@@ -752,47 +752,24 @@ async function transitionToNewStep(ctx, nextText, extra = {}) {
 // ==========================================
 
 async function getEffectiveGeminiKey(apiKey, env) {
-  const sanitize = (k) => (typeof k === 'string' ? k.replace(/["']/g, '').trim() : '');
+  const sanitize = (k) => (typeof k === "string" ? k.replace(/["']/g, "").trim() : "");
 
   // 1. Explicit argument
   const argKey = sanitize(apiKey);
   if (argKey.length > 10) return argKey;
 
-  // 2. Cloudflare Worker Environment Secret bindings (Free & Paid Dashboard Settings)
-  const cloudflareCandidates = [
-    env?.GEMINI_API_KEY,
-    env?.GEMINI_API_KEYS,
-    env?.GEMINI_KEY,
-    env?.GOOGLE_GEMINI_API_KEY,
-    env?.GEMINI_TOKEN,
-    env?.AI_API_KEY
-  ];
-  for (const raw of cloudflareCandidates) {
-    if (raw && typeof raw === 'string') {
-      const clean = sanitize(raw.split(',')[0]);
-      if (clean.length > 10) return clean;
-    }
-  }
+  // 2. Cloudflare Worker Environment Secret (Single Standard Name: GEMINI_API_KEY)
+  const envKey = sanitize(env?.GEMINI_API_KEY);
+  if (envKey.length > 10) return envKey;
 
-  // 3. Dynamic DB Config (set via /set_gemini_key in Telegram bot)
-  const dynKey = sanitize(await getDynamicConfig(env, 'gemini_api_key'));
+  // 3. Dynamic Database Configuration (saved via /set_gemini_key)
+  const dynKey = sanitize(await getDynamicConfig(env, "gemini_api_key"));
   if (dynKey.length > 10) return dynKey;
 
-  // 4. Node.js process.env (Local Dev Server / Polling Mode)
-  if (typeof process !== 'undefined' && process.env) {
-    const procCandidates = [
-      process.env.GEMINI_API_KEY,
-      process.env.GEMINI_API_KEYS,
-      process.env.GEMINI_KEY,
-      process.env.GOOGLE_GEMINI_API_KEY,
-      process.env.AI_API_KEY
-    ];
-    for (const raw of procCandidates) {
-      if (raw && typeof raw === 'string') {
-        const clean = sanitize(raw.split(',')[0]);
-        if (clean.length > 10) return clean;
-      }
-    }
+  // 4. Local Node.js process.env fallback
+  if (typeof process !== "undefined" && process.env?.GEMINI_API_KEY) {
+    const procKey = sanitize(process.env.GEMINI_API_KEY);
+    if (procKey.length > 10) return procKey;
   }
 
   return null;
@@ -914,54 +891,55 @@ function cleanQuestionText(raw) {
     .trim();
 }
 
-// Helper: Generate dynamic Quiz using Gemini (Prioritizing gemini-3.1-flash-lite and gemini-3.6-flash)
-async function generateQuizWithGemini(topic, langMode = 'auto', apiKey, env) {
+// Helper: Generate dynamic Quiz using Gemini with detailed error reporting
+async function generateQuizWithGemini(topic, langMode = "auto", apiKey, env) {
   const effectiveKey = await getEffectiveGeminiKey(apiKey, env);
   if (!effectiveKey) {
-    console.warn('[Gemini Quiz] No API key available');
-    return null;
+    return {
+      ok: false,
+      error: "የ Gemini API ቁልፍ አልተገኘም (GEMINI_API_KEY is not set). እባክዎ በ Cloudflare Settings > Variables and Secrets ውስጥ GEMINI_API_KEY የተባለ Secret ያስገቡ ወይም በ /set_gemini_key ያስተካክሉ።"
+    };
   }
 
-  let langDirective = '';
-  if (langMode === 'english' || langMode === 'en') {
+  let langDirective = "";
+  if (langMode === "english" || langMode === "en") {
     langDirective = `
-LANGUAGE SPECIFICATION (100% COMPLETE ENGLISH):
-- The question MUST be written in clear, academic English.
+LANGUAGE SPECIFICATION: 100% ENGLISH
+- The question MUST be written in clear academic English.
 - ALL 4 options MUST be written in English.
 - The educational explanation MUST be in English.
-- CRITICAL RULE: DO NOT put any bracket tags like [Grade 10 Biology] or [Physics] in the question. Start directly with the question text.`;
-  } else if (langMode === 'amharic' || langMode === 'am') {
+- CRITICAL: Do NOT put any bracket tags like [Grade 10 Biology] in the question.`;
+  } else if (langMode === "amharic" || langMode === "am") {
     langDirective = `
-LANGUAGE SPECIFICATION (100% COMPLETE AMHARIC / አማርኛ):
-- ጥያቄው ሙሉ በሙሉ በአማርኛ (Amharic) መጻፍ አለበት።
+LANGUAGE SPECIFICATION: 100% AMHARIC
+- ጥያቄው ሙሉ በሙሉ በአማርኛ መጻፍ አለበት።
 - ሁሉም 4ቱ ምርጫዎች በአማርኛ መጻፍ አለባቸው።
-- ትምህርታዊ ማብራሪያው (Explanation) ሙሉ በሙሉ በአማርኛ መጻፍ አለበት።
-- ጥብቅ ደንብ: በጥያቄው መጀመሪያ ላይ ምንም አይነት ቅንፍ ወይም ታግ (እንደ [10ኛ ክፍል ባዮሎጂ]) በፍፁም አታስገቡ። ጥያቄውን በቀጥታ ጀምሩ።`;
+- ትምህርታዊ ማብራሪያው ሙሉ በሙሉ በአማርኛ መጻፍ አለበት።
+- ጥብቅ ደንብ: በጥያቄው ላይ ምንም አይነት ቅንፍ ወይም ታግ አታስገቡ።`;
   } else {
-    // Auto mode
     const isTopicAmharic = /[\u1200-\u137F]/.test(topic) && !/(grade|physics|chemistry|biology|math|english|vector|force|energy|velocity)/i.test(topic);
     if (isTopicAmharic) {
       langDirective = `
-LANGUAGE SPECIFICATION (AMHARIC):
-- ጥያቄው፣ 4ቱ ምርጫዎች እና ማብራሪያው በአማርኛ (Amharic) ይሁኑ።
-- ምንም አይነት ቅንፍ (እንደ [ክፍል ...]) በጥያቄው መጀመሪያ ላይ አታስገቡ። ጥያቄውን በቀጥታ ጀምሩ።`;
+LANGUAGE SPECIFICATION: AMHARIC
+- ጥያቄው፣ 4ቱ ምርጫዎች እና ማብራሪያው በአማርኛ ይሁኑ።
+- ምንም አይነት ቅንፍ በጥያቄው መጀመሪያ ላይ አታስገቡ።`;
     } else {
       langDirective = `
-LANGUAGE SPECIFICATION (ENGLISH):
-- The question and ALL 4 options MUST be in clear, academic English.
+LANGUAGE SPECIFICATION: ENGLISH
+- The question and ALL 4 options MUST be in clear academic English.
 - The educational explanation should be clear and concise in English.
-- CRITICAL RULE: DO NOT put any bracket tags like [Grade 10 Biology] in the question. Start directly with the question text.`;
+- CRITICAL: Do NOT put any bracket tags like [Grade 10 Biology] in the question.`;
     }
   }
 
   const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner.
-Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for the following topic/subject: "${topic}".
+Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for: "${topic}".
 
 ${langDirective}
 
 Formatting Constraints:
-1. question: Clear and direct under 280 characters. Never include bracket prefixes like [Grade 10 Biology].
-2. options: Exactly 4 distinct multiple-choice options (A, B, C, D). Keep each option under 90 characters.
+1. question: Clear and direct under 280 characters without bracket tags.
+2. options: Exactly 4 distinct multiple-choice options (A, B, C, D) under 90 characters each.
 3. correct_option_id: Integer 0, 1, 2, or 3 pointing to the correct option.
 4. explanation: Clear educational explanation why that option is correct, under 180 characters.
 
@@ -974,8 +952,8 @@ Return ONLY a valid JSON object with keys:
 }`;
 
   function parseAndValidateJson(rawText) {
-    if (!rawText || typeof rawText !== 'string') return null;
-    const cleanJson = rawText.trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+    if (!rawText || typeof rawText !== "string") return null;
+    const cleanJson = rawText.trim().replace(/^\`\`\`json\s*/i, "").replace(/\`\`\`$/i, "").trim();
     try {
       let parsed = JSON.parse(cleanJson);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -985,75 +963,104 @@ Return ONLY a valid JSON object with keys:
         return {
           question: cleanQuestionText(String(parsed.question)).substring(0, 295),
           options: parsed.options.slice(0, 4).map(o => String(o).substring(0, 95)),
-          correct_option_id: (typeof parsed.correct_option_id === 'number' && parsed.correct_option_id >= 0 && parsed.correct_option_id < parsed.options.length) ? parsed.correct_option_id : 0,
-          explanation: String(parsed.explanation || '').substring(0, 195)
+          correct_option_id: (typeof parsed.correct_option_id === "number" && parsed.correct_option_id >= 0 && parsed.correct_option_id < parsed.options.length) ? parsed.correct_option_id : 0,
+          explanation: String(parsed.explanation || "").substring(0, 195)
         };
       }
     } catch (e) {}
     return null;
   }
 
-  // 1. Direct REST fetch with gemini-3.1-flash-lite (stable, fast, reliable)
+  let lastError = null;
+
+  // 1. Direct REST fetch with gemini-3.1-flash-lite
   try {
-    const rawRest = await callGeminiRest(prompt, effectiveKey, 'gemini-3.1-flash-lite');
+    const rawRest = await callGeminiRest(prompt, effectiveKey, "gemini-3.1-flash-lite");
     const valid = parseAndValidateJson(rawRest);
-    if (valid) return valid;
+    if (valid) return { ok: true, data: valid };
+    lastError = `የተመለሰው የ AI መልስ ትክክለኛ JSON አልሆነም: ${String(rawRest).substring(0, 120)}`;
   } catch (restErr) {
-    console.warn('[Gemini REST gemini-3.1-flash-lite Warning]:', restErr.message);
+    lastError = restErr.message;
+    console.warn("[Gemini REST 3.1-flash-lite]:", restErr.message);
   }
 
   // 2. Direct REST fetch with gemini-3.6-flash
   try {
-    const rawRest2 = await callGeminiRest(prompt, effectiveKey, 'gemini-3.6-flash');
+    const rawRest2 = await callGeminiRest(prompt, effectiveKey, "gemini-3.6-flash");
     const valid2 = parseAndValidateJson(rawRest2);
-    if (valid2) return valid2;
+    if (valid2) return { ok: true, data: valid2 };
+    lastError = `የተመለሰው የ AI መልስ ትክክለኛ JSON አልሆነም: ${String(rawRest2).substring(0, 120)}`;
   } catch (restErr2) {
-    console.warn('[Gemini REST gemini-3.6-flash Warning]:', restErr2.message);
+    lastError = restErr2.message;
+    console.warn("[Gemini REST 3.6-flash]:", restErr2.message);
   }
 
-  // 3. Fallback to GoogleGenAI SDK (gemini-3.1-flash-lite)
+  // 3. Fallback to GoogleGenAI SDK
   const ai = getGenAI(effectiveKey);
   if (ai) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
+        model: "gemini-3.1-flash-lite",
         contents: prompt,
-        config: {
-          responseMimeType: 'application/json'
-        }
+        config: { responseMimeType: "application/json" }
       });
       const valid = parseAndValidateJson(response?.text);
-      if (valid) return valid;
+      if (valid) return { ok: true, data: valid };
     } catch (sdkErr) {
-      console.warn('[GoogleGenAI SDK Quiz Warning]:', sdkErr.message);
+      lastError = sdkErr.message;
+      console.warn("[GoogleGenAI SDK]:", sdkErr.message);
     }
   }
 
-  return null;
+  return {
+    ok: false,
+    error: lastError || "የ Gemini AI ጥሪ ሳይሳካ ቀርቷል"
+  };
 }
 
-// Helper: Unified Quiz Generator (100% Dynamic Gemini AI - Sample Questions Removed)
-async function getOrGenerateQuiz(topic, langMode = 'auto', env) {
+// Helper: Unified Quiz Generator returning { ok, data, error }
+async function getOrGenerateQuiz(topic, langMode = "auto", env) {
   const effectiveKey = await getEffectiveGeminiKey(null, env);
-  const aiQuiz = await generateQuizWithGemini(topic, langMode, effectiveKey, env);
-  return aiQuiz;
+  return await generateQuizWithGemini(topic, langMode, effectiveKey, env);
+}
+
+// Helper: Render Gemini API Error Display to Admin
+function renderPollError(ctx, errorMsg) {
+  const errText =
+`❌ <b>የ Gemini AI ስህተት:</b>
+━━━━━━━━━━━━━━━━━━━━
+<code>${escapeHtml(errorMsg || "ያልታወቀ ስህተት")}</code>
+
+💡 <b>መፍትሄ:</b>
+1. የ Gemini API ቁልፍ ለማስገባት: <code>/set_gemini_key YOUR_KEY</code>
+2. ወይም በ Cloudflare Settings > Variables and Secrets ውስጥ <code>GEMINI_API_KEY</code> ያስቀምጡ`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("🔑 አዲስ ቁልፍ አስገባ", "quiz_prompt_new_key")],
+    [Markup.button.callback("🔙 ወደ ኩዊዝ ማዘጋጃ", "admin_poll_quiz_menu")]
+  ]);
+
+  if (ctx.callbackQuery) {
+    return transitionToNewStep(ctx, errText, keyboard);
+  }
+  return ctx.reply(errText, { parse_mode: "HTML", ...keyboard });
 }
 
 // Helper: Render Main Poll & Quiz Management Hub
 async function renderPollManagerDashboard(ctx, env) {
-  const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
-  const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+  const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
+  const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
 
   let totalPollsDispatched = inMemoryDispatchedPolls.length;
   if (env?.DB) {
     try {
-      const pRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
+      const pRes = await env.DB.prepare("SELECT COUNT(*) as cnt FROM channel_polls").first();
       if (pRes?.cnt) totalPollsDispatched = Math.max(totalPollsDispatched, pRes.cnt);
     } catch (e) {}
   }
 
   const text =
-`🎯 <b>የቴሌግራም ፖል ኩዊዝ ማዘጋጃ (Quiz Poll Dispatcher)</b> 🇪🇹
+`🎯 <b>የቴሌግራም ፖል ኩዊዝ ማዘጋጃ</b> 🇪🇹
 ━━━━━━━━━━━━━━━━━━━━
 በዚህ ክፍል ለ <b>${escapeHtml(channelHandle)}</b> ቻናል እና ለ <b>${escapeHtml(groupHandle)}</b> ግሩፕ በቀጥታ የቴሌግራም Quiz ጥያቄዎችን በፖል ማዘጋጀት እና መልቀቅ ይችላሉ።
 
@@ -1062,46 +1069,46 @@ async function renderPollManagerDashboard(ctx, env) {
 • 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
 
 📌 <b>ቀጥታ ትዕዛዝ:</b>
-• <code>/quiz en &lt;ርዕስ&gt;</code> — ሙሉ በሙሉ በእንግሊዝኛ (100% English)
-• <code>/quiz am &lt;ርዕስ&gt;</code> — ሙሉ በሙሉ በአማርኛ (100% አማርኛ)
+• <code>/quiz en &lt;ርዕስ&gt;</code> — ሙሉ በእንግሊዝኛ
+• <code>/quiz am &lt;ርዕስ&gt;</code> — ሙሉ በአማርኛ
 • <code>/quiz &lt;ርዕስ&gt;</code> — ምሳሌ: <code>/quiz Grade 10 Physics motion</code>
 
 ከታች ካሉት አማራጮች አንዱን ፈጥነው ይጫኑ ⬇️`;
 
   const keyboard = Markup.inlineKeyboard([
     [
-      Markup.button.callback('🇬🇧 ሙሉ English Mode', 'quiz_quick_mode_en'),
-      Markup.button.callback('🇪🇹 ሙሉ አማርኛ Mode', 'quiz_quick_mode_am')
+      Markup.button.callback("🇬🇧 ሙሉ English Mode", "quiz_quick_mode_en"),
+      Markup.button.callback("🇪🇹 ሙሉ አማርኛ Mode", "quiz_quick_mode_am")
     ],
     [
-      Markup.button.callback('📗 9ኛ ክፍል', 'quiz_quick_grade_9'),
-      Markup.button.callback('📘 10ኛ ክፍል', 'quiz_quick_grade_10')
+      Markup.button.callback("📗 9ኛ ክፍል", "quiz_quick_grade_9"),
+      Markup.button.callback("📘 10ኛ ክፍል", "quiz_quick_grade_10")
     ],
     [
-      Markup.button.callback('📙 11ኛ ክፍል', 'quiz_quick_grade_11'),
-      Markup.button.callback('🎓 12ኛ ክፍል', 'quiz_quick_grade_12')
+      Markup.button.callback("📙 11ኛ ክፍል", "quiz_quick_grade_11"),
+      Markup.button.callback("🎓 12ኛ ክፍል", "quiz_quick_grade_12")
     ],
     [
-      Markup.button.callback('⚛️ ፊዚክስ', 'quiz_quick_subj_physics'),
-      Markup.button.callback('🧪 ኬሚስትሪ', 'quiz_quick_subj_chem')
+      Markup.button.callback("⚛️ ፊዚክስ", "quiz_quick_subj_physics"),
+      Markup.button.callback("🧪 ኬሚስትሪ", "quiz_quick_subj_chem")
     ],
     [
-      Markup.button.callback('🧬 ባዮሎጂ', 'quiz_quick_subj_bio'),
-      Markup.button.callback('📐 ማቲማቲክስ', 'quiz_quick_subj_math')
+      Markup.button.callback("🧬 ባዮሎጂ", "quiz_quick_subj_bio"),
+      Markup.button.callback("📐 ማቲማቲክስ", "quiz_quick_subj_math")
     ],
     [
-      Markup.button.callback('🌍 English Exam', 'quiz_quick_subj_english'),
-      Markup.button.callback('🇪🇹 አጠቃላይ እውቀት', 'quiz_quick_subj_general')
+      Markup.button.callback("🌍 English Exam", "quiz_quick_subj_english"),
+      Markup.button.callback("🇪🇹 አጠቃላይ እውቀት", "quiz_quick_subj_general")
     ],
     [
-      Markup.button.callback('✏️ የራስህን ርዕስ ጻፍ (Custom Topic)', 'quiz_prompt_custom_topic')
+      Markup.button.callback("✏️ የራስህን ርዕስ ጻፍ", "quiz_prompt_custom_topic")
     ],
     [
-      Markup.button.callback('📝 ሙሉ ጥያቄ እራስህ ጻፍ', 'quiz_prompt_manual_write'),
-      Markup.button.callback('⚙️ ዒላማ ቻናል/ግሩፕ', 'quiz_config_dest')
+      Markup.button.callback("📝 ሙሉ ጥያቄ እራስህ ጻፍ", "quiz_prompt_manual_write"),
+      Markup.button.callback("⚙️ ዒላማ ቻናል/ግሩፕ", "quiz_config_dest")
     ],
     [
-      Markup.button.callback('🔙 ወደ ዳሽቦርድ', 'admin_refresh_stats')
+      Markup.button.callback("🔙 ወደ ዳሽቦርድ", "admin_refresh_stats")
     ]
   ]);
 
@@ -1110,35 +1117,35 @@ async function renderPollManagerDashboard(ctx, env) {
 
 // Helper: Show Live Quiz Poll Preview & Dispatch Controls
 async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
-  const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
-  const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+  const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
+  const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
   const cleanQ = cleanQuestionText(quizDraft.question);
 
-  // 1. Send live interactive Poll into chat for the Admin to test!
+  // 1. Send live interactive Poll into chat for the Admin to test
   try {
     await ctx.telegram.sendPoll(
       ctx.chat.id,
       cleanQ,
       quizDraft.options,
       {
-        type: 'quiz',
+        type: "quiz",
         correct_option_id: quizDraft.correct_option_id,
-        explanation: quizDraft.explanation || '',
+        explanation: quizDraft.explanation || "",
         is_anonymous: false
       }
     );
   } catch (err) {
-    console.warn('[sendPoll Preview Warning]:', err.message);
+    console.warn("[sendPoll Preview Warning]:", err.message);
   }
 
   // 2. Send Control Action Bar
   const correctLetter = String.fromCharCode(65 + quizDraft.correct_option_id);
-  const correctText = quizDraft.options[quizDraft.correct_option_id] || '';
+  const correctText = quizDraft.options[quizDraft.correct_option_id] || "";
 
   const text =
 `🎯 <b>የኩዊዝ ፖል ቅድመ-እይታ ተዘጋጅቷል!</b>
 ━━━━━━━━━━━━━━━━━━━━
-• 📌 <b>ርዕስ:</b> ${escapeHtml(quizDraft.title || 'Academic Quiz')}
+• 📌 <b>ርዕስ:</b> ${escapeHtml(quizDraft.title || "Academic Quiz")}
 • 📢 <b>ዒላማ ቻናል:</b> <code>${escapeHtml(channelHandle)}</code>
 • 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
 • ✅ <b>ትክክለኛ መልስ:</b> <code>${correctLetter}) ${escapeHtml(correctText)}</code>
@@ -1148,54 +1155,52 @@ async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
 
   const keyboard = Markup.inlineKeyboard([
     [
-      Markup.button.callback('📢 ወደ ቻናል ልቀቅ', 'quiz_post_channel'),
-      Markup.button.callback('👥 ወደ ግሩፕ ልቀቅ', 'quiz_post_group')
+      Markup.button.callback("📢 ወደ ቻናል ልቀቅ", "quiz_post_channel"),
+      Markup.button.callback("👥 ወደ ግሩፕ ልቀቅ", "quiz_post_group")
     ],
     [
-      Markup.button.callback('🚀 ወደ ሁለቱም ልቀቅ (ቻናል + ግሩፕ)', 'quiz_post_both')
+      Markup.button.callback("🚀 ወደ ሁለቱም ልቀቅ", "quiz_post_both")
     ],
     [
-      Markup.button.callback('🇬🇧 ሙሉ English አድርግ', 'quiz_switch_lang_en'),
-      Markup.button.callback('🇪🇹 ሙሉ አማርኛ አድርግ', 'quiz_switch_lang_am')
+      Markup.button.callback("🇬🇧 ሙሉ English አድርግ", "quiz_switch_lang_en"),
+      Markup.button.callback("🇪🇹 ሙሉ አማርኛ አድርግ", "quiz_switch_lang_am")
     ],
     [
-      Markup.button.callback('🔄 ሌላ ጥያቄ ፍጠር', 'quiz_regen'),
-      Markup.button.callback('✏️ አዲስ ርዕስ ጻፍ', 'quiz_prompt_custom_topic')
+      Markup.button.callback("🔄 ሌላ ጥያቄ ፍጠር", "quiz_regen"),
+      Markup.button.callback("✏️ አዲስ ርዕስ ጻፍ", "quiz_prompt_custom_topic")
     ],
     [
-      Markup.button.callback('⚙️ ዒላማ ቀይር', 'quiz_config_dest'),
-      Markup.button.callback('❌ ሰርዝ', 'quiz_cancel')
+      Markup.button.callback("⚙️ ዒላማ ቀይር", "quiz_config_dest"),
+      Markup.button.callback("❌ ሰርዝ", "quiz_cancel")
     ]
   ]);
 
-  return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+  return ctx.reply(text, { parse_mode: "HTML", ...keyboard });
 }
 
 // Helper: Dispatch Telegram Poll to Target Channel / Group
 async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
-  const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
-  const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
-  const botUsername = (await getDynamicConfig(env, 'bot_username', 'SmartX_PreRegister_bot')).replace('@', '');
+  const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
+  const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
+  const botUsername = (await getDynamicConfig(env, "bot_username", "SmartX_PreRegister_bot")).replace("@", "");
 
   const cleanQ = cleanQuestionText(quizDraft.question);
 
-  // Buttons under the poll: Ask Another Student / Share & Bot Link
-  const shareText = `🎯 የፈተና ጥያቄ (Quiz Challenge):\n"${cleanQ}"\n\nይህን ጥያቄ መመለስ ትችላለህ? እስኪ ሞክረው! 👇`;
+  // Single language detection (English vs Amharic)
+  const isEnglish = quizDraft.langMode === "english" || (!/[\u1200-\u137F]/.test(cleanQ));
+  const shareBtnText = isEnglish ? "👥 Share Quiz" : "👥 ለተማሪ አጋራ";
+  const moreBtnText = isEnglish ? "🤖 More Quizzes" : "🤖 ተጨማሪ ጥያቄዎች";
+  const shareText = isEnglish 
+    ? `🎯 Quiz Question:\n"${cleanQ}"\n\nCan you solve this? Try it now! 👇`
+    : `🎯 የፈተና ጥያቄ:\n"${cleanQ}"\n\nይህን ጥያቄ መመለስ ትችላለህ? እስኪ ሞክረው! 👇`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}?start=quiz`)}&text=${encodeURIComponent(shareText)}`;
 
+  // Balanced 1-row button layout
   const pollInlineMarkup = {
     inline_keyboard: [
       [
-        {
-          text: '👥 Ask Another Student | ለተማሪ አጋራ 📤',
-          url: shareUrl
-        }
-      ],
-      [
-        {
-          text: '🤖 ተጨማሪ ኩዊዞች (More Quizzes)',
-          url: `https://t.me/${botUsername}?start=quiz`
-        }
+        { text: shareBtnText, url: shareUrl },
+        { text: moreBtnText, url: `https://t.me/${botUsername}?start=quiz` }
       ]
     ]
   };
@@ -1817,7 +1822,7 @@ async function initDb(db) {
 
 export default {
   async scheduled(event, env, ctx) {
-    const apiKey = env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+    const apiKey = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
     if (!apiKey || !env.DB) return;
 
     const bot = new Telegraf(apiKey);
@@ -1828,7 +1833,7 @@ export default {
   },
 
   async fetch(request, env) {
-    const apiKey = env?.TELEGRAM_BOT_TOKEN || env?.BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN || process.env?.BOT_TOKEN;
+    const apiKey = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
     if (!apiKey) {
       return new Response('Error: TELEGRAM_BOT_TOKEN (or BOT_TOKEN) is not set in environment or secrets.', { status: 500 });
     }
@@ -2693,9 +2698,13 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
             }
 
             // Otherwise, topic is a subject or chapter name
-            const langLabel = langMode === 'english' ? ' (100% English)' : (langMode === 'amharic' ? ' (ሙሉ አማርኛ)' : '');
+            const langLabel = langMode === 'english' ? ' - English' : (langMode === 'amharic' ? ' - አማርኛ' : '');
             await ctx.reply(`⏳ <b>ለ "${escapeHtml(topic)}"${langLabel} የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
-            const quizData = await getOrGenerateQuiz(topic, langMode, env);
+            const quizRes = await getOrGenerateQuiz(topic, langMode, env);
+            if (!quizRes.ok) {
+              return renderPollError(ctx, quizRes.error);
+            }
+            const quizData = quizRes.data;
             adminQuizDrafts[userId] = {
               title: topic,
               langMode,
@@ -2761,7 +2770,11 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           await ctx.answerCbQuery(`የ ${gradeNum}ኛ ክፍል ጥያቄ እየተዘጋጀ ነው...`).catch(() => {});
 
           const topic = `${gradeNum}ኛ ክፍል አጠቃላይ ፈተና`;
-          const quizData = await getOrGenerateQuiz(topic, langMode, env);
+          const quizRes = await getOrGenerateQuiz(topic, langMode, env);
+          if (!quizRes.ok) {
+            return renderPollError(ctx, quizRes.error);
+          }
+          const quizData = quizRes.data;
           adminQuizDrafts[userId] = {
             title: topic,
             langMode,
@@ -2787,7 +2800,11 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           const subjName = subjMap[subjKey] || subjKey;
           await ctx.answerCbQuery(`የ ${subjName} ጥያቄ እየተዘጋጀ ነው...`).catch(() => {});
 
-          const quizData = await getOrGenerateQuiz(subjName, langMode, env);
+          const quizRes = await getOrGenerateQuiz(subjName, langMode, env);
+          if (!quizRes.ok) {
+            return renderPollError(ctx, quizRes.error);
+          }
+          const quizData = quizRes.data;
           adminQuizDrafts[userId] = {
             title: subjName,
             langMode,
@@ -2861,7 +2878,11 @@ D) 3 x 10^5 m/s
           await ctx.answerCbQuery('ወደ 100% English እየተቀየረ ነው...').catch(() => {});
 
           const topic = draft.title || 'Academic Quiz';
-          const newQuiz = await getOrGenerateQuiz(topic, 'english', env);
+          const newRes = await getOrGenerateQuiz(topic, 'english', env);
+          if (!newRes.ok) {
+            return renderPollError(ctx, newRes.error);
+          }
+          const newQuiz = newRes.data;
           adminQuizDrafts[userId] = {
             title: topic,
             langMode: 'english',
@@ -2879,7 +2900,11 @@ D) 3 x 10^5 m/s
           await ctx.answerCbQuery('ወደ ሙሉ አማርኛ እየተቀየረ ነው...').catch(() => {});
 
           const topic = draft.title || 'Academic Quiz';
-          const newQuiz = await getOrGenerateQuiz(topic, 'amharic', env);
+          const newRes = await getOrGenerateQuiz(topic, 'amharic', env);
+          if (!newRes.ok) {
+            return renderPollError(ctx, newRes.error);
+          }
+          const newQuiz = newRes.data;
           adminQuizDrafts[userId] = {
             title: topic,
             langMode: 'amharic',
@@ -2897,7 +2922,11 @@ D) 3 x 10^5 m/s
           const langMode = current?.langMode || 'auto';
 
           await ctx.answerCbQuery('አዲስ ጥያቄ እየተዘጋጀ ነው...').catch(() => {});
-          const quizData = await getOrGenerateQuiz(topic, langMode, env);
+          const quizRes = await getOrGenerateQuiz(topic, langMode, env);
+          if (!quizRes.ok) {
+            return renderPollError(ctx, quizRes.error);
+          }
+          const quizData = quizRes.data;
           adminQuizDrafts[userId] = {
             title: topic,
             langMode,
@@ -2990,6 +3019,28 @@ D) 3 x 10^5 m/s
 
           adminQuizDrafts[userId] = { step: 'AWAITING_GROUP_HANDLE' };
           return ctx.reply('👥 <b>አዲሱን የቴሌግራም ግሩፕ username ይላኩ (ምሳሌ: @SmartX_Ethio):</b>', { parse_mode: 'HTML' });
+        });
+
+        bot.action('quiz_prompt_new_key', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          adminQuizDrafts[userId] = { ...(adminQuizDrafts[userId] || {}), step: 'AWAITING_GEMINI_KEY' };
+
+          const text =
+`🔑 <b>አዲስ የ Gemini API ቁልፍ ያስገቡ:</b>
+━━━━━━━━━━━━━━━━━━━━
+ከ Google AI Studio ያገኙትን የ API ቁልፍ ጽፈው ይላኩ:
+
+💡 ወይም በቀጥታ ትዕዛዝ:
+<code>/set_gemini_key YOUR_API_KEY</code>`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ ሰርዝ', 'quiz_cancel')]
+          ]);
+
+          return transitionToNewStep(ctx, text, keyboard);
         });
 
         bot.action('quiz_cancel', async (ctx) => {
@@ -3809,6 +3860,24 @@ D) 3 x 10^5 m/s
           // Flow 4: Admin Poll / Quiz Generation & Configuration
           const adminQuizDraft = adminQuizDrafts[userId];
           if (adminQuizDraft && isAdmin(userId, env)) {
+            if (adminQuizDraft.step === 'AWAITING_GEMINI_KEY') {
+              const newKey = (ctx.message.text || '').trim();
+              if (newKey.length < 15) {
+                return ctx.reply('⚠️ እባክዎ ትክክለኛ የ Gemini API ቁልፍ ያስገቡ:');
+              }
+              await setDynamicConfig(env, 'gemini_api_key', newKey);
+              delete adminQuizDraft.step;
+              return ctx.reply(
+                `✅ <b>የ Gemini API ቁልፍ በተሳካ ሁኔታ ተቀምጧል!</b>\nቁልፍ: <code>${newKey.substring(0, 8)}...${newKey.slice(-4)}</code>\n\nአሁን የኩዊዝ ጥያቄዎችን በ /quiz ማመንጨት ይችላሉ።`,
+                {
+                  parse_mode: 'HTML',
+                  ...Markup.inlineKeyboard([
+                    [Markup.button.callback('🎯 ወደ ኩዊዝ ማዘጋጃ', 'admin_poll_quiz_menu')]
+                  ])
+                }
+              );
+            }
+
             if (adminQuizDraft.step === 'AWAITING_TOPIC') {
               let topicText = (ctx.message.text || '').trim();
               if (!topicText) return ctx.reply('⚠️ እባክዎ ትክክለኛ የኩዊዝ ርዕስ ወይም ክፍል ይጻፉ:');
@@ -3822,9 +3891,13 @@ D) 3 x 10^5 m/s
                 topicText = topicText.replace(/^(?:am|amharic|አማርኛ)\s+/i, '').trim();
               }
 
-              const langLabel = langMode === 'english' ? ' (100% English)' : (langMode === 'amharic' ? ' (ሙሉ አማርኛ)' : '');
+              const langLabel = langMode === 'english' ? ' - English' : (langMode === 'amharic' ? ' - አማርኛ' : '');
               await ctx.reply(`⏳ <b>ለ "${escapeHtml(topicText)}"${langLabel} የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
-              const quizData = await getOrGenerateQuiz(topicText, langMode, env);
+              const quizRes = await getOrGenerateQuiz(topicText, langMode, env);
+              if (!quizRes.ok) {
+                return renderPollError(ctx, quizRes.error);
+              }
+              const quizData = quizRes.data;
               adminQuizDrafts[userId] = {
                 title: topicText,
                 langMode,
@@ -4063,7 +4136,7 @@ ${isCompleted
 
   // Cloudflare Workers Scheduled Cron Trigger (Auto-processes queued broadcasts)
   async scheduled(event, env, ctx) {
-    const token = env?.BOT_TOKEN || process.env.BOT_TOKEN;
+    const token = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
     if (!token) return;
     try {
       const bot = new Telegraf(token);
