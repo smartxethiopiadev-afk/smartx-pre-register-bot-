@@ -751,24 +751,31 @@ async function transitionToNewStep(ctx, nextText, extra = {}) {
 // TELEGRAM POLL & QUIZ SYSTEM FOR CHANNELS/GROUPS
 // ==========================================
 
-async function getEffectiveGeminiKey(apiKey, env) {
-  const sanitize = (k) => (typeof k === "string" ? k.replace(/["']/g, "").trim() : "");
+function sanitizeGeminiKey(k) {
+  if (!k || typeof k !== "string") return "";
+  return k
+    .replace(/^GEMINI_API_KEY\s*=\s*/i, "")
+    .replace(/^["']|["']$/g, "")
+    .replace(/[\r\n\t]/g, "")
+    .trim();
+}
 
+async function getEffectiveGeminiKey(apiKey, env) {
   // 1. Explicit argument
-  const argKey = sanitize(apiKey);
+  const argKey = sanitizeGeminiKey(apiKey);
   if (argKey.length > 10) return argKey;
 
   // 2. Cloudflare Worker Environment Secret (Single Standard Name: GEMINI_API_KEY)
-  const envKey = sanitize(env?.GEMINI_API_KEY);
+  const envKey = sanitizeGeminiKey(env?.GEMINI_API_KEY);
   if (envKey.length > 10) return envKey;
 
   // 3. Dynamic Database Configuration (saved via /set_gemini_key)
-  const dynKey = sanitize(await getDynamicConfig(env, "gemini_api_key"));
+  const dynKey = sanitizeGeminiKey(await getDynamicConfig(env, "gemini_api_key"));
   if (dynKey.length > 10) return dynKey;
 
   // 4. Local Node.js process.env fallback
   if (typeof process !== "undefined" && process.env?.GEMINI_API_KEY) {
-    const procKey = sanitize(process.env.GEMINI_API_KEY);
+    const procKey = sanitizeGeminiKey(process.env.GEMINI_API_KEY);
     if (procKey.length > 10) return procKey;
   }
 
@@ -790,6 +797,9 @@ async function callGeminiRest(prompt, apiKey, modelName = 'gemini-3.1-flash-lite
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
+    if (res.status === 400 && errText.includes('API_KEY_INVALID')) {
+      throw new Error('የ Gemini API ቁልፍ ልክ አይደለም (API Key Invalid). እባክዎ ትክክለኛ ቁልፍ ከ Google AI Studio ወስደው በ /set_gemini_key ያስተካክሉ።');
+    }
     throw new Error(`HTTP ${res.status} from Gemini REST (${modelName}): ${errText.substring(0, 120)}`);
   }
 
@@ -822,6 +832,75 @@ function getGenAI(apiKey) {
 }
 
 // Helper: Parse manual poll format written by admin
+
+// Helper: Parse custom single or multiple JSON quiz format from admin
+function parseCustomJsonQuiz(rawText) {
+  if (!rawText || typeof rawText !== 'string') return null;
+  const clean = rawText.trim().replace(/^\`\`\`(?:json)?\s*/i, '').replace(/\s*\`\`\`$/i, '').trim();
+
+  const firstBrace = clean.search(/[\[\{]/);
+  if (firstBrace === -1) return null;
+  const lastBrace = Math.max(clean.lastIndexOf('}'), clean.lastIndexOf(']'));
+  if (lastBrace === -1 || lastBrace <= firstBrace) return null;
+
+  const jsonSubstring = clean.substring(firstBrace, lastBrace + 1);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonSubstring);
+  } catch (e) {
+    return null;
+  }
+
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  const validList = [];
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+
+    const question = String(item.question || item.q || item.title || '').trim();
+    const rawOptions = item.options || item.choices || item.answers || [];
+    if (!question || !Array.isArray(rawOptions) || rawOptions.length < 2) continue;
+
+    const options = rawOptions.slice(0, 10).map(o => String(o).trim().substring(0, 95));
+
+    let correctIndex = 0;
+    const rawCorrect = item.correct_option_id ?? item.correctOptionId ?? item.correct_answer_id ?? item.correct_answer ?? item.answer ?? item.correct ?? 0;
+
+    if (typeof rawCorrect === 'number') {
+      correctIndex = rawCorrect >= 0 && rawCorrect < options.length ? rawCorrect : 0;
+    } else if (typeof rawCorrect === 'string') {
+      const trimmed = rawCorrect.trim();
+      if (/^[A-Ja-j]$/.test(trimmed)) {
+        correctIndex = trimmed.toUpperCase().charCodeAt(0) - 65;
+      } else if (/^\d+$/.test(trimmed)) {
+        const num = parseInt(trimmed, 10);
+        correctIndex = num >= 0 && num < options.length ? num : 0;
+      } else {
+        const foundIdx = options.findIndex(o => o.toLowerCase() === trimmed.toLowerCase());
+        if (foundIdx !== -1) correctIndex = foundIdx;
+      }
+    }
+
+    if (correctIndex < 0 || correctIndex >= options.length) correctIndex = 0;
+
+    const explanation = String(item.explanation || item.explain || item.desc || '').trim().substring(0, 195);
+
+    validList.push({
+      question: cleanQuestionText(question).substring(0, 295),
+      options,
+      correct_option_id: correctIndex,
+      explanation
+    });
+  }
+
+  if (validList.length === 0) return null;
+  if (validList.length === 1) {
+    return { type: 'single', data: validList[0] };
+  }
+  return { type: 'batch', data: validList };
+}
+
 function parseCustomPollFormat(rawText) {
   if (!rawText || typeof rawText !== 'string') return null;
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
@@ -1200,6 +1279,7 @@ function renderPollError(ctx, errorMsg) {
 async function renderPollManagerDashboard(ctx, env) {
   const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
   const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
+  const defaultShareButtons = await getDynamicConfig(env, "poll_share_buttons", "enabled");
 
   let totalPollsDispatched = inMemoryDispatchedPolls.length;
   if (env?.DB) {
@@ -1209,21 +1289,23 @@ async function renderPollManagerDashboard(ctx, env) {
     } catch (e) {}
   }
 
+  const shareStatusText = defaultShareButtons === "disabled" ? "🔴 ጠፍቷል (OFF)" : "🟢 በርቷል (ON)";
+
   const text =
 `🎯 <b>የቴሌግራም ፖል ኩዊዝ ማዘጋጃ</b> 🇪🇹
 ━━━━━━━━━━━━━━━━━━━━
-በዚህ ክፍል ለ <b>${escapeHtml(channelHandle)}</b> ቻናል እና ለ <b>${escapeHtml(groupHandle)}</b> ግሩፕ ነጠላ ወይም <b>በአንዴ ብዙ የቴሌግራም Quiz ፖሎችን</b> በ AI አዘጋጅተው መልቀቅ ይችላሉ።
+በዚህ ክፍል ለ <b>${escapeHtml(channelHandle)}</b> ቻናል እና ለ <b>${escapeHtml(groupHandle)}</b> ግሩፕ ነጠላ ወይም <b>በአንዴ ብዙ የቴሌግራም Quiz ፖሎችን</b> በ AI ወይም በ <b>JSON</b> አዘጋጅተው መልቀቅ ይችላሉ።
 
 • 📊 <b>እስካሁን የተለቀቁ ፖሎች:</b> <code>${totalPollsDispatched}</code>
 • 📢 <b>ዒላማ ቻናል:</b> <code>${escapeHtml(channelHandle)}</code>
 • 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
+• 🔘 <b>የስር አዝራሮች (Share Buttons):</b> ${shareStatusText}
 
 📌 <b>ቀጥታ ትዕዛዞች (Direct Commands):</b>
 • <code>/quiz &lt;ርዕስ&gt;</code> — 1 ፈጣን ጥያቄ (ምሳሌ: <code>/quiz Grade 10 Physics</code>)
 • <code>/quiz 3 &lt;ርዕስ&gt;</code> — 3 ጥያቄዎች በአንዴ
 • <code>/quiz 5 &lt;ርዕስ&gt;</code> — 5 ጥያቄዎች በአንዴ
-• <code>/quiz en 5 &lt;ርዕስ&gt;</code> — 5 ጥያቄዎች ሙሉ በእንግሊዝኛ
-• <code>/quiz am 5 &lt;ርዕስ&gt;</code> — 5 ጥያቄዎች ሙሉ በአማርኛ
+• <code>/jsonquiz &lt;JSON&gt;</code> — በራስዎ JSON ጥያቄዎችን ለማስገባት
 
 ከታች ካሉት አማራጮች አንዱን ይጫኑ ⬇️`;
 
@@ -1258,13 +1340,15 @@ async function renderPollManagerDashboard(ctx, env) {
       Markup.button.callback("🇪🇹 አጠቃላይ እውቀት", "quiz_quick_subj_general")
     ],
     [
-      Markup.button.callback("✏️ የራስህን ርዕስ ጻፍ", "quiz_prompt_custom_topic")
+      Markup.button.callback("✏️ የራስህን ርዕስ ጻፍ", "quiz_prompt_custom_topic"),
+      Markup.button.callback("📋 በ JSON ጥያቄ አስገባ", "quiz_prompt_json_input")
     ],
     [
       Markup.button.callback("📝 ሙሉ ጥያቄ እራስህ ጻፍ", "quiz_prompt_manual_write"),
-      Markup.button.callback("⚙️ ዒላማ ቻናል/ግሩፕ", "quiz_config_dest")
+      Markup.button.callback(`🔘 የስር አዝራር: ${defaultShareButtons === "disabled" ? "ጠፍቷል 🔴" : "በርቷል 🟢"}`, "quiz_toggle_default_share_btn")
     ],
     [
+      Markup.button.callback("⚙️ ዒላማ ቻናል/ግሩፕ", "quiz_config_dest"),
       Markup.button.callback("🔙 ወደ ዳሽቦርድ", "admin_refresh_stats")
     ]
   ]);
@@ -1276,6 +1360,12 @@ async function renderPollManagerDashboard(ctx, env) {
 async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
   const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
   const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
+  const defaultShareButtons = await getDynamicConfig(env, "poll_share_buttons", "enabled");
+
+  if (quizDraft.includeButtons === undefined) {
+    quizDraft.includeButtons = defaultShareButtons !== "disabled";
+  }
+
   const cleanQ = cleanQuestionText(quizDraft.question);
 
   // 1. Send live interactive Poll into chat for the Admin to test
@@ -1298,6 +1388,7 @@ async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
   // 2. Send Control Action Bar
   const correctLetter = String.fromCharCode(65 + quizDraft.correct_option_id);
   const correctText = quizDraft.options[quizDraft.correct_option_id] || "";
+  const btnStatusText = quizDraft.includeButtons ? "🟢 በርቷል (አዝራር አለው)" : "🔴 ጠፍቷል (ንጹህ ፖል ብቻ)";
 
   const text =
 `🎯 <b>የኩዊዝ ፖል ቅድመ-እይታ ተዘጋጅቷል!</b>
@@ -1306,7 +1397,8 @@ async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
 • 📢 <b>ዒላማ ቻናል:</b> <code>${escapeHtml(channelHandle)}</code>
 • 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
 • ✅ <b>ትክክለኛ መልስ:</b> <code>${correctLetter}) ${escapeHtml(correctText)}</code>
-• 💡 <b>ማብራሪያ:</b> ${escapeHtml(quizDraft.explanation)}
+• 💡 <b>ማብራሪያ:</b> ${escapeHtml(quizDraft.explanation || "ምንም")}
+• 🔘 <b>የስር አዝራሮች:</b> ${btnStatusText}
 
 ከላይ የቀረበው የቴሌግራም ፖል ኩዊዝ ወደ የት እንዲለቀቅ ይፈልጋሉ? ከታች ይምረጡ ⬇️`;
 
@@ -1317,6 +1409,9 @@ async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
     ],
     [
       Markup.button.callback("🚀 ወደ ሁለቱም ልቀቅ", "quiz_post_both")
+    ],
+    [
+      Markup.button.callback(`🔘 የበታች አዝራር: ${quizDraft.includeButtons ? "ማጥፊያ 🔴" : "ማብሪያ 🟢"}`, "quiz_toggle_share_btn")
     ],
     [
       Markup.button.callback("🇬🇧 ሙሉ English አድርግ", "quiz_switch_lang_en"),
@@ -1341,6 +1436,12 @@ async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
 async function showBatchQuizDraftPreview(ctx, userId, batchDraft, env) {
   const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
   const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
+  const defaultShareButtons = await getDynamicConfig(env, "poll_share_buttons", "enabled");
+
+  if (batchDraft.includeButtons === undefined) {
+    batchDraft.includeButtons = defaultShareButtons !== "disabled";
+  }
+
   const quizzes = batchDraft.quizzes || [];
 
   let qListText = "";
@@ -1350,6 +1451,8 @@ async function showBatchQuizDraftPreview(ctx, userId, batchDraft, env) {
     qListText += `${idx + 1}. <b>${escapeHtml(q.question)}</b>\n   ✅ <code>${letter}) ${escapeHtml(correctOpt)}</code>\n\n`;
   });
 
+  const btnStatusText = batchDraft.includeButtons ? "🟢 በርቷል (አዝራር አለው)" : "🔴 ጠፍቷል (ንጹህ ፖል ብቻ)";
+
   const text =
 `📚 <b>የ ${quizzes.length} የኩዊዝ ጥያቄዎች ጥቅል ተዘጋጅቷል!</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -1357,6 +1460,7 @@ async function showBatchQuizDraftPreview(ctx, userId, batchDraft, env) {
 • 📢 <b>ዒላማ ቻናል:</b> <code>${escapeHtml(channelHandle)}</code>
 • 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
 • 🔢 <b>የጥያቄዎች ብዛት:</b> <code>${quizzes.length}</code>
+• 🔘 <b>የስር አዝራሮች:</b> ${btnStatusText}
 
 📝 <b>የጥያቄዎች ዝርዝር:</b>
 ${qListText}ሁሉንም ፖሎች በአንድ ጊዜ ወደ ቻናል ወይም ግሩፕ ለመልቀቅ ከታች ይምረጡ ⬇️`;
@@ -1370,6 +1474,9 @@ ${qListText}ሁሉንም ፖሎች በአንድ ጊዜ ወደ ቻናል ወይ�
     ],
     [
       Markup.button.callback(`🚀 ወደ ሁለቱም ልቀቅ (${quizzes.length * 2} ፖሎች)`, "batch_post_both"),
+    ],
+    [
+      Markup.button.callback(`🔘 የበታች አዝራር: ${batchDraft.includeButtons ? "ማጥፊያ 🔴" : "ማብሪያ 🟢"}`, "batch_toggle_share_btn")
     ],
     [
       Markup.button.callback("🔄 እንደገና አዘጋጅ", "batch_regen"),
@@ -1391,6 +1498,8 @@ ${qListText}ሁሉንም ፖሎች በአንድ ጊዜ ወደ ቻናል ወይ�
 async function dispatchBatchPollsToDestination(ctx, batchDraft, destination, env) {
   const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
   const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
+  const defaultShareButtons = await getDynamicConfig(env, "poll_share_buttons", "enabled");
+  const shouldIncludeButtons = batchDraft.includeButtons !== undefined ? batchDraft.includeButtons : (defaultShareButtons !== "disabled");
   const botUsername = (await getDynamicConfig(env, "bot_username", "SmartX_PreRegister_bot")).replace("@", "");
   const quizzes = batchDraft.quizzes || [];
 
@@ -1425,43 +1534,33 @@ async function dispatchBatchPollsToDestination(ctx, batchDraft, destination, env
       : `🎯 የፈተና ጥያቄ:\n"${cleanQ}"\n\nይህን ጥያቄ መመለስ ትችላለህ? እስኪ ሞክረው! 👇`;
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}?start=quiz`)}&text=${encodeURIComponent(shareText)}`;
 
-    const pollInlineMarkup = {
+    const pollInlineMarkup = shouldIncludeButtons ? {
       inline_keyboard: [
         [
           { text: shareBtnText, url: shareUrl },
           { text: moreBtnText, url: `https://t.me/${botUsername}?start=quiz` }
         ]
       ]
-    };
+    } : undefined;
 
     for (const target of targets) {
       try {
         let pollRes;
+        const pollOptions = {
+          type: "quiz",
+          correct_option_id: qItem.correct_option_id,
+          explanation: qItem.explanation || "",
+          is_anonymous: true
+        };
+        if (pollInlineMarkup) {
+          pollOptions.reply_markup = pollInlineMarkup;
+        }
+
         try {
-          pollRes = await ctx.telegram.sendPoll(
-            target.handle,
-            cleanQ,
-            qItem.options,
-            {
-              type: "quiz",
-              correct_option_id: qItem.correct_option_id,
-              explanation: qItem.explanation || "",
-              is_anonymous: true,
-              reply_markup: pollInlineMarkup
-            }
-          );
+          pollRes = await ctx.telegram.sendPoll(target.handle, cleanQ, qItem.options, pollOptions);
         } catch (innerErr) {
-          pollRes = await ctx.telegram.sendPoll(
-            target.handle,
-            cleanQ,
-            qItem.options,
-            {
-              type: "quiz",
-              correct_option_id: qItem.correct_option_id,
-              explanation: qItem.explanation || "",
-              is_anonymous: true
-            }
-          );
+          delete pollOptions.reply_markup;
+          pollRes = await ctx.telegram.sendPoll(target.handle, cleanQ, qItem.options, pollOptions);
         }
 
         const pollId = pollRes?.poll?.id || `batch_poll_${Date.now()}_${i}`;
@@ -1504,7 +1603,6 @@ async function dispatchBatchPollsToDestination(ctx, batchDraft, destination, env
     }
 
     successCount++;
-    // Small safe delay between Telegram polls (350ms)
     if (i < quizzes.length - 1) {
       await new Promise(r => setTimeout(r, 350));
     }
@@ -1518,6 +1616,7 @@ async function dispatchBatchPollsToDestination(ctx, batchDraft, destination, env
 • 📢 <b>ዒላማ:</b> <code>${escapeHtml(destLabel)}</code>
 • 📌 <b>ርዕስ:</b> <b>${escapeHtml(batchDraft.title || "Batch Quiz")}</b>
 • 📊 <b>ጠቅላላ የተላኩ ፖሎች:</b> <code>${totalSent}</code>
+• 🔘 <b>የስር አዝራሮች:</b> ${shouldIncludeButtons ? "ተካተዋል ✅" : "ተዘለዋል (የሉም) ❌"}
 
 ተማሪዎች በቻናሉ እና በግሩፑ ላይ አሁን ጥያቄዎቹን መመለስ ይችላሉ! ✨`;
 
@@ -1532,6 +1631,8 @@ async function dispatchBatchPollsToDestination(ctx, batchDraft, destination, env
 async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
   const channelHandle = await getDynamicConfig(env, "poll_channel", await getDynamicConfig(env, "official_channel", "@SmartX_Discussion"));
   const groupHandle = await getDynamicConfig(env, "poll_group", await getDynamicConfig(env, "discussion_group", "@SmartX_Ethio"));
+  const defaultShareButtons = await getDynamicConfig(env, "poll_share_buttons", "enabled");
+  const shouldIncludeButtons = quizDraft.includeButtons !== undefined ? quizDraft.includeButtons : (defaultShareButtons !== "disabled");
   const botUsername = (await getDynamicConfig(env, "bot_username", "SmartX_PreRegister_bot")).replace("@", "");
 
   const cleanQ = cleanQuestionText(quizDraft.question);
@@ -1546,14 +1647,14 @@ async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}?start=quiz`)}&text=${encodeURIComponent(shareText)}`;
 
   // Balanced 1-row button layout
-  const pollInlineMarkup = {
+  const pollInlineMarkup = shouldIncludeButtons ? {
     inline_keyboard: [
       [
         { text: shareBtnText, url: shareUrl },
         { text: moreBtnText, url: `https://t.me/${botUsername}?start=quiz` }
       ]
     ]
-  };
+  } : undefined;
 
   const targets = [];
   if (destination === 'channel' || destination === 'both') {
@@ -1567,40 +1668,41 @@ async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
   for (const target of targets) {
     try {
       let pollRes;
+      const pollOptions = {
+        type: 'quiz',
+        correct_option_id: quizDraft.correct_option_id,
+        explanation: quizDraft.explanation || '',
+        is_anonymous: true
+      };
+      if (pollInlineMarkup) {
+        pollOptions.reply_markup = pollInlineMarkup;
+      }
+
       try {
         pollRes = await ctx.telegram.sendPoll(
           target.handle,
           cleanQ,
           quizDraft.options,
-          {
-            type: 'quiz',
-            correct_option_id: quizDraft.correct_option_id,
-            explanation: quizDraft.explanation || '',
-            is_anonymous: true,
-            reply_markup: pollInlineMarkup
-          }
+          pollOptions
         );
       } catch (pollErr) {
-        // Fallback if target does not accept reply_markup directly on sendPoll
+        delete pollOptions.reply_markup;
         pollRes = await ctx.telegram.sendPoll(
           target.handle,
           cleanQ,
           quizDraft.options,
-          {
-            type: 'quiz',
-            correct_option_id: quizDraft.correct_option_id,
-            explanation: quizDraft.explanation || '',
-            is_anonymous: true
-          }
+          pollOptions
         );
-        await ctx.telegram.sendMessage(
-          target.handle,
-          `👆 <b>ይህን ጥያቄ ለጓደኞችህ ወይም ለሌሎች ተማሪዎች አጋራ!</b>`,
-          {
-            parse_mode: 'HTML',
-            reply_markup: pollInlineMarkup
-          }
-        ).catch(() => {});
+        if (shouldIncludeButtons && pollInlineMarkup) {
+          await ctx.telegram.sendMessage(
+            target.handle,
+            `👆 <b>ይህን ጥያቄ ለጓደኞችህ ወይም ለሌሎች ተማሪዎች አጋራ!</b>`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: pollInlineMarkup
+            }
+          ).catch(() => {});
+        }
       }
 
       results.push({ ok: true, target, pollId: pollRes?.poll?.id || 'poll_' + Date.now() });
@@ -3022,18 +3124,18 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
             return ctx.reply('⛔ <b>Access Denied!</b> Admin authorization required.', { parse_mode: 'HTML' });
           }
 
-          let rawText = (ctx.message.text || '').replace(/^\/(?:quiz|poll|quizzes|batchquiz|bulkquiz|postquiz|postpoll)(@\w+)?/i, '').trim();
+          let rawText = (ctx.message.text || '').replace(/^\/(?:quiz|poll|quizzes|batchquiz|bulkquiz|jsonquiz|jsonpoll|postquiz|postpoll)(@\w+)?/i, '').trim();
           let langMode = adminQuizDrafts[userId]?.preferredLang || 'auto';
           let autoPostDest = null;
 
           // Check if user requested direct posting (e.g. /quiz 5 Grade 10 Physics post)
-          if (/\b(post|send|channel)\b/i.test(rawText)) {
+          if (/\b(post|send|channel)\b/i.test(rawText) && !rawText.startsWith('{') && !rawText.startsWith('[')) {
             autoPostDest = 'channel';
             rawText = rawText.replace(/\b(post|send|channel)\b/gi, '').trim();
-          } else if (/\b(group)\b/i.test(rawText)) {
+          } else if (/\b(group)\b/i.test(rawText) && !rawText.startsWith('{') && !rawText.startsWith('[')) {
             autoPostDest = 'group';
             rawText = rawText.replace(/\b(group)\b/gi, '').trim();
-          } else if (/\b(both)\b/i.test(rawText)) {
+          } else if (/\b(both)\b/i.test(rawText) && !rawText.startsWith('{') && !rawText.startsWith('[')) {
             autoPostDest = 'both';
             rawText = rawText.replace(/\b(both)\b/gi, '').trim();
           }
@@ -3045,6 +3147,34 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           } else if (/^(?:am|amharic|አማርኛ)\s+/i.test(rawText)) {
             langMode = 'amharic';
             rawText = rawText.replace(/^(?:am|amharic|አማርኛ)\s+/i, '').trim();
+          }
+
+          // Check if input is direct JSON format (single or batch array)
+          const jsonParsed = parseCustomJsonQuiz(rawText);
+          if (jsonParsed) {
+            if (jsonParsed.type === 'single') {
+              adminQuizDrafts[userId] = {
+                title: jsonParsed.data.question.substring(0, 40),
+                langMode,
+                ...jsonParsed.data,
+                question: cleanQuestionText(jsonParsed.data.question)
+              };
+              if (autoPostDest) {
+                return dispatchPollToDestination(ctx, adminQuizDrafts[userId], autoPostDest, env);
+              }
+              return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+            } else if (jsonParsed.type === 'batch') {
+              adminBatchQuizDrafts[userId] = {
+                title: 'Custom JSON Batch Quiz',
+                count: jsonParsed.data.length,
+                langMode,
+                quizzes: jsonParsed.data
+              };
+              if (autoPostDest) {
+                return dispatchBatchPollsToDestination(ctx, adminBatchQuizDrafts[userId], autoPostDest, env);
+              }
+              return showBatchQuizDraftPreview(ctx, userId, adminBatchQuizDrafts[userId], env);
+            }
           }
 
           // Check if a batch count is specified (e.g. /quiz 5 Grade 10 Physics or /quiz en 3 Math)
@@ -3118,7 +3248,7 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           return renderPollManagerDashboard(ctx, env);
         };
 
-        bot.command(['quiz', 'poll', 'quizzes', 'batchquiz', 'bulkquiz', 'postquiz', 'postpoll'], handleQuizCommand);
+        bot.command(['quiz', 'poll', 'quizzes', 'batchquiz', 'bulkquiz', 'jsonquiz', 'jsonpoll', 'postquiz', 'postpoll'], handleQuizCommand);
 
         bot.command('setquizchannel', async (ctx) => {
           const userId = ctx.from.id;
@@ -3138,6 +3268,24 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           let handle = arg.startsWith('@') ? arg : '@' + arg;
           await setDynamicConfig(env, 'poll_group', handle);
           return ctx.reply(`✅ <b>የፖል መላኪያ ግሩፕ ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
+        });
+
+        bot.command(['set_gemini_key', 'setgeminikey'], async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.reply('⛔ Admin authorization required.');
+          const rawArg = (ctx.message.text || '').replace(/^\/(?:set_gemini_key|setgeminikey)(@\w+)?/i, '').trim();
+          const cleanKey = sanitizeGeminiKey(rawArg);
+          if (!cleanKey || cleanKey.length < 15) {
+            return ctx.reply(
+              `⚠️ <b>እባክዎ ትክክለኛ የ Gemini API ቁልፍ ያስገቡ!</b>\n\nምሳሌ:\n<code>/set_gemini_key AIzaSy...</code>\n\nቁልፍ ከ <a href="https://aistudio.google.com/app/apikey">Google AI Studio</a> በነጻ ማግኘት ይችላሉ።`,
+              { parse_mode: 'HTML', disable_web_page_preview: true }
+            );
+          }
+          await setDynamicConfig(env, 'gemini_api_key', cleanKey);
+          return ctx.reply(
+            `✅ <b>የ Gemini API ቁልፍ በተሳካ ሁኔታ ተቀምጧል!</b>\nቁልፍ: <code>${cleanKey.substring(0, 6)}...${cleanKey.substring(cleanKey.length - 4)}</code>\n\nአሁን ጥያቄዎችን በ <code>/quiz</code> ማመንጨት ይችላሉ።`,
+            { parse_mode: 'HTML' }
+          );
         });
 
         bot.action('admin_poll_quiz_menu', async (ctx) => {
@@ -3475,6 +3623,86 @@ D) 3 x 10^5 m/s
             quizzes: batchRes.data
           };
           return showBatchQuizDraftPreview(ctx, userId, adminBatchQuizDrafts[userId], env);
+        });
+
+        
+        // Toggle Share Buttons on Single Quiz Preview
+        bot.action('quiz_toggle_share_btn', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const draft = adminQuizDrafts[userId];
+          if (!draft) return ctx.answerCbQuery('⚠️ ጥያቄ አልተገኘም', { show_alert: true });
+          draft.includeButtons = !draft.includeButtons;
+          await ctx.answerCbQuery(draft.includeButtons ? '🟢 የበታች አዝራር በርቷል' : '🔴 የበታች አዝራር ጠፍቷል').catch(() => {});
+          return showQuizDraftPreview(ctx, userId, draft, env);
+        });
+
+        // Toggle Share Buttons on Batch Quiz Preview
+        bot.action('batch_toggle_share_btn', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const draft = adminBatchQuizDrafts[userId];
+          if (!draft) return ctx.answerCbQuery('⚠️ ጥያቄዎች አልተገኙም', { show_alert: true });
+          draft.includeButtons = !draft.includeButtons;
+          await ctx.answerCbQuery(draft.includeButtons ? '🟢 የበታች አዝራር በርቷል' : '🔴 የበታች አዝራር ጠፍቷል').catch(() => {});
+          return showBatchQuizDraftPreview(ctx, userId, draft, env);
+        });
+
+        // Toggle Global Default Share Buttons Setting
+        bot.action('quiz_toggle_default_share_btn', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const currentSetting = await getDynamicConfig(env, 'poll_share_buttons', 'enabled');
+          const newSetting = currentSetting === 'disabled' ? 'enabled' : 'disabled';
+          await setDynamicConfig(env, 'poll_share_buttons', newSetting);
+          await ctx.answerCbQuery(newSetting === 'disabled' ? '🔴 የስር አዝራር በነባሪ ጠፍቷል' : '🟢 የስር አዝራር በነባሪ በርቷል').catch(() => {});
+          return renderPollManagerDashboard(ctx, env);
+        });
+
+        // Prompt user to enter JSON format quiz
+        bot.action('quiz_prompt_json_input', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery().catch(() => {});
+
+          adminQuizDrafts[userId] = { ...(adminQuizDrafts[userId] || {}), step: 'AWAITING_JSON_INPUT' };
+
+          const text =
+`📋 <b>ጥያቄዎችን በ JSON ፎርማት ያስገቡ:</b>
+━━━━━━━━━━━━━━━━━━━━
+አንድ ወይም ብዙ ጥያቄዎችን በ JSON ጽፈው መላክ ይችላሉ:
+
+🔹 <b>ምሳሌ 1 (ነጠላ ጥያቄ):</b>
+<code>{
+  "question": "የኢትዮጵያ ዋና ከተማ ማን ናት?",
+  "options": ["አዲስ አበባ", "ጎንደር", "ሀዋሳ", "ባህር ዳር"],
+  "correct_option_id": 0,
+  "explanation": "አዲስ አበባ የኢትዮጵያ ዋና ከተማ ናት።"
+}</code>
+
+🔹 <b>ምሳሌ 2 (ብዙ ጥያቄዎች በዝርዝር):</b>
+<code>[
+  {
+    "question": "What is the SI unit of force?",
+    "options": ["Joule", "Newton", "Watt", "Pascal"],
+    "correct_option_id": 1,
+    "explanation": "Force is measured in Newtons (N)."
+  },
+  {
+    "question": "Which planet is known as the Red Planet?",
+    "options": ["Venus", "Mars", "Jupiter", "Saturn"],
+    "correct_option_id": 1,
+    "explanation": "Mars appears red due to iron oxide."
+  }
+]</code>
+
+የእርስዎን JSON ኮፒ አድርገው እዚህ መልእክት መጻፊያ ሳጥን ውስጥ ይላኩ ⬇️`;
+
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback('❌ ሰርዝ', 'quiz_cancel')]
+          ]);
+
+          return transitionToNewStep(ctx, text, keyboard);
         });
 
         bot.action('quiz_post_channel', async (ctx) => {
@@ -4478,6 +4706,48 @@ D) 3 x 10^5 m/s
               return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
             }
 
+            
+            if (adminQuizDraft.step === 'AWAITING_JSON_INPUT' || rawText.startsWith('{') || rawText.startsWith('[')) {
+              const jsonParsed = parseCustomJsonQuiz(rawText);
+              if (jsonParsed) {
+                delete adminQuizDrafts[userId].step;
+                if (jsonParsed.type === 'single') {
+                  adminQuizDrafts[userId] = {
+                    title: jsonParsed.data.question.substring(0, 40),
+                    langMode: adminQuizDrafts[userId]?.preferredLang || 'auto',
+                    ...jsonParsed.data,
+                    question: cleanQuestionText(jsonParsed.data.question)
+                  };
+                  return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+                } else if (jsonParsed.type === 'batch') {
+                  adminBatchQuizDrafts[userId] = {
+                    title: 'Custom JSON Batch Quiz',
+                    count: jsonParsed.data.length,
+                    langMode: adminQuizDrafts[userId]?.preferredLang || 'auto',
+                    quizzes: jsonParsed.data
+                  };
+                  return showBatchQuizDraftPreview(ctx, userId, adminBatchQuizDrafts[userId], env);
+                }
+              }
+
+              if (adminQuizDraft.step === 'AWAITING_JSON_INPUT') {
+                return ctx.reply(
+`⚠️ <b>የተሳሳተ JSON ፎርማት!</b>
+━━━━━━━━━━━━━━━━━━━━
+እባክዎ JSON ትክክለኛ መሆኑን ያረጋግጡ።
+
+ምሳሌ:
+<code>{
+  "question": "ጥያቄ እዚህ...",
+  "options": ["ምርጫ 1", "ምርጫ 2", "ምርጫ 3", "ምርጫ 4"],
+  "correct_option_id": 0,
+  "explanation": "ማብራሪያ..."
+}</code>`,
+                  { parse_mode: 'HTML' }
+                );
+              }
+            }
+
             if (adminQuizDraft.step === 'AWAITING_MANUAL_INPUT') {
               const rawText = (ctx.message.text || '').trim();
               const parsed = parseCustomPollFormat(rawText);
@@ -4520,6 +4790,18 @@ D) 3 x 10^5 m/s
               await setDynamicConfig(env, 'poll_group', handle);
               delete adminQuizDrafts[userId];
               await ctx.reply(`✅ <b>የዒላማ ግሩፕ ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
+              return renderPollManagerDashboard(ctx, env);
+            }
+
+            if (adminQuizDraft.step === 'AWAITING_GEMINI_KEY') {
+              const rawKey = (ctx.message.text || '').trim();
+              const cleanKey = sanitizeGeminiKey(rawKey);
+              if (!cleanKey || cleanKey.length < 15) {
+                return ctx.reply('⚠️ እባክዎ ትክክለኛ የ Gemini API ቁልፍ ይላኩ (ምሳሌ: <code>AIzaSy...</code>):', { parse_mode: 'HTML' });
+              }
+              await setDynamicConfig(env, 'gemini_api_key', cleanKey);
+              delete adminQuizDrafts[userId];
+              await ctx.reply(`✅ <b>የ Gemini API ቁልፍ በተሳካ ሁኔታ ተቀምጧል!</b>\nቁልፍ: <code>${cleanKey.substring(0, 6)}...${cleanKey.substring(cleanKey.length - 4)}</code>\n\nአሁን ጥያቄዎችን በ <code>/quiz</code> ማመንጨት ይችላሉ።`, { parse_mode: 'HTML' });
               return renderPollManagerDashboard(ctx, env);
             }
           }
