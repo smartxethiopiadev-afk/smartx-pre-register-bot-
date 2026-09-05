@@ -752,21 +752,49 @@ async function transitionToNewStep(ctx, nextText, extra = {}) {
 // ==========================================
 
 async function getEffectiveGeminiKey(apiKey, env) {
-  if (apiKey && typeof apiKey === 'string' && apiKey.trim().length > 10) return apiKey.trim();
-  if (env?.GEMINI_API_KEY && typeof env.GEMINI_API_KEY === 'string' && env.GEMINI_API_KEY.trim().length > 10) return env.GEMINI_API_KEY.trim();
-  if (env?.GEMINI_API_KEYS && typeof env.GEMINI_API_KEYS === 'string') {
-    const k = env.GEMINI_API_KEYS.split(',')[0].trim();
-    if (k.length > 10) return k;
+  const sanitize = (k) => (typeof k === 'string' ? k.replace(/["']/g, '').trim() : '');
+
+  // 1. Explicit argument
+  const argKey = sanitize(apiKey);
+  if (argKey.length > 10) return argKey;
+
+  // 2. Cloudflare Worker Environment Secret bindings (Free & Paid Dashboard Settings)
+  const cloudflareCandidates = [
+    env?.GEMINI_API_KEY,
+    env?.GEMINI_API_KEYS,
+    env?.GEMINI_KEY,
+    env?.GOOGLE_GEMINI_API_KEY,
+    env?.GEMINI_TOKEN,
+    env?.AI_API_KEY
+  ];
+  for (const raw of cloudflareCandidates) {
+    if (raw && typeof raw === 'string') {
+      const clean = sanitize(raw.split(',')[0]);
+      if (clean.length > 10) return clean;
+    }
   }
-  const dynKey = await getDynamicConfig(env, 'gemini_api_key');
-  if (dynKey && typeof dynKey === 'string' && dynKey.trim().length > 10) return dynKey.trim();
-  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 10) {
-    return process.env.GEMINI_API_KEY.trim();
+
+  // 3. Dynamic DB Config (set via /set_gemini_key in Telegram bot)
+  const dynKey = sanitize(await getDynamicConfig(env, 'gemini_api_key'));
+  if (dynKey.length > 10) return dynKey;
+
+  // 4. Node.js process.env (Local Dev Server / Polling Mode)
+  if (typeof process !== 'undefined' && process.env) {
+    const procCandidates = [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEYS,
+      process.env.GEMINI_KEY,
+      process.env.GOOGLE_GEMINI_API_KEY,
+      process.env.AI_API_KEY
+    ];
+    for (const raw of procCandidates) {
+      if (raw && typeof raw === 'string') {
+        const clean = sanitize(raw.split(',')[0]);
+        if (clean.length > 10) return clean;
+      }
+    }
   }
-  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEYS) {
-    const k = process.env.GEMINI_API_KEYS.split(',')[0].trim();
-    if (k.length > 10) return k;
-  }
+
   return null;
 }
 

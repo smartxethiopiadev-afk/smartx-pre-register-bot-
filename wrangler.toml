@@ -12,7 +12,12 @@ crons = ["* * * * *"]
 # database_name = "smartx_db"
 # database_id = "your_d1_database_id_here"
 
-# Note: Set your secrets via Wrangler CLI or Cloudflare Dashboard:
+# Note: Set your secrets in Cloudflare Dashboard (Settings -> Variables and Secrets)
+# OR via Wrangler CLI:
 # wrangler secret put TELEGRAM_BOT_TOKEN
 # wrangler secret put GEMINI_API_KEY
 # wrangler secret put ADMIN_IDS
+
+[vars]
+# Non-sensitive variables can be placed here
+BOT_VERSION = "v3.0-enterprise"
