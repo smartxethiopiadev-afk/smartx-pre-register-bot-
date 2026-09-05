@@ -905,43 +905,43 @@ async function generateQuizWithGemini(topic, langMode = "auto", apiKey, env) {
   if (langMode === "english" || langMode === "en") {
     langDirective = `
 LANGUAGE SPECIFICATION: 100% ENGLISH
-- The question MUST be written in clear academic English.
-- ALL 4 options MUST be written in English.
-- The educational explanation MUST be in English.
-- CRITICAL: Do NOT put any bracket tags like [Grade 10 Biology] in the question.`;
+- The question MUST be simple, short, and directly written in English.
+- ALL 4 options MUST be short and concise (1-5 words each).
+- The educational explanation MUST be 1 short sentence in English.
+- CRITICAL: Do NOT put any bracket tags like [Grade 10 Biology] or parentheses in the question.`;
   } else if (langMode === "amharic" || langMode === "am") {
     langDirective = `
 LANGUAGE SPECIFICATION: 100% AMHARIC
-- ጥያቄው ሙሉ በሙሉ በአማርኛ መጻፍ አለበት።
-- ሁሉም 4ቱ ምርጫዎች በአማርኛ መጻፍ አለባቸው።
-- ትምህርታዊ ማብራሪያው ሙሉ በሙሉ በአማርኛ መጻፍ አለበት።
-- ጥብቅ ደንብ: በጥያቄው ላይ ምንም አይነት ቅንፍ ወይም ታግ አታስገቡ።`;
+- ጥያቄው አጭር፣ ቀላል እና ቀጥተኛ በአማርኛ ይሁን።
+- ሁሉም 4ቱ ምርጫዎች አጫጭር (ከ 1 እስከ 4 ቃላት) በአማርኛ ይሁኑ።
+- ትምህርታዊ ማብራሪያው 1 አጭር ዓረፍተ ነገር ብቻ ይሁን።
+- ጥብቅ ደንብ: በጥያቄው እና በምርጫዎቹ ላይ ምንም አይነት ቅንፍ (...) ወይም ታግ አታስገቡ።`;
   } else {
     const isTopicAmharic = /[\u1200-\u137F]/.test(topic) && !/(grade|physics|chemistry|biology|math|english|vector|force|energy|velocity)/i.test(topic);
     if (isTopicAmharic) {
       langDirective = `
 LANGUAGE SPECIFICATION: AMHARIC
-- ጥያቄው፣ 4ቱ ምርጫዎች እና ማብራሪያው በአማርኛ ይሁኑ።
-- ምንም አይነት ቅንፍ በጥያቄው መጀመሪያ ላይ አታስገቡ።`;
+- ጥያቄው፣ 4ቱ ምርጫዎች እና ማብራሪያው አጫጭር እና ቀላል በአማርኛ ይሁኑ።
+- ምንም አይነት ቅንፍ ወይም ታግ በጥያቄው ውስጥ አታስገቡ።`;
     } else {
       langDirective = `
 LANGUAGE SPECIFICATION: ENGLISH
-- The question and ALL 4 options MUST be in clear academic English.
-- The educational explanation should be clear and concise in English.
-- CRITICAL: Do NOT put any bracket tags like [Grade 10 Biology] in the question.`;
+- The question and ALL 4 options MUST be simple, short, and direct in English.
+- The educational explanation should be 1 concise sentence in English.
+- CRITICAL: Do NOT put any bracket tags or parentheses in the question.`;
     }
   }
 
-  const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner.
-Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for: "${topic}".
+  const prompt = `You are an expert Ethiopian secondary school teacher.
+Generate ONE simple, concise, short multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a 1-sentence explanation for: "${topic}".
 
 ${langDirective}
 
 Formatting Constraints:
-1. question: Clear and direct under 280 characters without bracket tags.
-2. options: Exactly 4 distinct multiple-choice options (A, B, C, D) under 90 characters each.
+1. question: Very simple, clear, direct, and under 130 characters without brackets or parentheses.
+2. options: Exactly 4 short, distinct choices (under 40 characters each).
 3. correct_option_id: Integer 0, 1, 2, or 3 pointing to the correct option.
-4. explanation: Clear educational explanation why that option is correct, under 180 characters.
+4. explanation: 1 concise educational sentence under 100 characters.
 
 Return ONLY a valid JSON object with keys:
 {
