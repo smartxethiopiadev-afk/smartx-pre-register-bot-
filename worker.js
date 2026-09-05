@@ -751,184 +751,48 @@ async function transitionToNewStep(ctx, nextText, extra = {}) {
 // TELEGRAM POLL & QUIZ SYSTEM FOR CHANNELS/GROUPS
 // ==========================================
 
-const defaultChannelPollsBank = [
-  // Grade 9
-  {
-    grade: '9',
-    subject: 'physics',
-    keywords: ['physics', 'ፊዚክስ', '9', 'motion', 'ፍጥነት', 'እንቅስቃሴ', 'velocity'],
-    question: '[Grade 9 Physics] When a body covers equal displacements in equal intervals of time along a straight line, what type of motion is it?',
-    options: ['Uniform Velocity', 'Variable Velocity', 'Acceleration', 'Instantaneous Speed'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Uniform Velocity ነው። ምክንያቱም አንድ አካል በእኩል ጊዜ ውስጥ እኩል ርቀቶችን ቀጥተኛ በሆነ አቅጣጫ ሲጓዝ እንቅስቃሴው ዩኒፎርም ቬሎሲቲ ይባላል።'
-  },
-  {
-    grade: '9',
-    subject: 'chemistry',
-    keywords: ['chemistry', 'ኬሚስትሪ', '9', 'atom', 'አተም', 'ኒውክሊየስ', 'nucleus'],
-    question: '[Grade 9 Chemistry] Which subatomic particles are located inside the nucleus of an atom?',
-    options: ['Protons and Neutrons', 'Electrons and Protons', 'Electrons only', 'Neutrons and Electrons'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Protons and Neutrons ነው። በአተም ኒውክሊየስ ውስጥ ፕሮቶኖችና ኒውትሮኖች ሲገኙ፣ ኤሌክትሮኖች በኒውክሊየሱ ዙሪያ ይሽከረከራሉ።'
-  },
-  {
-    grade: '9',
-    subject: 'biology',
-    keywords: ['biology', 'ባዮሎጂ', '9', 'cell', 'ሴል', 'organelle', 'mitochondria'],
-    question: '[Grade 9 Biology] Which cellular organelle is famously referred to as the "Powerhouse of the Cell"?',
-    options: ['Mitochondria', 'Ribosome', 'Golgi Body', 'Vacuole'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Mitochondria ነው። ማይቶኮንድሪያ ሴሉላር ሬስፒሬሽን በማካሄድ ለሴሉ የሚያስፈልገውን ATP (ሃይል) በማመንጨቱ የሴል ሃይል ማመንጫ ይባላል።'
-  },
-  {
-    grade: '9',
-    subject: 'math',
-    keywords: ['math', 'mathematics', 'ሂሳብ', '9', 'sets', 'numbers', 'ቁጥር'],
-    question: '[Grade 9 Mathematics] Which of the following numbers is an irrational number?',
-    options: ['√2', '3/4', '0.25', '√9'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ √2 ነው። √2 ማለቂያ የሌለውና የማይደጋገም አስርዮሽ በመሆኑ ኢ-ራሽናል ቁጥር ነው። √9 = 3 ራሽናል ነው።'
-  },
-  // Grade 10
-  {
-    grade: '10',
-    subject: 'physics',
-    keywords: ['physics', 'ፊዚክስ', '10', 'work', 'energy', 'ሃይል', 'ስራ', 'force', 'joule'],
-    question: '[Grade 10 Physics] If a constant force of 20 N moves an object 5 m in the direction of the force, what is the work done?',
-    options: ['100 Joules (J)', '25 Joules (J)', '4 Joules (J)', '50 Joules (J)'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ 100 Joules ነው። ስራ (Work Done) = Force × Distance = 20 N × 5 m = 100 J ይሆናል።'
-  },
-  {
-    grade: '10',
-    subject: 'chemistry',
-    keywords: ['chemistry', 'ኬሚስትሪ', '10', 'bond', 'ቦንድ', 'ionic', 'covalent'],
-    question: '[Grade 10 Chemistry] What type of chemical bond is formed by the complete transfer of electrons between a metal and a non-metal?',
-    options: ['Ionic Bond', 'Covalent Bond', 'Metallic Bond', 'Hydrogen Bond'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Ionic Bond ነው። በብረትና በኢ-ብረት መካከል ኤሌክትሮኖችን ሙሉ ለሙሉ በማስተላለፍ (Transfer) የሚፈጠረው ቦንድ አዮኒክ ቦንድ ይባላል።'
-  },
-  {
-    grade: '10',
-    subject: 'biology',
-    keywords: ['biology', 'ባዮሎጂ', '10', 'genetics', 'ዘረመል', 'mendel', 'ዲኤንኤ'],
-    question: '[Grade 10 Biology] Who is universally recognized as the "Father of Genetics" for his foundational experiments on pea plants?',
-    options: ['Gregor Mendel', 'Charles Darwin', 'Robert Hooke', 'Louis Pasteur'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Gregor Mendel ነው። ግሬጎር ሜንዴል በአተር ተክሎች ላይ ባደረገው ምርምር የዘረመል መሰረታዊ ህጎችን ያወጣ የጄኔቲክስ አባት ነው።'
-  },
-  {
-    grade: '10',
-    subject: 'math',
-    keywords: ['math', 'mathematics', 'ሂሳብ', '10', 'quadratic', 'እኩልታ', 'roots'],
-    question: '[Grade 10 Mathematics] In the quadratic equation ax² + bx + c = 0, what is the nature of the roots if the discriminant (b² - 4ac) < 0?',
-    options: ['No real roots (Complex roots)', 'Two distinct real roots', 'One repeated real root', 'Always zero'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ No real roots ነው። ዲስክሪሚናንቱ (b² - 4ac) ከ 0 በታች (<0) ከሆነ እኩልታው እውነተኛ ፈተሎች አይኖሩትም (ኮምፕሌክስ ቁጥሮች ይሆናሉ)።'
-  },
-  // Grade 11
-  {
-    grade: '11',
-    subject: 'physics',
-    keywords: ['physics', 'ፊዚክስ', '11', 'projectile', 'vector', 'ቬክተር', 'gravity'],
-    question: '[Grade 11 Physics] For an ideal projectile launched into the air, what is its horizontal acceleration (ax) neglecting air resistance?',
-    options: ['0 m/s²', '9.8 m/s²', '4.9 m/s²', 'Depends on initial velocity'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ 0 m/s² ነው። የአየር ግጭት በማይኖርበት ጊዜ በአግድም አቅጣጫ ምንም የተጣራ ሃይል ስለሌለ አግድም ማጣደፍ ሁልጊዜ 0 m/s² ነው።'
-  },
-  {
-    grade: '11',
-    subject: 'chemistry',
-    keywords: ['chemistry', 'ኬሚስትሪ', '11', 'gas', 'ጋዝ', 'boyle', 'pressure'],
-    question: '[Grade 11 Chemistry] Which gas law states that at constant temperature, the volume of a fixed mass of gas is inversely proportional to its pressure?',
-    options: ["Boyle's Law", "Charles's Law", "Avogadro's Law", "Dalton's Law"],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Boyle\'s Law ነው። የቦይል ህግ በቋሚ የሙቀት መጠን ወቅት የጋዝ ይዘትና ግፊት በተቃራኒ እንደሚዛመዱ (P ∝ 1/V) ያስረዳል።'
-  },
-  {
-    grade: '11',
-    subject: 'biology',
-    keywords: ['biology', 'ባዮሎጂ', '11', 'respiration', 'glycolysis', 'ግላይኮሊሲስ', 'atp'],
-    question: '[Grade 11 Biology] In cellular respiration, in which part of the cell does glycolysis take place?',
-    options: ['Cytoplasm', 'Mitochondrial matrix', 'Nucleus', 'Endoplasmic reticulum'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Cytoplasm ነው። ግላይኮሊሲስ የግሉኮስ መሰባበር የመጀመሪያ ደረጃ ሲሆን ኦክስጅን ሳያስፈልገው በሳይቶፕላዝም ውስጥ ይካሄዳል።'
-  },
-  // Grade 12
-  {
-    grade: '12',
-    subject: 'physics',
-    keywords: ['physics', 'ፊዚክስ', '12', 'induction', 'faraday', 'ማግኔት', 'ኤሌክትሪክ', 'magnetic'],
-    question: '[Grade 12 Physics] Which law states that an induced electromotive force (EMF) is directly proportional to the rate of change of magnetic flux?',
-    options: ["Faraday's Law", "Ohm's Law", "Coulomb's Law", "Ampere's Law"],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Faraday\'s Law ነው። የፋራዳይ ህግ ተለዋዋጭ ማግኔቲክ ፍሰት በኮንዳክተር ውስጥ ኤሌክትሪክ ሃይል (EMF) እንደሚያመነጭ ያብራራል።'
-  },
-  {
-    grade: '12',
-    subject: 'chemistry',
-    keywords: ['chemistry', 'ኬሚስትሪ', '12', 'equilibrium', 'le chatelier', 'ሚዛን', 'reaction'],
-    question: '[Grade 12 Chemistry] Which principle states that if a dynamic equilibrium is disturbed by changing conditions, the position of equilibrium moves to counteract the change?',
-    options: ["Le Chatelier's Principle", "Hess's Law", "Aufbau Principle", "Pauli Exclusion Principle"],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Le Chatelier\'s Principle ነው። ሚዛን ላይ ያለ ስርዓት ውጫዊ ለውጥ ሲመጣበት ለውጡን የሚቀንስ አቅጣጫ እንደሚይዝ ያስረዳል።'
-  },
-  {
-    grade: '12',
-    subject: 'biology',
-    keywords: ['biology', 'ባዮሎጂ', '12', 'dna', 'ዲኤንኤ', 'adenine', 'thymine'],
-    question: '[Grade 12 Biology] In a double-stranded DNA molecule, which nitrogenous base pairs with Adenine through two hydrogen bonds?',
-    options: ['Thymine', 'Guanine', 'Cytosine', 'Uracil'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Thymine ነው። በ DNA ውስጥ አዴኒን (A) ከታይሚን (T) ጋር በ 2 ሃይድሮጅን ቦንዶች ሲጣመሩ፣ ጓኒን (G) ከሳይቶሲን (C) ጋር በ 3 ቦንዶች ይጣመራሉ።'
-  },
-  {
-    grade: '12',
-    subject: 'math',
-    keywords: ['math', 'mathematics', 'ሂሳብ', '12', 'calculus', 'derivative', 'ዲሪቬቲቭ', 'limit'],
-    question: '[Grade 12 Mathematics] What is the first derivative f\'(x) of the polynomial function f(x) = x³ - 5x + 4?',
-    options: ['3x² - 5', '3x² + 4', 'x² - 5', '3x - 5'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ 3x² - 5 ነው። በ Power Rule መሰረት d/dx(x³) = 3x² እና d/dx(-5x) = -5 እንዲሁም d/dx(4) = 0 ስለሆነ f\'(x) = 3x² - 5 ይሆናል።'
-  },
-  // English & Ethiopian Knowledge
-  {
-    grade: 'All',
-    subject: 'english',
-    keywords: ['english', 'grammar', 'እንግሊዝኛ', 'conditional', 'tense'],
-    question: '[English Grammar] Choose the correct completion: "If she _______ hard, she would have passed the national entrance exam."',
-    options: ['had studied', 'studied', 'studies', 'has studied'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ "had studied" ነው። ይህ Third Conditional ዓረፍተ-ነገር ሲሆን ህጉ "If + past perfect, would have + past participle" ነው።'
-  },
-  {
-    grade: 'All',
-    subject: 'english',
-    keywords: ['english', 'vocabulary', 'antonym', 'ቃላት'],
-    question: '[English Vocabulary] Which of the following words is the direct antonym (opposite meaning) of "DILIGENT"?',
-    options: ['Lazy', 'Hardworking', 'Clever', 'Honest'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Lazy ነው። "Diligent" ማለት ታታሪ እና ትጉህ ማለት ሲሆን፣ ተቃራኒው (antonym) ሰነፍ ወይም ደንታቢስ (Lazy) ነው።'
-  },
-  {
-    grade: 'All',
-    subject: 'history',
-    keywords: ['history', 'ታሪክ', 'adwa', 'ዐድዋ', 'አድዋ', 'battle'],
-    question: '[Ethiopian History] In which Gregorian calendar year did the historic Victory of Adwa take place?',
-    options: ['1896 G.C (Yekatit 23, 1888 E.C)', '1888 G.C', '1936 G.C', '1875 G.C'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ 1896 G.C ነው። ታሪካዊው የዐድዋ ድል የተካሄደው በዳግማዊ አፄ ምኒልክ መሪነት የካቲት 23, 1888 ዓ.ም (March 1, 1896) ነበር።'
-  },
-  {
-    grade: 'All',
-    subject: 'geography',
-    keywords: ['geography', 'ጂኦግራፊ', 'lake', 'ጣና', 'tana', 'river', 'አባይ'],
-    question: '[Ethiopian Geography] Which of the following is the largest natural freshwater lake in Ethiopia and the source of the Blue Nile?',
-    options: ['Lake Tana', 'Lake Ziway', 'Lake Hawassa', 'Lake Chamo'],
-    correct_option_id: 0,
-    explanation: 'ትክክለኛው መልስ Lake Tana (ጣና ሃይቅ) ነው። ጣና ወደ 3,600 ካሬ ኪሜ ስፋት ያለውና የዓባይ (Blue Nile) ወንዝ መነሻ የሆነው ትልቁ የኢትዮጵያ ሃይቅ ነው።'
+async function getEffectiveGeminiKey(apiKey, env) {
+  if (apiKey && typeof apiKey === 'string' && apiKey.trim().length > 10) return apiKey.trim();
+  if (env?.GEMINI_API_KEY && typeof env.GEMINI_API_KEY === 'string' && env.GEMINI_API_KEY.trim().length > 10) return env.GEMINI_API_KEY.trim();
+  if (env?.GEMINI_API_KEYS && typeof env.GEMINI_API_KEYS === 'string') {
+    const k = env.GEMINI_API_KEYS.split(',')[0].trim();
+    if (k.length > 10) return k;
   }
-];
+  const dynKey = await getDynamicConfig(env, 'gemini_api_key');
+  if (dynKey && typeof dynKey === 'string' && dynKey.trim().length > 10) return dynKey.trim();
+  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 10) {
+    return process.env.GEMINI_API_KEY.trim();
+  }
+  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEYS) {
+    const k = process.env.GEMINI_API_KEYS.split(',')[0].trim();
+    if (k.length > 10) return k;
+  }
+  return null;
+}
+
+async function callGeminiRest(prompt, apiKey, modelName = 'gemini-3.1-flash-lite') {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json'
+      }
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status} from Gemini REST (${modelName}): ${errText.substring(0, 120)}`);
+  }
+
+  const data = await res.json();
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) throw new Error(`Empty text response from Gemini REST (${modelName})`);
+  return rawText;
+}
 
 let cachedGenAI = null;
 let lastApiKey = null;
@@ -1022,11 +886,13 @@ function cleanQuestionText(raw) {
     .trim();
 }
 
-// Helper: Generate dynamic Quiz using Gemini (Prioritizing Gemini 3.1 - 3.5 model series)
+// Helper: Generate dynamic Quiz using Gemini (Prioritizing gemini-3.1-flash-lite and gemini-3.6-flash)
 async function generateQuizWithGemini(topic, langMode = 'auto', apiKey, env) {
-  const effectiveKey = apiKey || env?.GEMINI_API_KEY || env?.GEMINI_API_KEYS || process.env?.GEMINI_API_KEY || process.env?.GEMINI_API_KEYS;
-  const ai = getGenAI(effectiveKey);
-  if (!ai) return null;
+  const effectiveKey = await getEffectiveGeminiKey(apiKey, env);
+  if (!effectiveKey) {
+    console.warn('[Gemini Quiz] No API key available');
+    return null;
+  }
 
   let langDirective = '';
   if (langMode === 'english' || langMode === 'en') {
@@ -1045,7 +911,7 @@ LANGUAGE SPECIFICATION (100% COMPLETE AMHARIC / አማርኛ):
 - ጥብቅ ደንብ: በጥያቄው መጀመሪያ ላይ ምንም አይነት ቅንፍ ወይም ታግ (እንደ [10ኛ ክፍል ባዮሎጂ]) በፍፁም አታስገቡ። ጥያቄውን በቀጥታ ጀምሩ።`;
   } else {
     // Auto mode
-    const isTopicAmharic = /[\u1200-\u137F]/.test(topic) && !/(grade|physics|chemistry|biology|math|english)/i.test(topic);
+    const isTopicAmharic = /[\u1200-\u137F]/.test(topic) && !/(grade|physics|chemistry|biology|math|english|vector|force|energy|velocity)/i.test(topic);
     if (isTopicAmharic) {
       langDirective = `
 LANGUAGE SPECIFICATION (AMHARIC):
@@ -1055,7 +921,7 @@ LANGUAGE SPECIFICATION (AMHARIC):
       langDirective = `
 LANGUAGE SPECIFICATION (ENGLISH):
 - The question and ALL 4 options MUST be in clear, academic English.
-- The educational explanation should be clear and concise in English (or Amharic if requested).
+- The educational explanation should be clear and concise in English.
 - CRITICAL RULE: DO NOT put any bracket tags like [Grade 10 Biology] in the question. Start directly with the question text.`;
     }
   }
@@ -1079,23 +945,15 @@ Return ONLY a valid JSON object with keys:
   "explanation": "string"
 }`;
 
-  // Candidate models: gemini-3.1-flash-lite (3.1-3.5 series as requested), followed by gemini-3.8-flash
-  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
-  for (const model of candidateModels) {
+  function parseAndValidateJson(rawText) {
+    if (!rawText || typeof rawText !== 'string') return null;
+    const cleanJson = rawText.trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
     try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json'
-        }
-      });
-
-      const text = response?.text;
-      if (!text) continue;
-      const cleanJson = text.trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
-      const parsed = JSON.parse(cleanJson);
-      if (parsed.question && Array.isArray(parsed.options) && parsed.options.length >= 2) {
+      let parsed = JSON.parse(cleanJson);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        parsed = parsed[0];
+      }
+      if (parsed && parsed.question && Array.isArray(parsed.options) && parsed.options.length >= 2) {
         return {
           question: cleanQuestionText(String(parsed.question)).substring(0, 295),
           options: parsed.options.slice(0, 4).map(o => String(o).substring(0, 95)),
@@ -1103,44 +961,54 @@ Return ONLY a valid JSON object with keys:
           explanation: String(parsed.explanation || '').substring(0, 195)
         };
       }
-    } catch (err) {
-      console.warn(`[Gemini Quiz Generation Error - ${model}]:`, err.message);
+    } catch (e) {}
+    return null;
+  }
+
+  // 1. Direct REST fetch with gemini-3.1-flash-lite (stable, fast, reliable)
+  try {
+    const rawRest = await callGeminiRest(prompt, effectiveKey, 'gemini-3.1-flash-lite');
+    const valid = parseAndValidateJson(rawRest);
+    if (valid) return valid;
+  } catch (restErr) {
+    console.warn('[Gemini REST gemini-3.1-flash-lite Warning]:', restErr.message);
+  }
+
+  // 2. Direct REST fetch with gemini-3.6-flash
+  try {
+    const rawRest2 = await callGeminiRest(prompt, effectiveKey, 'gemini-3.6-flash');
+    const valid2 = parseAndValidateJson(rawRest2);
+    if (valid2) return valid2;
+  } catch (restErr2) {
+    console.warn('[Gemini REST gemini-3.6-flash Warning]:', restErr2.message);
+  }
+
+  // 3. Fallback to GoogleGenAI SDK (gemini-3.1-flash-lite)
+  const ai = getGenAI(effectiveKey);
+  if (ai) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json'
+        }
+      });
+      const valid = parseAndValidateJson(response?.text);
+      if (valid) return valid;
+    } catch (sdkErr) {
+      console.warn('[GoogleGenAI SDK Quiz Warning]:', sdkErr.message);
     }
   }
 
   return null;
 }
 
-// Helper: Curriculum Question Bank Selector
-function generateCurriculumQuizFromBank(topic, langMode = 'auto') {
-  const normTopic = (topic || '').toLowerCase();
-  
-  const matches = defaultChannelPollsBank.filter(q => {
-    if (q.keywords && q.keywords.some(kw => normTopic.includes(kw.toLowerCase()))) return true;
-    if (normTopic.includes(q.grade) && (normTopic.includes(q.subject) || normTopic.includes('ክፍል'))) return true;
-    return false;
-  });
-
-  const selected = matches.length > 0
-    ? matches[Math.floor(Math.random() * matches.length)]
-    : defaultChannelPollsBank[Math.floor(Math.random() * defaultChannelPollsBank.length)];
-
-  return {
-    question: cleanQuestionText(selected.question),
-    options: [...selected.options],
-    correct_option_id: selected.correct_option_id,
-    explanation: selected.explanation
-  };
-}
-
-// Helper: Unified Quiz Generator (Gemini + Local Curriculum Bank)
+// Helper: Unified Quiz Generator (100% Dynamic Gemini AI - Sample Questions Removed)
 async function getOrGenerateQuiz(topic, langMode = 'auto', env) {
-  const apiKey = env?.GEMINI_API_KEY || env?.GEMINI_API_KEYS || process.env?.GEMINI_API_KEY || process.env?.GEMINI_API_KEYS;
-  if (apiKey) {
-    const aiQuiz = await generateQuizWithGemini(topic, langMode, apiKey, env);
-    if (aiQuiz) return aiQuiz;
-  }
-  return generateCurriculumQuizFromBank(topic, langMode);
+  const effectiveKey = await getEffectiveGeminiKey(null, env);
+  const aiQuiz = await generateQuizWithGemini(topic, langMode, effectiveKey, env);
+  return aiQuiz;
 }
 
 // Helper: Render Main Poll & Quiz Management Hub
