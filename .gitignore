@@ -1,7 +1,15 @@
-# GitHub export includes only deployment files
+# GitHub export files
 *
 !worker.js
+!polling.js
+!dev-server.js
 !package.json
 !wrangler.toml
 !.gitignore
 !.env.example
+!README.md
+!schema.sql
+.env
+.env.*
+node_modules/
+.wrangler/

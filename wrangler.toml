@@ -6,11 +6,13 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["* * * * *"]
 
-[[d1_databases]]
-binding = "DB"
-database_name = "smartx_db"
-database_id = "37a3d95c-449f-41e8-8bfc-7249c99d6f30"
+# Optional: Cloudflare D1 database (Uncomment if you create a D1 database with: wrangler d1 create smartx_db)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "smartx_db"
+# database_id = "your_d1_database_id_here"
 
-# Note: Environment variables like TELEGRAM_BOT_TOKEN 
-# should be added via 'wrangler secret put TELEGRAM_BOT_TOKEN' 
-# or in the Cloudflare Dashboard.
+# Note: Set your secrets via Wrangler CLI or Cloudflare Dashboard:
+# wrangler secret put TELEGRAM_BOT_TOKEN
+# wrangler secret put GEMINI_API_KEY
+# wrangler secret put ADMIN_IDS

@@ -215,19 +215,47 @@ function getBotUsername(ctx, env) {
   return 'SmartX_PreRegister_bot';
 }
 
-// Helper: Dynamically fetch channel or system configs from D1
+// Zero-Database In-Memory Configuration & Polls Tracking (Database is 100% Optional)
+const inMemoryConfig = {
+  poll_channel: '@SmartX_Discussion',
+  poll_group: '@SmartX_Ethio',
+  official_channel: '@SmartXEthiopia',
+  required_channel: '@SmartX_Discussion',
+  discussion_group: '@SmartX_Ethio',
+  support_username: '@smart_x_help',
+  bot_version: 'v5.6-pure-gemini',
+  release_date: 'መስከረም 5'
+};
+const inMemoryDispatchedPolls = [];
+
+// Helper: Dynamically fetch channel or system configs (In-Memory first, D1 optional)
 async function getDynamicConfig(env, key, defaultVal) {
+  if (inMemoryConfig[key]) return inMemoryConfig[key];
   if (env?.DB) {
     try {
       const row = await env.DB.prepare('SELECT value FROM system_config WHERE key = ?').bind(key).first();
-      if (row?.value) return row.value;
+      if (row?.value) {
+        inMemoryConfig[key] = row.value;
+        return row.value;
+      }
       const infoRow = await env.DB.prepare('SELECT value FROM app_info WHERE key = ?').bind(key).first();
-      if (infoRow?.value) return infoRow.value;
-    } catch (err) {
-      console.warn(`[DynamicConfig ${key} Error]:`, err.message);
-    }
+      if (infoRow?.value) {
+        inMemoryConfig[key] = infoRow.value;
+        return infoRow.value;
+      }
+    } catch (err) {}
   }
-  return defaultVal;
+  return defaultVal !== undefined ? defaultVal : inMemoryConfig[key];
+}
+
+// Helper: Dynamically set channel or system configs (In-Memory + Optional D1)
+async function setDynamicConfig(env, key, value) {
+  inMemoryConfig[key] = value;
+  if (env?.DB) {
+    try {
+      await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(key, value).run();
+    } catch (err) {}
+  }
 }
 
 // Multi-language UI Texts & High-Converting Prompts (Parentheses completely removed)
@@ -982,13 +1010,13 @@ function parseCustomPollFormat(rawText) {
   return null;
 }
 
-// Helper: Generate dynamic Quiz using Gemini
-async function generateQuizWithGemini(topic, apiKey) {
-  const ai = getGenAI(apiKey);
+// Helper: Generate dynamic Quiz using Gemini (Prioritizing Gemini 3.1 - 3.5 model series)
+async function generateQuizWithGemini(topic, apiKey, env) {
+  const effectiveKey = apiKey || env?.GEMINI_API_KEY || env?.GEMINI_API_KEYS || process.env?.GEMINI_API_KEY || process.env?.GEMINI_API_KEYS;
+  const ai = getGenAI(effectiveKey);
   if (!ai) return null;
 
-  try {
-    const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner (Grades 9-12).
+  const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner (Grades 9-12).
 Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for the following topic: "${topic}".
 Instructions:
 1. Question: Clear, academic, under 280 characters. Language: Amharic (or English if the topic was requested in English). Prefix with the subject/grade if appropriate, e.g. "[10ኛ ክፍል ፊዚክስ] ...".
@@ -1004,29 +1032,35 @@ Return ONLY a valid JSON object with keys:
   "explanation": "string"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
-    });
+  // Candidate models: gemini-3.1-flash-lite (3.1-3.5 series as requested), followed by gemini-3.8-flash
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+  for (const model of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json'
+        }
+      });
 
-    const text = response?.text;
-    if (!text) return null;
-    const cleanJson = text.trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
-    const parsed = JSON.parse(cleanJson);
-    if (parsed.question && Array.isArray(parsed.options) && parsed.options.length >= 2) {
-      return {
-        question: String(parsed.question).substring(0, 295),
-        options: parsed.options.slice(0, 4).map(o => String(o).substring(0, 95)),
-        correct_option_id: (typeof parsed.correct_option_id === 'number' && parsed.correct_option_id >= 0 && parsed.correct_option_id < parsed.options.length) ? parsed.correct_option_id : 0,
-        explanation: String(parsed.explanation || '').substring(0, 195)
-      };
+      const text = response?.text;
+      if (!text) continue;
+      const cleanJson = text.trim().replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      if (parsed.question && Array.isArray(parsed.options) && parsed.options.length >= 2) {
+        return {
+          question: String(parsed.question).substring(0, 295),
+          options: parsed.options.slice(0, 4).map(o => String(o).substring(0, 95)),
+          correct_option_id: (typeof parsed.correct_option_id === 'number' && parsed.correct_option_id >= 0 && parsed.correct_option_id < parsed.options.length) ? parsed.correct_option_id : 0,
+          explanation: String(parsed.explanation || '').substring(0, 195)
+        };
+      }
+    } catch (err) {
+      console.warn(`[Gemini Quiz Generation Error - ${model}]:`, err.message);
     }
-  } catch (err) {
-    console.warn('[Gemini Quiz Generation Error]:', err.message);
   }
+
   return null;
 }
 
@@ -1061,9 +1095,9 @@ function generateCurriculumQuizFromBank(topic) {
 
 // Helper: Unified Quiz Generator (Gemini + Local Curriculum Bank)
 async function getOrGenerateQuiz(topic, env) {
-  const apiKey = env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = env?.GEMINI_API_KEY || env?.GEMINI_API_KEYS || process.env?.GEMINI_API_KEY || process.env?.GEMINI_API_KEYS;
   if (apiKey) {
-    const aiQuiz = await generateQuizWithGemini(topic, apiKey);
+    const aiQuiz = await generateQuizWithGemini(topic, apiKey, env);
     if (aiQuiz) return aiQuiz;
   }
   return generateCurriculumQuizFromBank(topic);
@@ -1074,11 +1108,11 @@ async function renderPollManagerDashboard(ctx, env) {
   const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
   const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
 
-  let totalPollsDispatched = 0;
+  let totalPollsDispatched = inMemoryDispatchedPolls.length;
   if (env?.DB) {
     try {
       const pRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
-      totalPollsDispatched = pRes?.cnt || 0;
+      if (pRes?.cnt) totalPollsDispatched = Math.max(totalPollsDispatched, pRes.cnt);
     } catch (e) {}
   }
 
@@ -1217,6 +1251,13 @@ async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
         }
       );
       results.push({ ok: true, target, pollId: pollRes?.poll?.id || 'poll_' + Date.now() });
+      inMemoryDispatchedPolls.push({
+        pollId: pollRes?.poll?.id || 'poll_' + Date.now(),
+        target: target.handle,
+        type: target.type,
+        question: quizDraft.question,
+        sentAt: new Date().toISOString()
+      });
     } catch (err) {
       console.error(`[Poll Dispatch Error to ${target.handle}]:`, err.message);
       results.push({ ok: false, target, error: err.message });
@@ -1544,6 +1585,7 @@ async function buildAdminDashboardData(env) {
   let templateCount = 0;
   let gradeBreakdown = {};
   let totalReferrals = 0;
+  let pollCount = inMemoryDispatchedPolls.length;
 
   if (env?.DB) {
     try {
@@ -1564,10 +1606,9 @@ async function buildAdminDashboardData(env) {
       const tRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM promo_templates WHERE is_active = 1').first();
       templateCount = tRes?.cnt || 0;
 
-      let pollCount = 0;
       try {
         const pRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
-        pollCount = pRes?.cnt || 0;
+        if (pRes?.cnt) pollCount = Math.max(pollCount, pRes.cnt);
       } catch (e) {}
 
       const gRes = await env.DB.prepare(`SELECT grade, COUNT(*) as cnt FROM users GROUP BY grade`).all();
@@ -1578,9 +1619,19 @@ async function buildAdminDashboardData(env) {
       console.error('Admin stats error:', e);
     }
   } else {
-    userCount = Object.keys(registeredUsers).length;
-    activeUserCount = userCount;
+    const userVals = Object.values(registeredUsers);
+    userCount = userVals.length;
+    activeUserCount = userVals.filter(u => u.is_active !== 0).length;
+    blockedCount = userVals.filter(u => u.is_active === 0).length;
+    notifyOptinCount = userVals.filter(u => u.app_notification === 1).length;
+    totalReferrals = userVals.reduce((acc, u) => acc + (u.referral_count || 0), 0);
     templateCount = defaultPromoTemplates.length;
+    pollCount = inMemoryDispatchedPolls.length;
+    userVals.forEach(u => {
+      if (u.grade) {
+        gradeBreakdown[u.grade] = (gradeBreakdown[u.grade] || 0) + 1;
+      }
+    });
   }
 
   const text =
@@ -1779,9 +1830,9 @@ export default {
   },
 
   async fetch(request, env) {
-    const apiKey = env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+    const apiKey = env?.TELEGRAM_BOT_TOKEN || env?.BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN || process.env?.BOT_TOKEN;
     if (!apiKey) {
-      return new Response('Error: TELEGRAM_BOT_TOKEN is not set in environment or secrets.', { status: 500 });
+      return new Response('Error: TELEGRAM_BOT_TOKEN (or BOT_TOKEN) is not set in environment or secrets.', { status: 500 });
     }
 
     const bot = new Telegraf(apiKey);
@@ -1789,28 +1840,59 @@ export default {
       id: 777888999,
       is_bot: true,
       first_name: 'Smart X Ethiopian Bot',
-      username: env.BOT_USERNAME ? env.BOT_USERNAME.replace('@', '') : 'SmartX_PreRegister_bot'
+      username: env?.BOT_USERNAME ? env.BOT_USERNAME.replace('@', '') : 'SmartX_PreRegister_bot'
     };
     bot.catch((err) => {
       console.warn('[Telegraf Worker Global Catch]:', err?.message || err);
     });
     const url = new URL(request.url);
 
-    if (env.DB) {
+    if (env?.DB) {
       await initDb(env.DB);
     }
 
-    if (url.pathname === '/register') {
+    // Endpoint to register or check Telegram Webhook
+    if (url.pathname === '/register' || url.pathname === '/setWebhook' || url.pathname === '/setwebhook') {
       try {
         const webhookUrl = `${url.origin}/webhook`;
         if (apiKey.startsWith('SIMULATOR_') || apiKey.startsWith('YOUR_')) {
-          return new Response(`Notice: Bot token is in simulator/demo mode. Live webhook registration at Telegram skipped.`, { status: 200 });
+          return new Response(JSON.stringify({ ok: false, message: 'Notice: Bot token is in simulator/demo mode. Live webhook registration at Telegram skipped.' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
         }
         await bot.telegram.setWebhook(webhookUrl);
-        return new Response(`Webhook successfully registered at: ${webhookUrl}`, { status: 200 });
+        const webhookInfo = await bot.telegram.getWebhookInfo().catch(() => ({}));
+        return new Response(JSON.stringify({
+          ok: true,
+          message: `Webhook successfully registered at: ${webhookUrl}`,
+          webhook_info: webhookInfo
+        }, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
       } catch (err) {
         console.warn('Webhook Registration Warning:', err.message);
-        return new Response(`Registration Notice: ${err.message}`, { status: 200 });
+        return new Response(JSON.stringify({
+          ok: false,
+          error: err.message,
+          suggestion: 'Please verify your TELEGRAM_BOT_TOKEN is correct and active with @BotFather.'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    if (url.pathname === '/webhookinfo' || url.pathname === '/status') {
+      try {
+        const info = await bot.telegram.getWebhookInfo().catch(() => ({ error: 'Could not fetch webhook info' }));
+        return new Response(JSON.stringify({ ok: true, status: 'Online', webhook: info }, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: true, status: 'Online' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
     }
 
@@ -2329,6 +2411,21 @@ export default {
         ], handleHelpAndContact);
         bot.command(['help', 'contact', 'support'], handleHelpAndContact);
 
+        // --- /myid & /id Command ---
+        bot.command(['myid', 'id', 'whoami'], async (ctx) => {
+          const userId = ctx.from?.id;
+          const isUserAdmin = isAdmin(userId, env);
+          const text =
+`🆔 <b>የእርስዎ የቴሌግራም መለያ (Telegram ID):</b>
+━━━━━━━━━━━━━━━━━━━━
+• 👤 <b>ስም:</b> ${escapeHtml(ctx.from?.first_name || 'User')}
+• 🔢 <b>ID:</b> <code>${userId}</code>
+• 👑 <b>የአድሚን ፍቃድ:</b> ${isUserAdmin ? '✅ አድሚን ነዎት (Authorized)' : '❌ ተራ ተጠቃሚ (Standard User)'}
+
+${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት በ Cloudflare ወይም .env ውስጥ ADMIN_IDS ላይ ይጨምሩት።</i>' : '🎯 <i>እንደ /quiz እና /admin ያሉ ሁሉንም የአድሚን ትዕዛዛት መጠቀም ይችላሉ።</i>'}`;
+          return ctx.reply(text, { parse_mode: 'HTML' });
+        });
+
         // --- NAVIGATION BACK TO MAIN MENU ACTION ---
         bot.action('nav_back_to_menu', async (ctx) => {
           await ctx.answerCbQuery().catch(() => {});
@@ -2607,9 +2704,7 @@ export default {
           const arg = (ctx.message.text || '').replace(/^\/setquizchannel(@\w+)?/i, '').trim();
           if (!arg) return ctx.reply('⚠️ እባክዎ የቻናል Handle ይጥቀሱ: <code>/setquizchannel @SmartX_Discussion</code>', { parse_mode: 'HTML' });
           let handle = arg.startsWith('@') ? arg : '@' + arg;
-          if (env?.DB) {
-            await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_channel', handle).run();
-          }
+          await setDynamicConfig(env, 'poll_channel', handle);
           return ctx.reply(`✅ <b>የፖል መላኪያ ቻናል ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
         });
 
@@ -2619,9 +2714,7 @@ export default {
           const arg = (ctx.message.text || '').replace(/^\/setquizgroup(@\w+)?/i, '').trim();
           if (!arg) return ctx.reply('⚠️ እባክዎ የግሩፕ Handle ይጥቀሱ: <code>/setquizgroup @SmartX_Ethio</code>', { parse_mode: 'HTML' });
           let handle = arg.startsWith('@') ? arg : '@' + arg;
-          if (env?.DB) {
-            await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_group', handle).run();
-          }
+          await setDynamicConfig(env, 'poll_group', handle);
           return ctx.reply(`✅ <b>የፖል መላኪያ ግሩፕ ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
         });
 
@@ -3096,6 +3189,15 @@ D) 3 x 10^5 m/s
               }
             } catch (e) {
               userListText += 'Error fetching users.';
+            }
+          } else {
+            const memoryList = Object.values(registeredUsers).slice(-10).reverse();
+            if (memoryList.length > 0) {
+              memoryList.forEach((u, i) => {
+                userListText += `${i + 1}. <b>${escapeHtml(u.full_name || 'ተማሪ')}</b> — ${escapeHtml(u.grade || 'N/A')} | <code>${escapeHtml(u.phone || 'N/A')}</code>\n   ⭐️ ${u.points || 0} pts | 📅 ${new Date(u.registered_at || Date.now()).toLocaleDateString()}\n`;
+              });
+            } else {
+              userListText += 'ምንም ተጠቃሚ አልተገኘም።';
             }
           }
 
@@ -3675,9 +3777,7 @@ D) 3 x 10^5 m/s
             if (adminQuizDraft.step === 'AWAITING_CHANNEL_HANDLE') {
               let handle = (ctx.message.text || '').trim();
               if (!handle.startsWith('@')) handle = '@' + handle;
-              if (env?.DB) {
-                await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_channel', handle).run();
-              }
+              await setDynamicConfig(env, 'poll_channel', handle);
               delete adminQuizDrafts[userId];
               await ctx.reply(`✅ <b>የዒላማ ቻናል ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
               return renderPollManagerDashboard(ctx, env);
@@ -3686,9 +3786,7 @@ D) 3 x 10^5 m/s
             if (adminQuizDraft.step === 'AWAITING_GROUP_HANDLE') {
               let handle = (ctx.message.text || '').trim();
               if (!handle.startsWith('@')) handle = '@' + handle;
-              if (env?.DB) {
-                await env.DB.prepare('INSERT INTO system_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('poll_group', handle).run();
-              }
+              await setDynamicConfig(env, 'poll_group', handle);
               delete adminQuizDrafts[userId];
               await ctx.reply(`✅ <b>የዒላማ ግሩፕ ወደ ${escapeHtml(handle)} ተቀይሯል!</b>`, { parse_mode: 'HTML' });
               return renderPollManagerDashboard(ctx, env);

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node dev-server.js",
     "start": "node dev-server.js",
+    "polling": "node polling.js",
+    "bot": "node polling.js",
     "lint": "echo 'No lint script configured'",
     "build": "echo 'No build needed for worker project'",
     "deploy": "wrangler deploy worker.js"
