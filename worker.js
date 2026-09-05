@@ -757,176 +757,176 @@ const defaultChannelPollsBank = [
     grade: '9',
     subject: 'physics',
     keywords: ['physics', 'ፊዚክስ', '9', 'motion', 'ፍጥነት', 'እንቅስቃሴ', 'velocity'],
-    question: '[9ኛ ክፍል ፊዚክስ] አንድ አካል በእኩል ጊዜያት ውስጥ እኩል ርቀቶችን በአንድ አቅጣጫ ሲጓዝ እንቅስቃሴው ምን ይባላል?',
-    options: ['ዩኒፎርም ፍጥነት (Uniform Velocity)', 'ተለዋዋጭ ፍጥነት (Variable Velocity)', 'ማጣደፍ (Acceleration)', 'ቅጽበታዊ ፍጥነት (Instantaneous Speed)'],
+    question: '[Grade 9 Physics] When a body covers equal displacements in equal intervals of time along a straight line, what type of motion is it?',
+    options: ['Uniform Velocity', 'Variable Velocity', 'Acceleration', 'Instantaneous Speed'],
     correct_option_id: 0,
-    explanation: 'አንድ አካል በእኩል ጊዜያት እኩል ርቀቶችን ቀጥተኛ በሆነ መስመር ሲጓዝ እንቅስቃሴው ዩኒፎርም ፍጥነት (Uniform Velocity) ይባላል።'
+    explanation: 'ትክክለኛው መልስ Uniform Velocity ነው። ምክንያቱም አንድ አካል በእኩል ጊዜ ውስጥ እኩል ርቀቶችን ቀጥተኛ በሆነ አቅጣጫ ሲጓዝ እንቅስቃሴው ዩኒፎርም ቬሎሲቲ ይባላል።'
   },
   {
     grade: '9',
     subject: 'chemistry',
     keywords: ['chemistry', 'ኬሚስትሪ', '9', 'atom', 'አተም', 'ኒውክሊየስ', 'nucleus'],
-    question: '[9ኛ ክፍል ኬሚስትሪ] በአተም ኒውክሊየስ ውስጥ የሚገኙት ንዑሳን ቅንጣቶች (Subatomic particles) የትኞቹ ናቸው?',
-    options: ['ፕሮቶን እና ኒውትሮን (Protons & Neutrons)', 'ኤሌክትሮን እና ፕሮቶን', 'ኤሌክትሮን ብቻ', 'ኒውትሮን እና ኤሌክትሮን'],
+    question: '[Grade 9 Chemistry] Which subatomic particles are located inside the nucleus of an atom?',
+    options: ['Protons and Neutrons', 'Electrons and Protons', 'Electrons only', 'Neutrons and Electrons'],
     correct_option_id: 0,
-    explanation: 'በአተም ኒውክሊየስ ውስጥ ፕሮቶንና ኒውትሮን ሲገኙ ኤሌክትሮኖች በኒውክሊየሱ ዙሪያ በኦርቢት ይሽከረከራሉ።'
+    explanation: 'ትክክለኛው መልስ Protons and Neutrons ነው። በአተም ኒውክሊየስ ውስጥ ፕሮቶኖችና ኒውትሮኖች ሲገኙ፣ ኤሌክትሮኖች በኒውክሊየሱ ዙሪያ ይሽከረከራሉ።'
   },
   {
     grade: '9',
     subject: 'biology',
     keywords: ['biology', 'ባዮሎጂ', '9', 'cell', 'ሴል', 'organelle', 'mitochondria'],
-    question: '[9ኛ ክፍል ባዮሎጂ] በሴል ውስጥ ሃይል የሚያመነጨው ወይም የሴሉ "Powerhouse" በመባል የሚታወቀው ኦርጋኔል የትኛው ነው?',
-    options: ['ማይቶኮንድሪያ (Mitochondria)', 'ራይቦሶም (Ribosome)', 'ጎልጂ ቦዲ (Golgi Body)', 'ቫኪዩል (Vacuole)'],
+    question: '[Grade 9 Biology] Which cellular organelle is famously referred to as the "Powerhouse of the Cell"?',
+    options: ['Mitochondria', 'Ribosome', 'Golgi Body', 'Vacuole'],
     correct_option_id: 0,
-    explanation: 'ማይቶኮንድሪያ (Mitochondria) በሴሉላር ሬስፒሬሽን አማካኝነት ATP በማመንጨት የሴል የሃይል ማመንጫ ተብሎ ይጠራል።'
+    explanation: 'ትክክለኛው መልስ Mitochondria ነው። ማይቶኮንድሪያ ሴሉላር ሬስፒሬሽን በማካሄድ ለሴሉ የሚያስፈልገውን ATP (ሃይል) በማመንጨቱ የሴል ሃይል ማመንጫ ይባላል።'
   },
   {
     grade: '9',
     subject: 'math',
     keywords: ['math', 'mathematics', 'ሂሳብ', '9', 'sets', 'numbers', 'ቁጥር'],
-    question: '[9ኛ ክፍል ሂሳብ] ከሚከተሉት ቁጥሮች ውስጥ ኢ-ራሽናል (Irrational Number) የሆነው የትኛው ነው?',
+    question: '[Grade 9 Mathematics] Which of the following numbers is an irrational number?',
     options: ['√2', '3/4', '0.25', '√9'],
     correct_option_id: 0,
-    explanation: '√2 ፍጻሜ የሌለውና የማይደጋገም አስርዮሽ በመሆኑ ኢ-ራሽናል ነው። √9 = 3 ራሽናል ቁጥር ነው።'
+    explanation: 'ትክክለኛው መልስ √2 ነው። √2 ማለቂያ የሌለውና የማይደጋገም አስርዮሽ በመሆኑ ኢ-ራሽናል ቁጥር ነው። √9 = 3 ራሽናል ነው።'
   },
   // Grade 10
   {
     grade: '10',
     subject: 'physics',
     keywords: ['physics', 'ፊዚክስ', '10', 'work', 'energy', 'ሃይል', 'ስራ', 'force', 'joule'],
-    question: '[10ኛ ክፍል ፊዚክስ] 20 ኒውተን (N) ሃይል በመጠቀም አንድን እቃ 5 ሜትር (m) በሃይሉ አቅጣጫ ብናንቀሳቅስ የተሰራው ስራ (Work Done) ስንት ጁል (J) ይሆናል?',
-    options: ['100 J', '25 J', '4 J', '50 J'],
+    question: '[Grade 10 Physics] If a constant force of 20 N moves an object 5 m in the direction of the force, what is the work done?',
+    options: ['100 Joules (J)', '25 Joules (J)', '4 Joules (J)', '50 Joules (J)'],
     correct_option_id: 0,
-    explanation: 'ስራ (Work Done) = Force × Distance = 20 N × 5 m = 100 Joules (J) ይሆናል።'
+    explanation: 'ትክክለኛው መልስ 100 Joules ነው። ስራ (Work Done) = Force × Distance = 20 N × 5 m = 100 J ይሆናል።'
   },
   {
     grade: '10',
     subject: 'chemistry',
     keywords: ['chemistry', 'ኬሚስትሪ', '10', 'bond', 'ቦንድ', 'ionic', 'covalent'],
-    question: '[10ኛ ክፍል ኬሚስትሪ] በብረት (Metal) እና በኢ-ብረት (Non-metal) አተሞች መካከል ኤሌክትሮን በመስጠትና በመቀበል የሚፈጠረው ቦንድ ምን ይባላል?',
-    options: ['አዮኒክ ቦንድ (Ionic Bond)', 'ኮቫለንት ቦንድ (Covalent Bond)', 'ሜታሊክ ቦንድ (Metallic Bond)', 'ሃይድሮጅን ቦንድ'],
+    question: '[Grade 10 Chemistry] What type of chemical bond is formed by the complete transfer of electrons between a metal and a non-metal?',
+    options: ['Ionic Bond', 'Covalent Bond', 'Metallic Bond', 'Hydrogen Bond'],
     correct_option_id: 0,
-    explanation: 'ኤሌክትሮኖችን ሙሉ ለሙሉ በማስተላለፍ (Transfer of electrons) የሚፈጠረው ቦንድ አዮኒክ ቦንድ (Ionic Bond) ይባላል።'
+    explanation: 'ትክክለኛው መልስ Ionic Bond ነው። በብረትና በኢ-ብረት መካከል ኤሌክትሮኖችን ሙሉ ለሙሉ በማስተላለፍ (Transfer) የሚፈጠረው ቦንድ አዮኒክ ቦንድ ይባላል።'
   },
   {
     grade: '10',
     subject: 'biology',
     keywords: ['biology', 'ባዮሎጂ', '10', 'genetics', 'ዘረመል', 'mendel', 'ዲኤንኤ'],
-    question: '[10ኛ ክፍል ባዮሎጂ] የዘረመል (Genetics) አባት በመባል የሚታወቀውና በአተር ተክል ላይ የመጀመሪያውን ጥናት ያካሄደው ሳይንቲስት ማን ነው?',
-    options: ['ግሬጎር ሜንዴል (Gregor Mendel)', 'ቻርልስ ዳርዊን (Charles Darwin)', 'ሮበርት ሁክ (Robert Hooke)', 'ሉዊስ ፓስተር'],
+    question: '[Grade 10 Biology] Who is universally recognized as the "Father of Genetics" for his foundational experiments on pea plants?',
+    options: ['Gregor Mendel', 'Charles Darwin', 'Robert Hooke', 'Louis Pasteur'],
     correct_option_id: 0,
-    explanation: 'ግሬጎር ሜንዴል (Gregor Mendel) በ 19ኛው መቶ ክፍለ-ዘመን በዘረመል ጥናት የመጀመሪያውን ህግ ያወጣ የዘረመል አባት ነው።'
+    explanation: 'ትክክለኛው መልስ Gregor Mendel ነው። ግሬጎር ሜንዴል በአተር ተክሎች ላይ ባደረገው ምርምር የዘረመል መሰረታዊ ህጎችን ያወጣ የጄኔቲክስ አባት ነው።'
   },
   {
     grade: '10',
     subject: 'math',
     keywords: ['math', 'mathematics', 'ሂሳብ', '10', 'quadratic', 'እኩልታ', 'roots'],
-    question: '[10ኛ ክፍል ሂሳብ] በ quadratic equation ax² + bx + c = 0 ውስጥ ዲስክሪሚናንቱ (Discriminant: D = b² - 4ac) ከ 0 በታች (< 0) ከሆነ የፈተሉ ሁኔታ ምን ይሆናል?',
-    options: ['ምንም እውነተኛ ፈተል (Real Root) የለውም', 'ሁለት የተለያዩ እውነተኛ ፈተሎች አሉት', 'አንድ እኩል እውነተኛ ፈተል አለው', 'ፈተሉ ሁልጊዜ 0 ይሆናል'],
+    question: '[Grade 10 Mathematics] In the quadratic equation ax² + bx + c = 0, what is the nature of the roots if the discriminant (b² - 4ac) < 0?',
+    options: ['No real roots (Complex roots)', 'Two distinct real roots', 'One repeated real root', 'Always zero'],
     correct_option_id: 0,
-    explanation: 'ዲስክሪሚናንት (b² - 4ac) < 0 ሲሆን እኩልታው እውነተኛ ፈተል (Real Roots) የለውም፤ ፈተሎቹ ኮምፕሌክስ ቁጥሮች ናቸው።'
+    explanation: 'ትክክለኛው መልስ No real roots ነው። ዲስክሪሚናንቱ (b² - 4ac) ከ 0 በታች (<0) ከሆነ እኩልታው እውነተኛ ፈተሎች አይኖሩትም (ኮምፕሌክስ ቁጥሮች ይሆናሉ)።'
   },
   // Grade 11
   {
     grade: '11',
     subject: 'physics',
     keywords: ['physics', 'ፊዚክስ', '11', 'projectile', 'vector', 'ቬክተር', 'gravity'],
-    question: '[11ኛ ክፍል ፊዚክስ] አንድ projectile በአየር ላይ በሚጓዝበት ጊዜ በአግድም አቅጣጫ (Horizontal direction) ላይ ያለው ማጣደፍ (Acceleration) ስንት ነው?',
-    options: ['0 m/s²', '9.8 m/s²', '4.9 m/s²', 'እንደ መነሻ ፍጥነቱ ይለያያል'],
+    question: '[Grade 11 Physics] For an ideal projectile launched into the air, what is its horizontal acceleration (ax) neglecting air resistance?',
+    options: ['0 m/s²', '9.8 m/s²', '4.9 m/s²', 'Depends on initial velocity'],
     correct_option_id: 0,
-    explanation: 'የአየር ግጭት ካልታሰበ በስተቀር በአግድም አቅጣጫ ምንም ሃይል ስለሌለ አግድም ማጣደፍ (ax) ሁልጊዜ 0 m/s² ነው።'
+    explanation: 'ትክክለኛው መልስ 0 m/s² ነው። የአየር ግጭት በማይኖርበት ጊዜ በአግድም አቅጣጫ ምንም የተጣራ ሃይል ስለሌለ አግድም ማጣደፍ ሁልጊዜ 0 m/s² ነው።'
   },
   {
     grade: '11',
     subject: 'chemistry',
     keywords: ['chemistry', 'ኬሚስትሪ', '11', 'gas', 'ጋዝ', 'boyle', 'pressure'],
-    question: '[11ኛ ክፍል ኬሚስትሪ] የሙቀት መጠን ቋሚ (Constant Temperature) በሆነበት ወቅት የአንድ ጋዝ ግፊት (Pressure) እና ይዘት (Volume) ያላቸው ዝምድና ምን ተብሎ ይጠራል?',
-    options: ['የቦይል ህግ (Boyle\'s Law)', 'የቻርለስ ህግ (Charles\'s Law)', 'የአቮጋድሮ ህግ', 'የዳልተን ህግ'],
+    question: '[Grade 11 Chemistry] Which gas law states that at constant temperature, the volume of a fixed mass of gas is inversely proportional to its pressure?',
+    options: ["Boyle's Law", "Charles's Law", "Avogadro's Law", "Dalton's Law"],
     correct_option_id: 0,
-    explanation: 'የቦይል ህግ (Boyle\'s Law) እንደሚለው በቋሚ ሙቀት ወቅት የጋዝ ግፊት እና ይዘት በተቃራኒ ይዛመዳሉ (P ∝ 1/V)።'
+    explanation: 'ትክክለኛው መልስ Boyle\'s Law ነው። የቦይል ህግ በቋሚ የሙቀት መጠን ወቅት የጋዝ ይዘትና ግፊት በተቃራኒ እንደሚዛመዱ (P ∝ 1/V) ያስረዳል።'
   },
   {
     grade: '11',
     subject: 'biology',
     keywords: ['biology', 'ባዮሎጂ', '11', 'respiration', 'glycolysis', 'ግላይኮሊሲስ', 'atp'],
-    question: '[11ኛ ክፍል ባዮሎጂ] ግላይኮሊሲስ (Glycolysis) በሴል ውስጥ የየትኛው ክፍል ውስጥ ይካሄዳል?',
-    options: ['በሳይቶፕላዝም (Cytoplasm)', 'በማይቶኮንድሪያ ማትሪክስ', 'በኒውክሊየስ ውስጥ', 'በኤንዶፕላዝሚክ ሬቲኩለም'],
+    question: '[Grade 11 Biology] In cellular respiration, in which part of the cell does glycolysis take place?',
+    options: ['Cytoplasm', 'Mitochondrial matrix', 'Nucleus', 'Endoplasmic reticulum'],
     correct_option_id: 0,
-    explanation: 'ግላይኮሊሲስ (Glycolysis) የግሉኮስ መሰባበር የመጀመሪያ ምዕራፍ ሲሆን ኦክስጅን ሳያስፈልገው በሳይቶፕላዝም ውስጥ ይከናወናል።'
+    explanation: 'ትክክለኛው መልስ Cytoplasm ነው። ግላይኮሊሲስ የግሉኮስ መሰባበር የመጀመሪያ ደረጃ ሲሆን ኦክስጅን ሳያስፈልገው በሳይቶፕላዝም ውስጥ ይካሄዳል።'
   },
   // Grade 12
   {
     grade: '12',
     subject: 'physics',
     keywords: ['physics', 'ፊዚክስ', '12', 'induction', 'faraday', 'ማግኔት', 'ኤሌክትሪክ', 'magnetic'],
-    question: '[12ኛ ክፍል ፊዚክስ] በማግኔቲክ ፍሰት ለውጥ (Change in Magnetic Flux) አማካኝነት በኮንዳክተር ውስጥ ቮልቴጅ እንደሚፈጠር ያረጋገጠው ህግ የማን ነው?',
-    options: ['የፋራዳይ ህግ (Faraday\'s Law)', 'የኦም ህግ (Ohm\'s Law)', 'የኩሎምብ ህግ (Coulomb\'s Law)', 'የአምፔር ህግ'],
+    question: '[Grade 12 Physics] Which law states that an induced electromotive force (EMF) is directly proportional to the rate of change of magnetic flux?',
+    options: ["Faraday's Law", "Ohm's Law", "Coulomb's Law", "Ampere's Law"],
     correct_option_id: 0,
-    explanation: 'የፋራዳይ ኤሌክትሮማግኔቲክ ኢንዳክሽን ህግ (Faraday\'s Law) ተለዋዋጭ ማግኔቲክ ፍሰት ኤሌክትሪክ ሃይል (EMF) እንደሚያመነጭ ያብራራል።'
+    explanation: 'ትክክለኛው መልስ Faraday\'s Law ነው። የፋራዳይ ህግ ተለዋዋጭ ማግኔቲክ ፍሰት በኮንዳክተር ውስጥ ኤሌክትሪክ ሃይል (EMF) እንደሚያመነጭ ያብራራል።'
   },
   {
     grade: '12',
     subject: 'chemistry',
     keywords: ['chemistry', 'ኬሚስትሪ', '12', 'equilibrium', 'le chatelier', 'ሚዛን', 'reaction'],
-    question: '[12ኛ ክፍል ኬሚስትሪ] በኬሚካላዊ ሚዛን (Chemical Equilibrium) ላይ ያለ ስርዓት ውጫዊ ጫና ሲደረግበት ለውጡን ለመቀነስ አቅጣጫውን እንደሚቀይር የሚገልጸው መርህ የትኛው ነው?',
-    options: ['የሌ ሻቴሊየር መርህ (Le Chatelier\'s Principle)', 'የሃስ ህግ (Hess\'s Law)', 'የአውፍባው መርህ', 'የፓውሊ መርህ'],
+    question: '[Grade 12 Chemistry] Which principle states that if a dynamic equilibrium is disturbed by changing conditions, the position of equilibrium moves to counteract the change?',
+    options: ["Le Chatelier's Principle", "Hess's Law", "Aufbau Principle", "Pauli Exclusion Principle"],
     correct_option_id: 0,
-    explanation: 'የሌ ሻቴሊየር መርህ (Le Chatelier\'s Principle) ሚዛን ላይ ያለ ስርዓት ለውጡን የሚቃወም አቅጣጫ እንደሚይዝ ያስረዳል።'
+    explanation: 'ትክክለኛው መልስ Le Chatelier\'s Principle ነው። ሚዛን ላይ ያለ ስርዓት ውጫዊ ለውጥ ሲመጣበት ለውጡን የሚቀንስ አቅጣጫ እንደሚይዝ ያስረዳል።'
   },
   {
     grade: '12',
     subject: 'biology',
     keywords: ['biology', 'ባዮሎጂ', '12', 'dna', 'ዲኤንኤ', 'adenine', 'thymine'],
-    question: '[12ኛ ክፍል ባዮሎጂ] በዲ ኤን ኤ (DNA) ውስጥ ከአዴኒን (Adenine) ጋር በሁለት ሃይድሮጅን ቦንድ የሚጣመረው ናይትሮጅናስ ቤዝ የትኛው ነው?',
-    options: ['ታይሚን (Thymine)', 'ጓኒን (Guanine)', 'ሳይቶሲን (Cytosine)', 'ዩራሲል (Uracil)'],
+    question: '[Grade 12 Biology] In a double-stranded DNA molecule, which nitrogenous base pairs with Adenine through two hydrogen bonds?',
+    options: ['Thymine', 'Guanine', 'Cytosine', 'Uracil'],
     correct_option_id: 0,
-    explanation: 'በ DNA ውስጥ አዴኒን (A) ከታይሚን (T) ጋር በ 2 ቦንዶች ሲጣመር፣ ጓኒን (G) ከሳይቶሲን (C) ጋር በ 3 ቦንዶች ይጣመራል።'
+    explanation: 'ትክክለኛው መልስ Thymine ነው። በ DNA ውስጥ አዴኒን (A) ከታይሚን (T) ጋር በ 2 ሃይድሮጅን ቦንዶች ሲጣመሩ፣ ጓኒን (G) ከሳይቶሲን (C) ጋር በ 3 ቦንዶች ይጣመራሉ።'
   },
   {
     grade: '12',
     subject: 'math',
     keywords: ['math', 'mathematics', 'ሂሳብ', '12', 'calculus', 'derivative', 'ዲሪቬቲቭ', 'limit'],
-    question: '[12ኛ ክፍል ሂሳብ] የ f(x) = x³ - 5x + 4 የመጀመሪያ ዲሪቬቲቭ (f\'(x)) ምንድን ነው?',
+    question: '[Grade 12 Mathematics] What is the first derivative f\'(x) of the polynomial function f(x) = x³ - 5x + 4?',
     options: ['3x² - 5', '3x² + 4', 'x² - 5', '3x - 5'],
     correct_option_id: 0,
-    explanation: 'በ Power Rule መሰረት d/dx(x³) = 3x² እና d/dx(-5x) = -5 እንዲሁም d/dx(4) = 0 ስለሆነ f\'(x) = 3x² - 5 ይሆናል።'
+    explanation: 'ትክክለኛው መልስ 3x² - 5 ነው። በ Power Rule መሰረት d/dx(x³) = 3x² እና d/dx(-5x) = -5 እንዲሁም d/dx(4) = 0 ስለሆነ f\'(x) = 3x² - 5 ይሆናል።'
   },
   // English & Ethiopian Knowledge
   {
     grade: 'All',
     subject: 'english',
     keywords: ['english', 'grammar', 'እንግሊዝኛ', 'conditional', 'tense'],
-    question: '[English Grammar] Choose the correct option: "If she _______ hard, she would have passed the national exam."',
+    question: '[English Grammar] Choose the correct completion: "If she _______ hard, she would have passed the national entrance exam."',
     options: ['had studied', 'studied', 'studies', 'has studied'],
     correct_option_id: 0,
-    explanation: 'This is a Third Conditional sentence expressing past regret: "If + past perfect, would have + past participle".'
+    explanation: 'ትክክለኛው መልስ "had studied" ነው። ይህ Third Conditional ዓረፍተ-ነገር ሲሆን ህጉ "If + past perfect, would have + past participle" ነው።'
   },
   {
     grade: 'All',
     subject: 'english',
     keywords: ['english', 'vocabulary', 'antonym', 'ቃላት'],
-    question: '[English Vocabulary] What is the antonym (opposite meaning) of the word "DILIGENT"?',
+    question: '[English Vocabulary] Which of the following words is the direct antonym (opposite meaning) of "DILIGENT"?',
     options: ['Lazy', 'Hardworking', 'Clever', 'Honest'],
     correct_option_id: 0,
-    explanation: '"Diligent" means hardworking and careful. Its direct opposite (antonym) is "lazy" (negligent/inactive).'
+    explanation: 'ትክክለኛው መልስ Lazy ነው። "Diligent" ማለት ታታሪ እና ትጉህ ማለት ሲሆን፣ ተቃራኒው (antonym) ሰነፍ ወይም ደንታቢስ (Lazy) ነው።'
   },
   {
     grade: 'All',
     subject: 'history',
     keywords: ['history', 'ታሪክ', 'adwa', 'ዐድዋ', 'አድዋ', 'battle'],
-    question: '[የኢትዮጵያ ታሪክ] ታሪካዊውና አለም አቀፍ ዝና ያተረፈው የዐድዋ ድል የተካሄደው በየትኛው የጎርጎሮሳውያን አመተ-ምህረት ነበር?',
-    options: ['1896 G.C (የካቲት 23, 1888 ዓ.ም)', '1888 G.C', '1936 G.C', '1875 G.C'],
+    question: '[Ethiopian History] In which Gregorian calendar year did the historic Victory of Adwa take place?',
+    options: ['1896 G.C (Yekatit 23, 1888 E.C)', '1888 G.C', '1936 G.C', '1875 G.C'],
     correct_option_id: 0,
-    explanation: 'የዐድዋ ጦርነትና ድል የተከናወነው በዳግማዊ አፄ ምኒልክ መሪነት የካቲት 23, 1888 ዓ.ም (March 1, 1896) ነበር።'
+    explanation: 'ትክክለኛው መልስ 1896 G.C ነው። ታሪካዊው የዐድዋ ድል የተካሄደው በዳግማዊ አፄ ምኒልክ መሪነት የካቲት 23, 1888 ዓ.ም (March 1, 1896) ነበር።'
   },
   {
     grade: 'All',
     subject: 'geography',
     keywords: ['geography', 'ጂኦግራፊ', 'lake', 'ጣና', 'tana', 'river', 'አባይ'],
-    question: '[የኢትዮጵያ ጂኦግራፊ] በኢትዮጵያ ውስጥ ትልቁ የተፈጥሮ ሃይቅ (Lake) የትኛው ነው?',
-    options: ['ጣና ሃይቅ (Lake Tana)', 'ዝዋይ ሃይቅ', 'ሃዋሳ ሃይቅ', 'ጫሞ ሃይቅ'],
+    question: '[Ethiopian Geography] Which of the following is the largest natural freshwater lake in Ethiopia and the source of the Blue Nile?',
+    options: ['Lake Tana', 'Lake Ziway', 'Lake Hawassa', 'Lake Chamo'],
     correct_option_id: 0,
-    explanation: 'ጣና ሃይቅ ወደ 3,600 ካሬ ኪሎ ሜትር ስፋት ያለውና የዓባይ (Blue Nile) ወንዝ መነሻ የሆነው ትልቁ የኢትዮጵያ ሃይቅ ነው።'
+    explanation: 'ትክክለኛው መልስ Lake Tana (ጣና ሃይቅ) ነው። ጣና ወደ 3,600 ካሬ ኪሜ ስፋት ያለውና የዓባይ (Blue Nile) ወንዝ መነሻ የሆነው ትልቁ የኢትዮጵያ ሃይቅ ነው።'
   }
 ];
 
@@ -1017,12 +1017,22 @@ async function generateQuizWithGemini(topic, apiKey, env) {
   if (!ai) return null;
 
   const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner (Grades 9-12).
-Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for the following topic: "${topic}".
-Instructions:
-1. Question: Clear, academic, under 280 characters. Language: Amharic (or English if the topic was requested in English). Prefix with the subject/grade if appropriate, e.g. "[10ኛ ክፍል ፊዚክስ] ...".
-2. Options: Exactly 4 distinct multiple-choice options (A, B, C, D). Keep each option under 90 characters.
-3. correct_option_id: Integer 0, 1, 2, or 3 pointing to the correct option.
-4. explanation: Clear educational explanation why that option is correct, under 180 characters.
+Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for the following topic/subject: "${topic}".
+
+STRICT LANGUAGE REQUIREMENTS:
+1. QUESTION MUST BE IN ENGLISH:
+   - In Ethiopian secondary schools (Grades 9-12), educational curriculum subjects (Physics, Chemistry, Biology, Mathematics, English, Economics, Civics, Geography, History, General Science, etc.) and national entrance exams (ESSLCE/Matric) are conducted in English.
+   - Therefore, the question text and all 4 options MUST be written in clear, academic English.
+   - Start the question with an appropriate grade/subject prefix tag in English, e.g.: "[Grade 10 Physics] ...", "[Grade 11 Chemistry] ...", "[Grade 12 Mathematics] ...", "[Grade 9 Biology] ...".
+   - Under 280 characters.
+2. OPTIONS MUST BE IN ENGLISH:
+   - Exactly 4 distinct multiple-choice options (A, B, C, D) in English.
+   - Keep each option under 90 characters.
+3. correct_option_id:
+   - Integer 0, 1, 2, or 3 pointing to the correct option.
+4. EXPLANATION MUST BE IN AMHARIC (አማርኛ):
+   - Provide the educational explanation in clear, pedagogical Amharic (አማርኛ) so Ethiopian high school students understand why the answer is correct (e.g., "ትክክለኛው መልስ ... ምክንያቱም ...").
+   - Under 180 characters.
 
 Return ONLY a valid JSON object with keys:
 {
