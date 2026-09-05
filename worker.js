@@ -1010,29 +1010,66 @@ function parseCustomPollFormat(rawText) {
   return null;
 }
 
+// Helper: Clean question text to strictly remove any bracket prefixes like [Grade 10 Biology] or [10ኛ ክፍል]
+function cleanQuestionText(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  return raw
+    .replace(/^\[[^\]]+\]\s*/g, '')
+    .replace(/^\([^\)]+\)\s*/g, '')
+    .replace(/^【[^】]+】\s*/g, '')
+    .replace(/^#\w+\s*/g, '')
+    .replace(/^(?:Question|ጥያቄ)[\:\-]\s*/i, '')
+    .trim();
+}
+
 // Helper: Generate dynamic Quiz using Gemini (Prioritizing Gemini 3.1 - 3.5 model series)
-async function generateQuizWithGemini(topic, apiKey, env) {
+async function generateQuizWithGemini(topic, langMode = 'auto', apiKey, env) {
   const effectiveKey = apiKey || env?.GEMINI_API_KEY || env?.GEMINI_API_KEYS || process.env?.GEMINI_API_KEY || process.env?.GEMINI_API_KEYS;
   const ai = getGenAI(effectiveKey);
   if (!ai) return null;
 
-  const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner (Grades 9-12).
+  let langDirective = '';
+  if (langMode === 'english' || langMode === 'en') {
+    langDirective = `
+LANGUAGE SPECIFICATION (100% COMPLETE ENGLISH):
+- The question MUST be written in clear, academic English.
+- ALL 4 options MUST be written in English.
+- The educational explanation MUST be in English.
+- CRITICAL RULE: DO NOT put any bracket tags like [Grade 10 Biology] or [Physics] in the question. Start directly with the question text.`;
+  } else if (langMode === 'amharic' || langMode === 'am') {
+    langDirective = `
+LANGUAGE SPECIFICATION (100% COMPLETE AMHARIC / አማርኛ):
+- ጥያቄው ሙሉ በሙሉ በአማርኛ (Amharic) መጻፍ አለበት።
+- ሁሉም 4ቱ ምርጫዎች በአማርኛ መጻፍ አለባቸው።
+- ትምህርታዊ ማብራሪያው (Explanation) ሙሉ በሙሉ በአማርኛ መጻፍ አለበት።
+- ጥብቅ ደንብ: በጥያቄው መጀመሪያ ላይ ምንም አይነት ቅንፍ ወይም ታግ (እንደ [10ኛ ክፍል ባዮሎጂ]) በፍፁም አታስገቡ። ጥያቄውን በቀጥታ ጀምሩ።`;
+  } else {
+    // Auto mode
+    const isTopicAmharic = /[\u1200-\u137F]/.test(topic) && !/(grade|physics|chemistry|biology|math|english)/i.test(topic);
+    if (isTopicAmharic) {
+      langDirective = `
+LANGUAGE SPECIFICATION (AMHARIC):
+- ጥያቄው፣ 4ቱ ምርጫዎች እና ማብራሪያው በአማርኛ (Amharic) ይሁኑ።
+- ምንም አይነት ቅንፍ (እንደ [ክፍል ...]) በጥያቄው መጀመሪያ ላይ አታስገቡ። ጥያቄውን በቀጥታ ጀምሩ።`;
+    } else {
+      langDirective = `
+LANGUAGE SPECIFICATION (ENGLISH):
+- The question and ALL 4 options MUST be in clear, academic English.
+- The educational explanation should be clear and concise in English (or Amharic if requested).
+- CRITICAL RULE: DO NOT put any bracket tags like [Grade 10 Biology] in the question. Start directly with the question text.`;
+    }
+  }
+
+  const prompt = `You are an expert Ethiopian secondary school educational curriculum examiner.
 Generate ONE challenging multiple-choice quiz question with 4 options, the 0-based index of the correct option, and a clear educational explanation for the following topic/subject: "${topic}".
 
-STRICT LANGUAGE REQUIREMENTS:
-1. QUESTION MUST BE IN ENGLISH:
-   - In Ethiopian secondary schools (Grades 9-12), educational curriculum subjects (Physics, Chemistry, Biology, Mathematics, English, Economics, Civics, Geography, History, General Science, etc.) and national entrance exams (ESSLCE/Matric) are conducted in English.
-   - Therefore, the question text and all 4 options MUST be written in clear, academic English.
-   - Start the question with an appropriate grade/subject prefix tag in English, e.g.: "[Grade 10 Physics] ...", "[Grade 11 Chemistry] ...", "[Grade 12 Mathematics] ...", "[Grade 9 Biology] ...".
-   - Under 280 characters.
-2. OPTIONS MUST BE IN ENGLISH:
-   - Exactly 4 distinct multiple-choice options (A, B, C, D) in English.
-   - Keep each option under 90 characters.
-3. correct_option_id:
-   - Integer 0, 1, 2, or 3 pointing to the correct option.
-4. EXPLANATION MUST BE IN AMHARIC (አማርኛ):
-   - Provide the educational explanation in clear, pedagogical Amharic (አማርኛ) so Ethiopian high school students understand why the answer is correct (e.g., "ትክክለኛው መልስ ... ምክንያቱም ...").
-   - Under 180 characters.
+${langDirective}
+
+Formatting Constraints:
+1. question: Clear and direct under 280 characters. Never include bracket prefixes like [Grade 10 Biology].
+2. options: Exactly 4 distinct multiple-choice options (A, B, C, D). Keep each option under 90 characters.
+3. correct_option_id: Integer 0, 1, 2, or 3 pointing to the correct option.
+4. explanation: Clear educational explanation why that option is correct, under 180 characters.
 
 Return ONLY a valid JSON object with keys:
 {
@@ -1060,7 +1097,7 @@ Return ONLY a valid JSON object with keys:
       const parsed = JSON.parse(cleanJson);
       if (parsed.question && Array.isArray(parsed.options) && parsed.options.length >= 2) {
         return {
-          question: String(parsed.question).substring(0, 295),
+          question: cleanQuestionText(String(parsed.question)).substring(0, 295),
           options: parsed.options.slice(0, 4).map(o => String(o).substring(0, 95)),
           correct_option_id: (typeof parsed.correct_option_id === 'number' && parsed.correct_option_id >= 0 && parsed.correct_option_id < parsed.options.length) ? parsed.correct_option_id : 0,
           explanation: String(parsed.explanation || '').substring(0, 195)
@@ -1075,7 +1112,7 @@ Return ONLY a valid JSON object with keys:
 }
 
 // Helper: Curriculum Question Bank Selector
-function generateCurriculumQuizFromBank(topic) {
+function generateCurriculumQuizFromBank(topic, langMode = 'auto') {
   const normTopic = (topic || '').toLowerCase();
   
   const matches = defaultChannelPollsBank.filter(q => {
@@ -1084,33 +1121,26 @@ function generateCurriculumQuizFromBank(topic) {
     return false;
   });
 
-  if (matches.length > 0) {
-    const selected = matches[Math.floor(Math.random() * matches.length)];
-    return {
-      question: selected.question,
-      options: [...selected.options],
-      correct_option_id: selected.correct_option_id,
-      explanation: selected.explanation
-    };
-  }
+  const selected = matches.length > 0
+    ? matches[Math.floor(Math.random() * matches.length)]
+    : defaultChannelPollsBank[Math.floor(Math.random() * defaultChannelPollsBank.length)];
 
-  const fallbackItem = defaultChannelPollsBank[Math.floor(Math.random() * defaultChannelPollsBank.length)];
   return {
-    question: `[${topic.substring(0, 30)}] ${fallbackItem.question.replace(/^\[[^\]]+\]\s*/, '')}`,
-    options: [...fallbackItem.options],
-    correct_option_id: fallbackItem.correct_option_id,
-    explanation: fallbackItem.explanation
+    question: cleanQuestionText(selected.question),
+    options: [...selected.options],
+    correct_option_id: selected.correct_option_id,
+    explanation: selected.explanation
   };
 }
 
 // Helper: Unified Quiz Generator (Gemini + Local Curriculum Bank)
-async function getOrGenerateQuiz(topic, env) {
+async function getOrGenerateQuiz(topic, langMode = 'auto', env) {
   const apiKey = env?.GEMINI_API_KEY || env?.GEMINI_API_KEYS || process.env?.GEMINI_API_KEY || process.env?.GEMINI_API_KEYS;
   if (apiKey) {
-    const aiQuiz = await generateQuizWithGemini(topic, apiKey, env);
+    const aiQuiz = await generateQuizWithGemini(topic, langMode, apiKey, env);
     if (aiQuiz) return aiQuiz;
   }
-  return generateCurriculumQuizFromBank(topic);
+  return generateCurriculumQuizFromBank(topic, langMode);
 }
 
 // Helper: Render Main Poll & Quiz Management Hub
@@ -1136,10 +1166,17 @@ async function renderPollManagerDashboard(ctx, env) {
 • 👥 <b>ዒላማ ግሩፕ:</b> <code>${escapeHtml(groupHandle)}</code>
 
 📌 <b>ቀጥታ ትዕዛዝ:</b>
-• <code>/quiz &lt;ርዕስ&gt;</code> — ምሳሌ: <code>/quiz 10ኛ ክፍል ፊዚክስ motion</code>
-• ወይም ከታች ካሉት የትምህርት ክፍሎች አንዱን ፈጥነው ይጫኑ ⬇️`;
+• <code>/quiz en &lt;ርዕስ&gt;</code> — ሙሉ በሙሉ በእንግሊዝኛ (100% English)
+• <code>/quiz am &lt;ርዕስ&gt;</code> — ሙሉ በሙሉ በአማርኛ (100% አማርኛ)
+• <code>/quiz &lt;ርዕስ&gt;</code> — ምሳሌ: <code>/quiz Grade 10 Physics motion</code>
+
+ከታች ካሉት አማራጮች አንዱን ፈጥነው ይጫኑ ⬇️`;
 
   const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback('🇬🇧 ሙሉ English Mode', 'quiz_quick_mode_en'),
+      Markup.button.callback('🇪🇹 ሙሉ አማርኛ Mode', 'quiz_quick_mode_am')
+    ],
     [
       Markup.button.callback('📗 9ኛ ክፍል', 'quiz_quick_grade_9'),
       Markup.button.callback('📘 10ኛ ክፍል', 'quiz_quick_grade_10')
@@ -1157,7 +1194,7 @@ async function renderPollManagerDashboard(ctx, env) {
       Markup.button.callback('📐 ማቲማቲክስ', 'quiz_quick_subj_math')
     ],
     [
-      Markup.button.callback('🌍 እንግሊዝኛ', 'quiz_quick_subj_english'),
+      Markup.button.callback('🌍 English Exam', 'quiz_quick_subj_english'),
       Markup.button.callback('🇪🇹 አጠቃላይ እውቀት', 'quiz_quick_subj_general')
     ],
     [
@@ -1179,12 +1216,13 @@ async function renderPollManagerDashboard(ctx, env) {
 async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
   const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
   const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+  const cleanQ = cleanQuestionText(quizDraft.question);
 
   // 1. Send live interactive Poll into chat for the Admin to test!
   try {
     await ctx.telegram.sendPoll(
       ctx.chat.id,
-      quizDraft.question,
+      cleanQ,
       quizDraft.options,
       {
         type: 'quiz',
@@ -1221,6 +1259,10 @@ async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
       Markup.button.callback('🚀 ወደ ሁለቱም ልቀቅ (ቻናል + ግሩፕ)', 'quiz_post_both')
     ],
     [
+      Markup.button.callback('🇬🇧 ሙሉ English አድርግ', 'quiz_switch_lang_en'),
+      Markup.button.callback('🇪🇹 ሙሉ አማርኛ አድርግ', 'quiz_switch_lang_am')
+    ],
+    [
       Markup.button.callback('🔄 ሌላ ጥያቄ ፍጠር', 'quiz_regen'),
       Markup.button.callback('✏️ አዲስ ርዕስ ጻፍ', 'quiz_prompt_custom_topic')
     ],
@@ -1237,6 +1279,30 @@ async function showQuizDraftPreview(ctx, userId, quizDraft, env) {
 async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
   const channelHandle = await getDynamicConfig(env, 'poll_channel', await getDynamicConfig(env, 'official_channel', '@SmartX_Discussion'));
   const groupHandle = await getDynamicConfig(env, 'poll_group', await getDynamicConfig(env, 'discussion_group', '@SmartX_Ethio'));
+  const botUsername = (await getDynamicConfig(env, 'bot_username', 'SmartX_PreRegister_bot')).replace('@', '');
+
+  const cleanQ = cleanQuestionText(quizDraft.question);
+
+  // Buttons under the poll: Ask Another Student / Share & Bot Link
+  const shareText = `🎯 የፈተና ጥያቄ (Quiz Challenge):\n"${cleanQ}"\n\nይህን ጥያቄ መመለስ ትችላለህ? እስኪ ሞክረው! 👇`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}?start=quiz`)}&text=${encodeURIComponent(shareText)}`;
+
+  const pollInlineMarkup = {
+    inline_keyboard: [
+      [
+        {
+          text: '👥 Ask Another Student | ለተማሪ አጋራ 📤',
+          url: shareUrl
+        }
+      ],
+      [
+        {
+          text: '🤖 ተጨማሪ ኩዊዞች (More Quizzes)',
+          url: `https://t.me/${botUsername}?start=quiz`
+        }
+      ]
+    ]
+  };
 
   const targets = [];
   if (destination === 'channel' || destination === 'both') {
@@ -1249,23 +1315,49 @@ async function dispatchPollToDestination(ctx, quizDraft, destination, env) {
   const results = [];
   for (const target of targets) {
     try {
-      const pollRes = await ctx.telegram.sendPoll(
-        target.handle,
-        quizDraft.question,
-        quizDraft.options,
-        {
-          type: 'quiz',
-          correct_option_id: quizDraft.correct_option_id,
-          explanation: quizDraft.explanation || '',
-          is_anonymous: true
-        }
-      );
+      let pollRes;
+      try {
+        pollRes = await ctx.telegram.sendPoll(
+          target.handle,
+          cleanQ,
+          quizDraft.options,
+          {
+            type: 'quiz',
+            correct_option_id: quizDraft.correct_option_id,
+            explanation: quizDraft.explanation || '',
+            is_anonymous: true,
+            reply_markup: pollInlineMarkup
+          }
+        );
+      } catch (pollErr) {
+        // Fallback if target does not accept reply_markup directly on sendPoll
+        pollRes = await ctx.telegram.sendPoll(
+          target.handle,
+          cleanQ,
+          quizDraft.options,
+          {
+            type: 'quiz',
+            correct_option_id: quizDraft.correct_option_id,
+            explanation: quizDraft.explanation || '',
+            is_anonymous: true
+          }
+        );
+        await ctx.telegram.sendMessage(
+          target.handle,
+          `👆 <b>ይህን ጥያቄ ለጓደኞችህ ወይም ለሌሎች ተማሪዎች አጋራ!</b>`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: pollInlineMarkup
+          }
+        ).catch(() => {});
+      }
+
       results.push({ ok: true, target, pollId: pollRes?.poll?.id || 'poll_' + Date.now() });
       inMemoryDispatchedPolls.push({
         pollId: pollRes?.poll?.id || 'poll_' + Date.now(),
         target: target.handle,
         type: target.type,
-        question: quizDraft.question,
+        question: cleanQ,
         sentAt: new Date().toISOString()
       });
     } catch (err) {
@@ -2680,7 +2772,16 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           }
 
           const rawText = ctx.message.text || '';
-          const topic = rawText.replace(/^\/(quiz|poll|postquiz|postpoll)(@\w+)?/i, '').trim();
+          let topic = rawText.replace(/^\/(quiz|poll|postquiz|postpoll)(@\w+)?/i, '').trim();
+
+          let langMode = 'auto';
+          if (/^(?:en|english)\s+/i.test(topic)) {
+            langMode = 'english';
+            topic = topic.replace(/^(?:en|english)\s+/i, '').trim();
+          } else if (/^(?:am|amharic|አማርኛ)\s+/i.test(topic)) {
+            langMode = 'amharic';
+            topic = topic.replace(/^(?:am|amharic|አማርኛ)\s+/i, '').trim();
+          }
 
           if (topic) {
             // Check if topic is a full question with manual options format
@@ -2688,17 +2789,22 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
             if (manualParsed && manualParsed.options.length >= 2) {
               adminQuizDrafts[userId] = {
                 title: manualParsed.question.substring(0, 40),
-                ...manualParsed
+                langMode,
+                ...manualParsed,
+                question: cleanQuestionText(manualParsed.question)
               };
               return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
             }
 
             // Otherwise, topic is a subject or chapter name
-            await ctx.reply(`⏳ <b>ለ "${escapeHtml(topic)}" የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
-            const quizData = await getOrGenerateQuiz(topic, env);
+            const langLabel = langMode === 'english' ? ' (100% English)' : (langMode === 'amharic' ? ' (ሙሉ አማርኛ)' : '');
+            await ctx.reply(`⏳ <b>ለ "${escapeHtml(topic)}"${langLabel} የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
+            const quizData = await getOrGenerateQuiz(topic, langMode, env);
             adminQuizDrafts[userId] = {
               title: topic,
-              ...quizData
+              langMode,
+              ...quizData,
+              question: cleanQuestionText(quizData.question)
             };
             return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
           }
@@ -2735,17 +2841,36 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           return renderPollManagerDashboard(ctx, env);
         });
 
+        bot.action('quiz_quick_mode_en', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery('🇬🇧 English Quiz Mode Activated').catch(() => {});
+          adminQuizDrafts[userId] = { ...(adminQuizDrafts[userId] || {}), preferredLang: 'english' };
+          return ctx.reply('🇬🇧 <b>100% English Quiz Mode ነቅቷል!</b>\nጥያቄው፣ 4ቱ ምርጫዎች እና ማብራሪያው ሙሉ በሙሉ በእንግሊዝኛ ይዘጋጃሉ።\n\nአሁን የርዕስ ስም ይጻፉ ወይም በ <code>/quiz en &lt;topic&gt;</code> ያዙ። (ምሳሌ: <code>/quiz en Grade 10 Biology genetics</code>)', { parse_mode: 'HTML' });
+        });
+
+        bot.action('quiz_quick_mode_am', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          await ctx.answerCbQuery('🇪🇹 የአማርኛ ኩዊዝ ሞድ ነቅቷል').catch(() => {});
+          adminQuizDrafts[userId] = { ...(adminQuizDrafts[userId] || {}), preferredLang: 'amharic' };
+          return ctx.reply('🇪🇹 <b>ሙሉ የአማርኛ ኩዊዝ Mode ነቅቷል!</b>\nጥያቄው፣ 4ቱ ምርጫዎች እና ማብራሪያው ሙሉ በሙሉ በአማርኛ ይዘጋጃሉ።\n\nአሁን የርዕስ ስም ይጻፉ ወይም በ <code>/quiz am &lt;ርዕስ&gt;</code> ያዙ። (ምሳሌ: <code>/quiz am 10ኛ ክፍል ባዮሎጂ ዘረመል</code>)', { parse_mode: 'HTML' });
+        });
+
         bot.action(/quiz_quick_grade_(.+)/, async (ctx) => {
           const userId = ctx.from.id;
           if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
           const gradeNum = ctx.match[1];
+          const langMode = adminQuizDrafts[userId]?.preferredLang || 'auto';
           await ctx.answerCbQuery(`የ ${gradeNum}ኛ ክፍል ጥያቄ እየተዘጋጀ ነው...`).catch(() => {});
 
           const topic = `${gradeNum}ኛ ክፍል አጠቃላይ ፈተና`;
-          const quizData = await getOrGenerateQuiz(topic, env);
+          const quizData = await getOrGenerateQuiz(topic, langMode, env);
           adminQuizDrafts[userId] = {
             title: topic,
-            ...quizData
+            langMode,
+            ...quizData,
+            question: cleanQuestionText(quizData.question)
           };
           return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
         });
@@ -2754,6 +2879,7 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           const userId = ctx.from.id;
           if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
           const subjKey = ctx.match[1];
+          const langMode = adminQuizDrafts[userId]?.preferredLang || 'auto';
           const subjMap = {
             physics: 'ፊዚክስ',
             chem: 'ኬሚስትሪ',
@@ -2765,10 +2891,12 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           const subjName = subjMap[subjKey] || subjKey;
           await ctx.answerCbQuery(`የ ${subjName} ጥያቄ እየተዘጋጀ ነው...`).catch(() => {});
 
-          const quizData = await getOrGenerateQuiz(subjName, env);
+          const quizData = await getOrGenerateQuiz(subjName, langMode, env);
           adminQuizDrafts[userId] = {
             title: subjName,
-            ...quizData
+            langMode,
+            ...quizData,
+            question: cleanQuestionText(quizData.question)
           };
           return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
         });
@@ -2778,7 +2906,7 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
           await ctx.answerCbQuery().catch(() => {});
 
-          adminQuizDrafts[userId] = { step: 'AWAITING_TOPIC' };
+          adminQuizDrafts[userId] = { ...(adminQuizDrafts[userId] || {}), step: 'AWAITING_TOPIC' };
 
           const text =
 `✏️ <b>የኩዊዙን ርዕስ ወይም ክፍል ይጻፉ:</b>
@@ -2786,10 +2914,11 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
 ማንኛውንም የትምህርት ርዕስ፣ ምዕራፍ፣ ወይም ክፍል ከታች ባለው የሜሴጅ መጻፊያ ሳጥን ውስጥ ጽፈው ይላኩ:
 
 <i>ምሳሌ:</i>
+• <code>Grade 10 Biology Genetics</code> (በ English)
 • <code>10ኛ ክፍል ፊዚክስ Work and Energy</code>
-• <code>12ኛ ክፍል ኬሚስትሪ Chemical Equilibrium</code>
-• <code>11ኛ ክፍል ባዮሎጂ Cellular Respiration</code>
-• <code>12ኛ ክፍል ማትስ Calculus</code>`;
+• <code>12ኛ ክፍል ኬሚስትሪ Equilibrium</code>
+• <code>en Grade 11 Physics</code> (ሙሉ በሙሉ English ለማድረግ)
+• <code>am 11ኛ ክፍል ባዮሎጂ</code> (ሙሉ በሙሉ አማርኛ ለማድረግ)`;
 
           const keyboard = Markup.inlineKeyboard([
             [Markup.button.callback('❌ ሰርዝ', 'quiz_cancel')]
@@ -2803,7 +2932,7 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
           if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
           await ctx.answerCbQuery().catch(() => {});
 
-          adminQuizDrafts[userId] = { step: 'AWAITING_MANUAL_INPUT' };
+          adminQuizDrafts[userId] = { ...(adminQuizDrafts[userId] || {}), step: 'AWAITING_MANUAL_INPUT' };
 
           const text =
 `📝 <b>የራስዎን ጥያቄ እና አማራጮች ይጻፉ:</b>
@@ -2828,17 +2957,56 @@ D) 3 x 10^5 m/s
           return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
         });
 
+        bot.action('quiz_switch_lang_en', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const draft = adminQuizDrafts[userId];
+          if (!draft) return ctx.answerCbQuery('⚠️ ጥያቄ አልተገኘም!', { show_alert: true });
+          await ctx.answerCbQuery('ወደ 100% English እየተቀየረ ነው...').catch(() => {});
+
+          const topic = draft.title || 'Academic Quiz';
+          const newQuiz = await getOrGenerateQuiz(topic, 'english', env);
+          adminQuizDrafts[userId] = {
+            title: topic,
+            langMode: 'english',
+            ...newQuiz,
+            question: cleanQuestionText(newQuiz.question)
+          };
+          return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+        });
+
+        bot.action('quiz_switch_lang_am', async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
+          const draft = adminQuizDrafts[userId];
+          if (!draft) return ctx.answerCbQuery('⚠️ ጥያቄ አልተገኘም!', { show_alert: true });
+          await ctx.answerCbQuery('ወደ ሙሉ አማርኛ እየተቀየረ ነው...').catch(() => {});
+
+          const topic = draft.title || 'Academic Quiz';
+          const newQuiz = await getOrGenerateQuiz(topic, 'amharic', env);
+          adminQuizDrafts[userId] = {
+            title: topic,
+            langMode: 'amharic',
+            ...newQuiz,
+            question: cleanQuestionText(newQuiz.question)
+          };
+          return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
+        });
+
         bot.action('quiz_regen', async (ctx) => {
           const userId = ctx.from.id;
           if (!isAdmin(userId, env)) return ctx.answerCbQuery('⛔ Admin only!', { show_alert: true });
           const current = adminQuizDrafts[userId];
           const topic = current?.title || 'Academic Quiz';
+          const langMode = current?.langMode || 'auto';
 
           await ctx.answerCbQuery('አዲስ ጥያቄ እየተዘጋጀ ነው...').catch(() => {});
-          const quizData = await getOrGenerateQuiz(topic, env);
+          const quizData = await getOrGenerateQuiz(topic, langMode, env);
           adminQuizDrafts[userId] = {
             title: topic,
-            ...quizData
+            langMode,
+            ...quizData,
+            question: cleanQuestionText(quizData.question)
           };
           return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
         });
@@ -3746,14 +3914,26 @@ D) 3 x 10^5 m/s
           const adminQuizDraft = adminQuizDrafts[userId];
           if (adminQuizDraft && isAdmin(userId, env)) {
             if (adminQuizDraft.step === 'AWAITING_TOPIC') {
-              const topicText = (ctx.message.text || '').trim();
+              let topicText = (ctx.message.text || '').trim();
               if (!topicText) return ctx.reply('⚠️ እባክዎ ትክክለኛ የኩዊዝ ርዕስ ወይም ክፍል ይጻፉ:');
-              
-              await ctx.reply(`⏳ <b>ለ "${escapeHtml(topicText)}" የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
-              const quizData = await getOrGenerateQuiz(topicText, env);
+
+              let langMode = adminQuizDraft.preferredLang || 'auto';
+              if (/^(?:en|english)\s+/i.test(topicText)) {
+                langMode = 'english';
+                topicText = topicText.replace(/^(?:en|english)\s+/i, '').trim();
+              } else if (/^(?:am|amharic|አማርኛ)\s+/i.test(topicText)) {
+                langMode = 'amharic';
+                topicText = topicText.replace(/^(?:am|amharic|አማርኛ)\s+/i, '').trim();
+              }
+
+              const langLabel = langMode === 'english' ? ' (100% English)' : (langMode === 'amharic' ? ' (ሙሉ አማርኛ)' : '');
+              await ctx.reply(`⏳ <b>ለ "${escapeHtml(topicText)}"${langLabel} የኩዊዝ ጥያቄ እየተዘጋጀ ነው...</b>`, { parse_mode: 'HTML' });
+              const quizData = await getOrGenerateQuiz(topicText, langMode, env);
               adminQuizDrafts[userId] = {
                 title: topicText,
-                ...quizData
+                langMode,
+                ...quizData,
+                question: cleanQuestionText(quizData.question)
               };
               return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
             }
@@ -3779,7 +3959,8 @@ D) 3 x 10^5 m/s
 
               adminQuizDrafts[userId] = {
                 title: parsed.question.substring(0, 40),
-                ...parsed
+                ...parsed,
+                question: cleanQuestionText(parsed.question)
               };
               return showQuizDraftPreview(ctx, userId, adminQuizDrafts[userId], env);
             }

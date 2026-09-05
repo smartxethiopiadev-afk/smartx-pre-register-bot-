@@ -1080,7 +1080,8 @@ app.get('/', (req, res) => {
       msgDiv.className = 'flex justify-start';
       msgDiv.setAttribute('data-bot-msg', 'true');
 
-      const question = pollData.question || 'Quiz Question';
+      let question = pollData.question || 'Quiz Question';
+      question = question.replace(/^\[[^\]]+\]\s*/g, '').replace(/^\([^\)]+\)\s*/g, '').trim();
       const options = pollData.options || [];
       const correctId = pollData.correct_option_id !== undefined ? pollData.correct_option_id : 0;
       const explanation = pollData.explanation || '';
@@ -1099,28 +1100,46 @@ app.get('/', (req, res) => {
         optionsHtml += '</button>';
       });
 
+      let inlineButtonsHtml = '';
+      if (pollData.reply_markup && pollData.reply_markup.inline_keyboard && pollData.reply_markup.inline_keyboard.length > 0) {
+        inlineButtonsHtml = '<div class="pt-2 border-t border-slate-800/80 space-y-1.5">';
+        pollData.reply_markup.inline_keyboard.forEach(row => {
+          inlineButtonsHtml += '<div class="flex flex-wrap gap-1.5">';
+          row.forEach(btn => {
+            if (btn.url) {
+              inlineButtonsHtml += '<a href="' + escapeHtml(btn.url) + '" target="_blank" class="flex-1 px-3 py-2 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 text-xs rounded-xl transition border border-cyan-700/70 text-center font-medium flex items-center justify-center gap-1.5 shadow-sm"><span>' + escapeHtml(btn.text) + '</span><span class="text-[10px]">↗</span></a>';
+            } else {
+              inlineButtonsHtml += '<button onclick="handleCallback(\'' + escapeHtml(btn.callback_data) + '\', 0)" class="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs rounded-xl transition border border-slate-700 text-center font-medium shadow-sm">' + escapeHtml(btn.text) + '</button>';
+            }
+          });
+          inlineButtonsHtml += '</div>';
+        });
+        inlineButtonsHtml += '</div>';
+      }
+
       msgDiv.innerHTML = '<div class="bg-slate-900 border border-amber-600/50 text-slate-100 rounded-2xl rounded-tl-none p-4 max-w-[88%] text-xs shadow-xl space-y-3">' +
         '<div class="flex items-center justify-between border-b border-slate-800 pb-2">' +
-          '<span class="px-2.5 py-0.5 bg-amber-950 text-amber-300 border border-amber-700/60 rounded-full text-[10px] font-bold flex items-center gap-1.5">' +
-            '<span>📊</span> Telegram Quiz Poll' +
-          '</span>' +
-          '<span class="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">' + escapeHtml(target) + '</span>' +
+        '  <span class="px-2.5 py-0.5 bg-amber-950 text-amber-300 border border-amber-700/60 rounded-full text-[10px] font-bold flex items-center gap-1.5">' +
+        '    <span>📊</span> Telegram Quiz Poll' +
+        '  </span>' +
+        '  <span class="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">' + escapeHtml(target) + '</span>' +
         '</div>' +
         '<div class="font-bold text-slate-100 text-sm leading-snug">' +
-          escapeHtml(question) +
+        escapeHtml(question) +
         '</div>' +
         '<div class="space-y-1.5" id="' + pollUid + '_options">' +
-          optionsHtml +
+        optionsHtml +
         '</div>' +
         (explanation ? '<div id="' + pollUid + '_explanation" class="hidden p-2.5 bg-emerald-950/60 border border-emerald-700/70 rounded-xl text-[11px] text-emerald-200 space-y-1">' +
           '<div class="font-bold flex items-center gap-1">💡 ማብራሪያ (Explanation):</div>' +
           '<div>' + escapeHtml(explanation) + '</div>' +
         '</div>' : '') +
+        inlineButtonsHtml +
         '<div class="text-[9px] text-slate-500 flex justify-between pt-1 border-t border-slate-800/60">' +
-          '<span>🎯 Anonymous Quiz • Smart X ET</span>' +
-          '<span>' + formatTime() + '</span>' +
+        '  <span>🎯 Anonymous Quiz • Smart X ET</span>' +
+        '  <span>' + formatTime() + '</span>' +
         '</div>' +
-      '</div>';
+        '</div>';
 
       container.appendChild(msgDiv);
       container.scrollTop = container.scrollHeight;
