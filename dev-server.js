@@ -274,6 +274,16 @@ CRITICAL INSTRUCTIONS & BEHAVIOR:
           return { meta: { changes: 1 } };
         }
 
+        if (lowerSql.includes('update users set phone =')) {
+          const phone = boundParams[0];
+          const targetId = boundParams[1];
+          const user = self.tables.users.get(targetId);
+          if (user) {
+            user.phone = phone;
+          }
+          return { meta: { changes: 1 } };
+        }
+
         if (lowerSql.includes('update users set referral_count')) {
           const targetId = boundParams[0];
           const user = self.tables.users.get(targetId);

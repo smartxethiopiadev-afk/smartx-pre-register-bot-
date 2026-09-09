@@ -2157,8 +2157,9 @@ async function buildAdminDashboardData(env) {
 }
 
 // Initialize Database Schema & Drop Legacy AI Tables
+let isDbInitialized = false;
 async function initDb(db) {
-  if (!db) return;
+  if (!db || isDbInitialized) return;
   try {
     await db.exec(`
       DROP TABLE IF EXISTS ai_chats;
@@ -2169,7 +2170,7 @@ async function initDb(db) {
       CREATE TABLE IF NOT EXISTS users (
         telegram_id INTEGER PRIMARY KEY,
         full_name TEXT NOT NULL,
-        phone TEXT NOT NULL,
+        phone TEXT DEFAULT 'N/A',
         grade TEXT NOT NULL,
         stream TEXT DEFAULT 'General',
         language TEXT DEFAULT 'am',
@@ -2295,6 +2296,7 @@ async function initDb(db) {
       }
     }
 
+    isDbInitialized = true;
   } catch (err) {
     console.error('D1 Init Error:', err);
   }
@@ -2609,9 +2611,10 @@ export default {
           } else {
             userStates[chatId].step = 'AWAITING_PHONE';
           }
-          const phonePromptText = `📞 <b>ስልክ ቁጥርዎ ያስፈልጋል:</b>\n━━━━━━━━━━━━━━━━━━━━\nእባክዎ ለሽልማት እና ለአፕሊኬሽኑ መረጃ የሚሆን ስልክ ቁጥርዎን ከታች ያለውን አዝራር በመጫን ያጋሩ ወይም በጽሁፍ ይጻፉ (ምሳሌ: 0911223344):`;
+          const phonePromptText = `📞 <b>ስልክ ቁጥርዎ ያስፈልጋል:</b>\n━━━━━━━━━━━━━━━━━━━━\nእባክዎ ለሽልማት እና ለአፕሊኬሽኑ መረጃ የሚሆን ስልክ ቁጥርዎን ከታች ያለውን አዝራር በመጫን ያጋሩ ወይም በጽሁፍ ይጻፉ (ምሳሌ: 0911223344):\n\nካልፈለጉ "⏩ ዝለል / Skip" የሚለውን መጫን ይችላሉ።`;
           const phoneKeyboard = Markup.keyboard([
-            [Markup.button.contactRequest('📞 ስልክ ቁጥር አጋራ (Share Contact)')]
+            [Markup.button.contactRequest('📞 ስልክ ቁጥር አጋራ (Share Contact)')],
+            [Markup.button.text('⏩ ዝለል / Skip')]
           ]).resize();
           return transitionToNewStep(ctx, phonePromptText, phoneKeyboard);
         };
@@ -2724,18 +2727,18 @@ export default {
           if (env.DB) {
             try {
               await env.DB.prepare(`
-                INSERT INTO users (telegram_id, full_name, phone, grade, stream, language, referred_by, q_answers, app_notification, is_channel_member, is_active, registered_at)
-                VALUES (?, ?, ?, ?, 'General', ?, ?, ?, ?, 1, 1, CURRENT_TIMESTAMP)
+                INSERT INTO users (telegram_id, full_name, phone, grade, stream, language, referred_by, q_answers, app_notification, is_channel_member, is_active, registered_at, updated_at)
+                VALUES (?, ?, ?, ?, 'General', ?, ?, ?, ?, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ON CONFLICT(telegram_id) DO UPDATE SET
                   full_name = excluded.full_name,
-                  phone = excluded.phone,
+                  phone = CASE WHEN excluded.phone != 'N/A' THEN excluded.phone ELSE users.phone END,
                   grade = excluded.grade,
                   language = excluded.language,
                   q_answers = excluded.q_answers,
                   app_notification = excluded.app_notification,
                   is_channel_member = 1,
                   is_active = 1,
-                  registered_at = CURRENT_TIMESTAMP
+                  updated_at = CURRENT_TIMESTAMP
               `).bind(userId, fullName, phone, grade, lang, referredBy, qAnswersJson, wantsNotify).run();
 
               // Credit referrer
@@ -3158,6 +3161,50 @@ ${!isUserAdmin ? '💡 <i>ለዚህ ID የአድሚን ፍቃድ ለመስጠት
         };
 
         bot.command(['admin', 'dashboard', 'panel'], handleAdminDashboard);
+
+        // --- ADMIN DATABASE STATUS & DIAGNOSTICS COMMAND ---
+        bot.command(['db_status', 'dbcheck', 'checkdb', 'database'], async (ctx) => {
+          const userId = ctx.from.id;
+          if (!isAdmin(userId, env)) {
+            return ctx.reply('⛔ <b>Access Denied!</b> Admin authorization required.', { parse_mode: 'HTML' });
+          }
+
+          if (!env?.DB) {
+            return ctx.reply(
+              `❌ <b>Cloudflare D1 Database አልተገኘም (env.DB is undefined)!</b>\n\n` +
+              `ይህ የሆነው Cloudflare Dashboard ወይም <code>wrangler.toml</code> ላይ የዳታቤዝ Binding ስላልተደረገ ነው።\n\n` +
+              `🔧 <b>እንዴት ማስተካከል ይቻላል?</b>\n` +
+              `1. Cloudflare Dashboard ይክፈቱ ➔ Workers & Pages ➔ የእርስዎን ቦት ይምረጡ\n` +
+              `2. <b>Settings</b> ➔ <b>Bindings</b> (ወይም Variables and Secrets)\n` +
+              `3. <b>D1 Database Bindings</b> የሚለውን ይጫኑ\n` +
+              `4. Variable Name: <code>DB</code> (በትላልቅ ፊደላት) ብለው ይጻፉ\n` +
+              `5. የፈጠሩትን D1 ዳታቤዝ ይምረጡና Save ያድርጉ!`,
+              { parse_mode: 'HTML' }
+            );
+          }
+
+          try {
+            const uCount = await env.DB.prepare('SELECT COUNT(*) as cnt FROM users').first();
+            const tCount = await env.DB.prepare('SELECT COUNT(*) as cnt FROM promo_templates').first();
+            const pCount = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
+            const bCount = await env.DB.prepare('SELECT COUNT(*) as cnt FROM broadcasts').first();
+            return ctx.reply(
+              `✅ <b>Cloudflare D1 Database በትክክል ተገናኝቷል!</b>\n━━━━━━━━━━━━━━━━━━━━\n` +
+              `• 👥 <b>users ሰንጠረዥ:</b> <code>${uCount?.cnt || 0}</code> ተማሪዎች\n` +
+              `• 📝 <b>promo_templates ሰንጠረዥ:</b> <code>${tCount?.cnt || 0}</code> ቴምፕሌቶች\n` +
+              `• 🎯 <b>channel_polls ሰንጠረዥ:</b> <code>${pCount?.cnt || 0}</code> ፖሎች\n` +
+              `• 📢 <b>broadcasts ሰንጠረዥ:</b> <code>${bCount?.cnt || 0}</code> ብሮድካስቶች\n\n` +
+              `ሁሉም የተማሪዎች ምዝገባ እና ዳታዎች በቀጥታ በዳታቤዝ ውስጥ ይቀመጣሉ!`,
+              { parse_mode: 'HTML' }
+            );
+          } catch (err) {
+            return ctx.reply(
+              `⚠️ <b>የዳታቤዝ ስህተት (Query Error):</b>\n<code>${escapeHtml(err.message)}</code>\n\n` +
+              `ዳታቤዙን ለመፍጠር በ Cloudflare Console ውስጥ የ <code>schema.sql</code> ኮዶችን ያሂዱ።`,
+              { parse_mode: 'HTML' }
+            );
+          }
+        });
 
         // --- ADMIN POLL & QUIZ COMMANDS & ACTIONS ---
         const handleQuizCommand = async (ctx) => {
@@ -4508,13 +4555,15 @@ D) 3 x 10^5 m/s
 
           if (userState && userState.step === 'AWAITING_PHONE') {
             const phoneText = (ctx.message.text || '').trim();
-            if (phoneText.length < 4 || phoneText.startsWith('/')) {
-              return ctx.reply('⚠️ እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ (ምሳሌ: 0911223344):');
+            const isSkip = /^(⏩\s*)?(ዝለል|skip|ይለፉ)$/i.test(phoneText);
+            if (!isSkip && (phoneText.length < 4 || phoneText.startsWith('/'))) {
+              return ctx.reply('⚠️ እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ (ምሳሌ: 0911223344) ወይም "⏩ ዝለል / Skip" ይጫኑ:');
             }
-            userState.data.phone = phoneText;
-            if (env.DB) {
+            const cleanPhone = isSkip ? 'N/A' : phoneText;
+            userState.data.phone = cleanPhone;
+            if (env.DB && cleanPhone !== 'N/A') {
               try {
-                await env.DB.prepare('UPDATE users SET phone = ? WHERE telegram_id = ?').bind(phoneText, userId).run();
+                await env.DB.prepare('UPDATE users SET phone = ?, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = ?').bind(cleanPhone, userId).run();
               } catch (e) {}
             }
             userState.step = 'AWAITING_NOTIFICATION_OPTIN';
