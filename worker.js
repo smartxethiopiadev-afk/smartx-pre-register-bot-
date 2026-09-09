@@ -2574,6 +2574,20 @@ export default {
           });
         }
 
+        const promptForPhone = async (ctx, langObj) => {
+          const chatId = ctx.chat.id;
+          if (!userStates[chatId]) {
+            userStates[chatId] = { step: 'AWAITING_PHONE', data: { grade: '10ኛ ክፍል' } };
+          } else {
+            userStates[chatId].step = 'AWAITING_PHONE';
+          }
+          const phonePromptText = `📞 <b>ስልክ ቁጥርዎ ያስፈልጋል:</b>\n━━━━━━━━━━━━━━━━━━━━\nእባክዎ ለሽልማት እና ለአፕሊኬሽኑ መረጃ የሚሆን ስልክ ቁጥርዎን ከታች ያለውን አዝራር በመጫን ያጋሩ ወይም በጽሁፍ ይጻፉ (ምሳሌ: 0911223344):`;
+          const phoneKeyboard = Markup.keyboard([
+            [Markup.button.contactRequest('📞 ስልክ ቁጥር አጋራ (Share Contact)')]
+          ]).resize();
+          return transitionToNewStep(ctx, phonePromptText, phoneKeyboard);
+        };
+
         // --- Step 4 Action: "How to get the mobile app" Clicked -> Prompt Registration & Channel ---
         bot.action('flow_how_to_get_app', async (ctx) => {
           await ctx.answerCbQuery().catch(() => {});
@@ -2586,13 +2600,7 @@ export default {
 
           const isMember = await checkChannelMember(ctx, userId, env);
           if (isMember) {
-            userStates[chatId].step = 'AWAITING_NOTIFICATION_OPTIN';
-            const notifyKeyboard = Markup.inlineKeyboard([
-              [Markup.button.callback(langObj.notify_yes, 'notify_optin_yes')],
-              [Markup.button.callback(langObj.notify_no, 'notify_optin_no')]
-            ]);
-
-            return transitionToNewStep(ctx, `${langObj.register_first_prompt}\n\n${langObj.notify_prompt}`, notifyKeyboard);
+            return promptForPhone(ctx, langObj);
           }
 
           userStates[chatId].step = 'AWAITING_CHANNEL_VERIFY';
@@ -2629,16 +2637,9 @@ export default {
           await ctx.answerCbQuery(langObj.channel_joined_alert).catch(() => {});
 
           if (!userStates[chatId]) {
-            userStates[chatId] = { step: 'AWAITING_NOTIFICATION_OPTIN', data: { grade: '10ኛ ክፍል' } };
+            userStates[chatId] = { step: 'AWAITING_PHONE', data: { grade: '10ኛ ክፍል' } };
           }
-          userStates[chatId].step = 'AWAITING_NOTIFICATION_OPTIN';
-
-          const notifyKeyboard = Markup.inlineKeyboard([
-            [Markup.button.callback(langObj.notify_yes, 'notify_optin_yes')],
-            [Markup.button.callback(langObj.notify_no, 'notify_optin_no')]
-          ]);
-
-          return transitionToNewStep(ctx, langObj.notify_prompt, notifyKeyboard);
+          return promptForPhone(ctx, langObj);
         });
 
         // Optional phone handler if user sends contact
@@ -2660,7 +2661,20 @@ export default {
 
         bot.on('contact', async (ctx) => {
           const phone = ctx.message.contact?.phone_number || '';
-          return handlePhoneSubmission(ctx, phone);
+          await handlePhoneSubmission(ctx, phone);
+          const chatId = ctx.chat.id;
+          const userId = ctx.from.id;
+          const lang = userStates[chatId]?.lang || 'am';
+          const langObj = i18n[lang] || i18n.am;
+
+          if (userStates[chatId]?.step === 'AWAITING_PHONE') {
+            userStates[chatId].step = 'AWAITING_NOTIFICATION_OPTIN';
+            const notifyKeyboard = Markup.inlineKeyboard([
+              [Markup.button.callback(langObj.notify_yes, 'notify_optin_yes')],
+              [Markup.button.callback(langObj.notify_no, 'notify_optin_no')]
+            ]);
+            return transitionToNewStep(ctx, langObj.notify_prompt, notifyKeyboard);
+          }
         });
 
         // --- Step 7 Action: Notification Opt-in Response -> Save to D1 & Finish ---
@@ -4459,8 +4473,31 @@ D) 3 x 10^5 m/s
         // Combined Admin Message Listener (Broadcasts & Template Addition)
         bot.on(['message'], async (ctx, next) => {
           const userId = ctx.from.id;
+          const chatId = ctx.chat.id;
           const draft = broadcastDrafts[userId];
           const adminDraft = adminActionDrafts[userId];
+          const userState = userStates[chatId];
+
+          if (userState && userState.step === 'AWAITING_PHONE') {
+            const phoneText = (ctx.message.text || '').trim();
+            if (phoneText.length < 4 || phoneText.startsWith('/')) {
+              return ctx.reply('⚠️ እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ (ምሳሌ: 0911223344):');
+            }
+            userState.data.phone = phoneText;
+            if (env.DB) {
+              try {
+                await env.DB.prepare('UPDATE users SET phone = ? WHERE telegram_id = ?').bind(phoneText, userId).run();
+              } catch (e) {}
+            }
+            userState.step = 'AWAITING_NOTIFICATION_OPTIN';
+            const lang = userState.lang || 'am';
+            const langObj = i18n[lang] || i18n.am;
+            const notifyKeyboard = Markup.inlineKeyboard([
+              [Markup.button.callback(langObj.notify_yes, 'notify_optin_yes')],
+              [Markup.button.callback(langObj.notify_no, 'notify_optin_no')]
+            ]);
+            return transitionToNewStep(ctx, langObj.notify_prompt, notifyKeyboard);
+          }
 
           // Flow 1: Admin Adding New Promo Template
           if (adminDraft && adminDraft.action === 'ADD_TEMPLATE' && isAdmin(userId, env)) {
