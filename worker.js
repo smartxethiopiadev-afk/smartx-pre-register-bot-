@@ -2038,7 +2038,7 @@ async function buildAdminDashboardData(env) {
   let blockedCount = 0;
   let notifyOptinCount = 0;
   let templateCount = 0;
-  let gradeBreakdown = {};
+  let gradeBreakdown = { '9': 0, '10': 0, '11': 0, '12': 0 };
   let totalReferrals = 0;
   let pollCount = inMemoryDispatchedPolls.length;
 
@@ -2052,26 +2052,44 @@ async function buildAdminDashboardData(env) {
                SUM(referral_count) as refs 
         FROM users
       `).first();
-      userCount = uRes?.total || 0;
-      activeUserCount = uRes?.active || 0;
-      blockedCount = uRes?.inactive || 0;
-      notifyOptinCount = uRes?.notify_yes || 0;
-      totalReferrals = uRes?.refs || 0;
-
-      const tRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM promo_templates WHERE is_active = 1').first();
-      templateCount = tRes?.cnt || 0;
-
-      try {
-        const pRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
-        if (pRes?.cnt) pollCount = Math.max(pollCount, pRes.cnt);
-      } catch (e) {}
-
-      const gRes = await env.DB.prepare(`SELECT grade, COUNT(*) as cnt FROM users GROUP BY grade`).all();
-      if (gRes?.results) {
-        gRes.results.forEach(r => { gradeBreakdown[r.grade] = r.cnt; });
+      if (uRes) {
+        userCount = Number(uRes.total) || 0;
+        activeUserCount = Number(uRes.active) || 0;
+        blockedCount = Number(uRes.inactive) || 0;
+        notifyOptinCount = Number(uRes.notify_yes) || 0;
+        totalReferrals = Number(uRes.refs) || 0;
       }
     } catch (e) {
-      console.error('Admin stats error:', e);
+      console.error('Admin stats users error:', e);
+    }
+
+    try {
+      const tRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM promo_templates WHERE is_active = 1').first();
+      templateCount = Number(tRes?.cnt) || 0;
+    } catch (e) {}
+
+    try {
+      const pRes = await env.DB.prepare('SELECT COUNT(*) as cnt FROM channel_polls').first();
+      if (pRes?.cnt) pollCount = Math.max(pollCount, Number(pRes.cnt));
+    } catch (e) {}
+
+    try {
+      const gRes = await env.DB.prepare(`SELECT grade, COUNT(*) as cnt FROM users GROUP BY grade`).all();
+      if (gRes?.results) {
+        gRes.results.forEach(r => {
+          const gStr = (r.grade || '').toString();
+          const cnt = Number(r.cnt) || 0;
+          if (gStr.includes('9') || gStr === '9') gradeBreakdown['9'] = (gradeBreakdown['9'] || 0) + cnt;
+          else if (gStr.includes('10') || gStr === '10') gradeBreakdown['10'] = (gradeBreakdown['10'] || 0) + cnt;
+          else if (gStr.includes('11') || gStr === '11') gradeBreakdown['11'] = (gradeBreakdown['11'] || 0) + cnt;
+          else if (gStr.includes('12') || gStr === '12') gradeBreakdown['12'] = (gradeBreakdown['12'] || 0) + cnt;
+          else {
+            gradeBreakdown[gStr] = (gradeBreakdown[gStr] || 0) + cnt;
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Admin stats grade error:', e);
     }
   } else {
     const userVals = Object.values(registeredUsers);
@@ -2084,10 +2102,20 @@ async function buildAdminDashboardData(env) {
     pollCount = inMemoryDispatchedPolls.length;
     userVals.forEach(u => {
       if (u.grade) {
-        gradeBreakdown[u.grade] = (gradeBreakdown[u.grade] || 0) + 1;
+        const gStr = u.grade.toString();
+        if (gStr.includes('9')) gradeBreakdown['9']++;
+        else if (gStr.includes('10')) gradeBreakdown['10']++;
+        else if (gStr.includes('11')) gradeBreakdown['11']++;
+        else if (gStr.includes('12')) gradeBreakdown['12']++;
+        else gradeBreakdown[gStr] = (gradeBreakdown[gStr] || 0) + 1;
       }
     });
   }
+
+  const g9Count = gradeBreakdown['9'] || gradeBreakdown['9ኛ ክፍል'] || gradeBreakdown['Grade 9'] || gradeBreakdown['Kutaa 9'] || gradeBreakdown['📗 9ኛ ክፍል'] || 0;
+  const g10Count = gradeBreakdown['10'] || gradeBreakdown['10ኛ ክፍል'] || gradeBreakdown['Grade 10'] || gradeBreakdown['Kutaa 10'] || gradeBreakdown['📘 10ኛ ክፍል'] || 0;
+  const g11Count = gradeBreakdown['11'] || gradeBreakdown['11ኛ ክፍል'] || gradeBreakdown['Grade 11'] || gradeBreakdown['Kutaa 11'] || gradeBreakdown['📙 11ኛ ክፍል'] || 0;
+  const g12Count = gradeBreakdown['12'] || gradeBreakdown['12ኛ ክፍል'] || gradeBreakdown['Grade 12'] || gradeBreakdown['Kutaa 12'] || gradeBreakdown['🎓 12ኛ ክፍል'] || 0;
 
   const text =
 `👑 <b>Smart X Ethiopian — Admin Dashboard</b> 🇪🇹
@@ -2102,10 +2130,10 @@ async function buildAdminDashboardData(env) {
 • 🔗 <b>ጠቅላላ የጥቆማ ግብዣዎች:</b> <code>${totalReferrals}</code>
 
 🎓 <b>የክፍል ክፍፍል:</b>
-• 9ኛ ክፍል: <code>${gradeBreakdown['9ኛ ክፍል'] || gradeBreakdown['Grade 9'] || gradeBreakdown['Kutaa 9'] || gradeBreakdown['📗 9ኛ ክፍል'] || 0}</code>
-• 10ኛ ክፍል: <code>${gradeBreakdown['10ኛ ክፍል'] || gradeBreakdown['Grade 10'] || gradeBreakdown['Kutaa 10'] || gradeBreakdown['📘 10ኛ ክፍል'] || 0}</code>
-• 11ኛ ክፍል: <code>${gradeBreakdown['11ኛ ክፍል'] || gradeBreakdown['Grade 11'] || gradeBreakdown['Kutaa 11'] || gradeBreakdown['📙 11ኛ ክፍል'] || 0}</code>
-• 12ኛ ክፍል: <code>${gradeBreakdown['12ኛ ክፍል'] || gradeBreakdown['Grade 12'] || gradeBreakdown['Kutaa 12'] || gradeBreakdown['🎓 12ኛ ክፍል'] || 0}</code>
+• 9ኛ ክፍል: <code>${g9Count}</code>
+• 10ኛ ክፍል: <code>${g10Count}</code>
+• 11ኛ ክፍል: <code>${g11Count}</code>
+• 12ኛ ክፍል: <code>${g12Count}</code>
 ━━━━━━━━━━━━━━━━━━━━`;
 
   const keyboard = Markup.inlineKeyboard([
