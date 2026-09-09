@@ -6,11 +6,13 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["* * * * *"]
 
-# Optional: Cloudflare D1 database (Uncomment if you create a D1 database with: wrangler d1 create smartx_db)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "smartx_db"
-# database_id = "your_d1_database_id_here"
+# Cloudflare D1 Database Binding
+# 1. Create database: wrangler d1 create smartx_db
+# 2. Put your database_id below and deploy!
+[[d1_databases]]
+binding = "DB"
+database_name = "smartx_db"
+database_id = "your_d1_database_id_here"
 
 # Note: Set your secrets in Cloudflare Dashboard (Settings -> Variables and Secrets)
 # OR via Wrangler CLI:

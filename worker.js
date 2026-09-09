@@ -2429,17 +2429,6 @@ export function createAntiLinkMiddleware(env, executionCtx, options = {}) {
 }
 
 export default {
-  async scheduled(event, env, ctx) {
-    const apiKey = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
-    if (!apiKey || !env.DB) return;
-
-    const bot = new Telegraf(apiKey);
-    bot.catch((err) => {
-      console.warn('[Telegraf Scheduled Global Catch]:', err?.message || err);
-    });
-    ctx.waitUntil(processBroadcastQueueBatch(bot, env, 25));
-  },
-
   async fetch(request, env, executionCtx) {
     const apiKey = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
     if (!apiKey) {
@@ -5233,13 +5222,16 @@ ${isCompleted
   // Cloudflare Workers Scheduled Cron Trigger (Auto-processes queued broadcasts)
   async scheduled(event, env, ctx) {
     const token = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
-    if (!token) return;
+    if (!token || !env?.DB) return;
     try {
       const bot = new Telegraf(token);
+      bot.catch((err) => {
+        console.warn('[Telegraf Scheduled Global Catch]:', err?.message || err);
+      });
       if (ctx?.waitUntil) {
-        ctx.waitUntil(processBroadcastQueueBatch(bot, env, 20));
+        ctx.waitUntil(processBroadcastQueueBatch(bot, env, 25));
       } else {
-        await processBroadcastQueueBatch(bot, env, 20);
+        await processBroadcastQueueBatch(bot, env, 25);
       }
     } catch (err) {
       console.error('Scheduled Cron Queue Worker Error:', err.message);
