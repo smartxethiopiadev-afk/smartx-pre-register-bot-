@@ -2302,6 +2302,132 @@ async function initDb(db) {
   }
 }
 
+// --- Anti-Link & Anti-Spam Moderation Middleware for Groups & Supergroups ---
+export function createAntiLinkMiddleware(env, executionCtx, options = {}) {
+  const {
+    warningDurationMs = 5000,
+    allowBotAdmins = true
+  } = options;
+
+  return async (ctx, next) => {
+    try {
+      // 1. Only moderate groups and supergroups
+      const chatType = ctx.chat?.type;
+      if (chatType !== 'group' && chatType !== 'supergroup') {
+        return next();
+      }
+
+      const message = ctx.message;
+      if (!message || !ctx.from) {
+        return next();
+      }
+
+      // 2. Ignore if sender is the bot itself
+      if (ctx.from.id === ctx.botInfo?.id || (ctx.from.is_bot && ctx.from.id === ctx.botInfo?.id)) {
+        return next();
+      }
+
+      // Check if anti-link moderation is explicitly disabled in config
+      if (env?.DB) {
+        try {
+          const configVal = await getDynamicConfig(env, 'anti_link_moderation', 'enabled');
+          if (configVal === 'disabled') return next();
+        } catch (e) {}
+      }
+
+      // 3. Extract text and entities (checks both regular text and media captions)
+      const text = message.text || message.caption || '';
+      const entities = [...(message.entities || []), ...(message.caption_entities || [])];
+
+      // Check Telegram entities for links, hyperlinks, and @mentions
+      const hasEntityLink = entities.some((e) =>
+        e.type === 'url' ||
+        e.type === 'text_link' ||
+        e.type === 'mention'
+      );
+
+      // Fallback regex to catch raw links, t.me invites, and @username mentions
+      const linkRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(t\.me\/[^\s]+)|(telegram\.me\/[^\s]+)|(telegram\.dog\/[^\s]+)|(@[a-zA-Z0-9_]{3,32})|([a-zA-Z0-9-]+\.(com|org|net|io|me|info|biz|co|app|tech|xyz|link|top|ru|edu|gov|online|site|store|live)[^\s]*)/i;
+      const hasRegexLink = linkRegex.test(text);
+
+      if (!hasEntityLink && !hasRegexLink) {
+        return next();
+      }
+
+      // 4. Exemption: Check if the sender is an Admin or Creator of the chat
+      try {
+        const member = await ctx.getChatMember(ctx.from.id);
+        if (member && ['creator', 'administrator'].includes(member.status)) {
+          return next(); // Group creator and admins are allowed to post links
+        }
+      } catch (adminErr) {
+        console.warn('[Anti-Link] getChatMember warning:', adminErr?.message || adminErr);
+      }
+
+      // Exemption: Configured bot admins
+      if (allowBotAdmins && typeof isAdmin === 'function' && isAdmin(ctx.from.id, env)) {
+        return next();
+      }
+
+      // 5. Action: Delete offending message
+      try {
+        await ctx.deleteMessage();
+      } catch (delErr) {
+        console.warn('[Anti-Link] Could not delete message (ensure bot is Admin with "Delete Messages" permission):', delErr?.message || delErr);
+      }
+
+      // 6. Send temporary warning message tagging the user
+      const user = ctx.from;
+      const userMention = user.username
+        ? `@${user.username}`
+        : `<a href="tg://user?id=${user.id}">${escapeHtml(user.first_name || 'ተጠቃሚ')}</a>`;
+
+      const warningText = `⚠️ <b>${userMention}</b>, በዚህ ግሩፕ ውስጥ ሊንክ ወይም ዩዘርኔም ማጋራት የተከለከለ ነው!\n<i>Links and invite URLs are not allowed in this group.</i>`;
+
+      let warningMsg = null;
+      try {
+        warningMsg = await ctx.reply(warningText, {
+          parse_mode: 'HTML',
+          disable_notification: true
+        });
+      } catch (replyErr) {
+        console.warn('[Anti-Link] Could not send warning message:', replyErr?.message || replyErr);
+      }
+
+      // 7. Auto-delete warning message after 5 seconds to keep the chat clean
+      if (warningMsg && warningMsg.message_id) {
+        const deleteWarning = async () => {
+          try {
+            await ctx.telegram.deleteMessage(ctx.chat.id, warningMsg.message_id);
+          } catch (e) {
+            // Silently ignore if already deleted or permissions missing
+          }
+        };
+
+        if (executionCtx && typeof executionCtx.waitUntil === 'function') {
+          executionCtx.waitUntil(
+            new Promise((resolve) => {
+              setTimeout(async () => {
+                await deleteWarning();
+                resolve();
+              }, warningDurationMs);
+            })
+          );
+        } else {
+          setTimeout(deleteWarning, warningDurationMs);
+        }
+      }
+
+      // Intercepted and deleted: do not propagate to next middleware/handlers
+      return;
+    } catch (err) {
+      console.error('[Anti-Link Middleware Unexpected Error]:', err?.message || err);
+      // Gracefully continue so the bot never crashes
+      return next();
+    }
+  };
+}
+
 export default {
   async scheduled(event, env, ctx) {
     const apiKey = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
@@ -2314,7 +2440,7 @@ export default {
     ctx.waitUntil(processBroadcastQueueBatch(bot, env, 25));
   },
 
-  async fetch(request, env) {
+  async fetch(request, env, executionCtx) {
     const apiKey = env?.TELEGRAM_BOT_TOKEN || process.env?.TELEGRAM_BOT_TOKEN;
     if (!apiKey) {
       return new Response('Error: TELEGRAM_BOT_TOKEN (or BOT_TOKEN) is not set in environment or secrets.', { status: 500 });
@@ -2383,6 +2509,9 @@ export default {
 
     if (url.pathname === '/webhook' && request.method === 'POST') {
       try {
+        // --- 0. Global Anti-Link & Anti-Spam Moderation for Groups/Supergroups ---
+        bot.use(createAntiLinkMiddleware(env, executionCtx));
+
         // --- 1. /start & /register Handler ---
         const handleStartOrRegister = async (ctx) => {
           const userId = ctx.from.id;

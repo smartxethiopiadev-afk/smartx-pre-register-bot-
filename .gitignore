@@ -1,15 +1,27 @@
-# GitHub export files
+# 1. ሁሉንም ፋይሎች በነባሪ Ignore አድርግ (Ignore everything by default)
 *
+
+# 2. የ Cloudflare Workers ፋይሎች ብቻ ወደ GitHub እንዲገቡ ፍቀድ (Whitelisted Cloudflare files only)
 !worker.js
-!polling.js
-!dev-server.js
-!package.json
 !wrangler.toml
-!.gitignore
+!package.json
+!schema.sql
 !.env.example
 !README.md
-!schema.sql
+!.gitignore
+
+# 3. የ Cloudflare ፋይል ያልሆኑት እዚው እንዲቀሩ በግልጽ Ignore የተደረጉ (Local dev & non-Cloudflare files)
+dev-server.js
+polling.js
+metadata.json
+bun.lock
+package-lock.json
+
+# 4. ሚስጥሮች፣ ኖድ ሞጁሎች እና ጊዜያዊ ፋይሎች (Secrets, node_modules, wrangler cache)
 .env
 .env.*
 node_modules/
 .wrangler/
+.dev.vars
+dist/
+.cache/
